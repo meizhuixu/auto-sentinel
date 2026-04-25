@@ -34,10 +34,10 @@ and testable.
 
 **Purpose**: Project initialization and package skeleton
 
-- [ ] T001 Create `pyproject.toml` with metadata and dependencies (`langgraph`, `anthropic`, `pytest`, `pytest-cov`)
-- [ ] T002 Create `autosentinel/` package skeleton: `__init__.py`, `models.py`, `graph.py`, `nodes/__init__.py`, `nodes/parse_log.py`, `nodes/analyze_error.py`, `nodes/format_report.py` (empty files with module docstrings only)
-- [ ] T003 [P] Create `tests/` skeleton: `__init__.py`, `conftest.py`, `unit/__init__.py`, `unit/test_parse_log.py`, `unit/test_analyze_error.py`, `unit/test_format_report.py`, `integration/__init__.py`, `integration/test_pipeline.py` (empty files)
-- [ ] T004 [P] Create `data/` directory and add `.gitignore` entry for `output/`
+- [x] T001 Create `pyproject.toml` with metadata and dependencies (`langgraph`, `anthropic`, `pytest`, `pytest-cov`)
+- [x] T002 Create `autosentinel/` package skeleton: `__init__.py`, `models.py`, `graph.py`, `nodes/__init__.py`, `nodes/parse_log.py`, `nodes/analyze_error.py`, `nodes/format_report.py` (empty files with module docstrings only)
+- [x] T003 [P] Create `tests/` skeleton: `__init__.py`, `conftest.py`, `unit/__init__.py`, `unit/test_parse_log.py`, `unit/test_analyze_error.py`, `unit/test_format_report.py`, `integration/__init__.py`, `integration/test_pipeline.py` (empty files)
+- [x] T004 [P] Create `data/` directory and add `.gitignore` entry for `output/`
 
 ---
 
@@ -47,11 +47,11 @@ and testable.
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Define `ErrorLog`, `AnalysisResult`, and `DiagnosticState` TypedDicts in `autosentinel/models.py` per `contracts/python-interface.md` type aliases section
-- [ ] T006 [P] Write `tests/conftest.py` with shared pytest fixtures: `connectivity_state`, `resource_state`, `config_state` (pre-populated `DiagnosticState` dicts), and `mock_tool_use_response()` factory that returns a mock `anthropic.types.Message` with a `tool_use` block
-- [ ] T007 [P] Create sample fixture `data/crash-connectivity.json` — `ConnectionTimeout` on `db.internal:5432` (see data-model.md sample)
-- [ ] T008 [P] Create sample fixture `data/crash-resource.json` — `OOMKilled`, memory limit exceeded message
-- [ ] T009 [P] Create sample fixture `data/crash-config.json` — missing required environment variable / bad secret message
+- [x] T005 Define `ErrorLog`, `AnalysisResult`, and `DiagnosticState` TypedDicts in `autosentinel/models.py` per `contracts/python-interface.md` type aliases section
+- [x] T006 [P] Write `tests/conftest.py` with shared pytest fixtures: `connectivity_state`, `resource_state`, `config_state` (pre-populated `DiagnosticState` dicts), and `mock_tool_use_response()` factory that returns a mock `anthropic.types.Message` with a `tool_use` block
+- [x] T007 [P] Create sample fixture `data/crash-connectivity.json` — `ConnectionTimeout` on `db.internal:5432` (see data-model.md sample)
+- [x] T008 [P] Create sample fixture `data/crash-resource.json` — `OOMKilled`, memory limit exceeded message
+- [x] T009 [P] Create sample fixture `data/crash-config.json` — missing required environment variable / bad secret message
 
 **Checkpoint**: Models defined, fixtures in place — user story implementation can begin
 
@@ -67,18 +67,18 @@ and testable.
 
 > **GATE: Commit T010–T013 and run `pytest` — ALL four tests MUST fail before proceeding to T014**
 
-- [ ] T010 [P] [US1] Write failing test `test_parse_log_happy_path` in `tests/unit/test_parse_log.py`: given `connectivity_state` fixture, assert `result["error_log"]["service_name"] == "payment-service"` and `result["parse_error"] is None`
-- [ ] T011 [P] [US1] Write failing test `test_analyze_error_happy_path` in `tests/unit/test_analyze_error.py`: patch `anthropic.Anthropic` with `mock_tool_use_response()` fixture returning `error_category="connectivity"`, assert `result["analysis_result"]["error_category"] == "connectivity"` and `result["analysis_error"] is None`
-- [ ] T012 [P] [US1] Write failing test `test_format_report_happy_path` in `tests/unit/test_format_report.py`: given state with populated `analysis_result`, assert `result["report_path"]` ends with `-report.md` and `result["report_text"]` contains `"## Root Cause Analysis"`
-- [ ] T013 [US1] Write failing integration test `test_full_pipeline_happy_path` in `tests/integration/test_pipeline.py`: invoke compiled graph with `connectivity_state`, assert all three node output fields populated and `graph.stream()` output visits nodes in order `["parse_log", "analyze_error", "format_report"]`
+- [x] T010 [P] [US1] Write failing test `test_parse_log_happy_path` in `tests/unit/test_parse_log.py`: given `connectivity_state` fixture, assert `result["error_log"]["service_name"] == "payment-service"` and `result["parse_error"] is None`
+- [x] T011 [P] [US1] Write failing test `test_analyze_error_happy_path` in `tests/unit/test_analyze_error.py`: patch `anthropic.Anthropic` with `mock_tool_use_response()` fixture returning `error_category="connectivity"`, assert `result["analysis_result"]["error_category"] == "connectivity"` and `result["analysis_error"] is None`
+- [x] T012 [P] [US1] Write failing test `test_format_report_happy_path` in `tests/unit/test_format_report.py`: given state with populated `analysis_result`, assert `result["report_path"]` ends with `-report.md` and `result["report_text"]` contains `"## Root Cause Analysis"`
+- [x] T013 [US1] Write failing integration test `test_full_pipeline_happy_path` in `tests/integration/test_pipeline.py`: invoke compiled graph with `connectivity_state`, assert all three node output fields populated and `graph.stream()` output visits nodes in order `["parse_log", "analyze_error", "format_report"]`
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Implement `parse_log` happy path in `autosentinel/nodes/parse_log.py`: open `state["log_path"]`, parse JSON, extract required fields (`timestamp`, `service_name`, `error_type`, `message`) and optional `stack_trace`, return `{"error_log": ErrorLog, "parse_error": None}`
-- [ ] T015 [P] [US1] Implement `analyze_error` in `autosentinel/nodes/analyze_error.py`: define `DIAGNOSE_PROMPT` constant and `DIAGNOSE_TOOL` schema (per `contracts/python-interface.md`), call `anthropic.Anthropic().messages.create()` with `claude-haiku-4-5-20251001`, extract `tool_use` block, return `{"analysis_result": AnalysisResult, "analysis_error": None}`
-- [ ] T016 [P] [US1] Implement `format_report` in `autosentinel/nodes/format_report.py`: build markdown from `state["analysis_result"]` and `state["error_log"]` per DiagnosticReport structure in `data-model.md`, create `output/` with `Path.mkdir(exist_ok=True)`, write file, return `{"report_text": str, "report_path": str}`
-- [ ] T017 [US1] Implement `build_graph()` in `autosentinel/graph.py`: wire `StateGraph(DiagnosticState)` with `parse_log → analyze_error → format_report`, add conditional edges routing to `END` when `parse_error` or `analysis_error` is set (depends on T014, T015, T016)
-- [ ] T018 [US1] Implement `run_pipeline()` in `autosentinel/__init__.py` and CLI entry `autosentinel/__main__.py`: call `build_graph().invoke(initial_state)`, raise `DiagnosticError` if any error field set, return `Path(report_path)` on success; CLI: `argparse` for `log_path`, exit code 0/1/2 per `contracts/python-interface.md` (depends on T017)
+- [x] T014 [P] [US1] Implement `parse_log` happy path in `autosentinel/nodes/parse_log.py`: open `state["log_path"]`, parse JSON, extract required fields (`timestamp`, `service_name`, `error_type`, `message`) and optional `stack_trace`, return `{"error_log": ErrorLog, "parse_error": None}`
+- [x] T015 [P] [US1] Implement `analyze_error` in `autosentinel/nodes/analyze_error.py`: define `DIAGNOSE_PROMPT` constant and `DIAGNOSE_TOOL` schema (per `contracts/python-interface.md`), call `anthropic.Anthropic().messages.create()` with `claude-haiku-4-5-20251001`, extract `tool_use` block, return `{"analysis_result": AnalysisResult, "analysis_error": None}`
+- [x] T016 [P] [US1] Implement `format_report` in `autosentinel/nodes/format_report.py`: build markdown from `state["analysis_result"]` and `state["error_log"]` per DiagnosticReport structure in `data-model.md`, create `output/` with `Path.mkdir(exist_ok=True)`, write file, return `{"report_text": str, "report_path": str}`
+- [x] T017 [US1] Implement `build_graph()` in `autosentinel/graph.py`: wire `StateGraph(DiagnosticState)` with `parse_log → analyze_error → format_report`, add conditional edges routing to `END` when `parse_error` or `analysis_error` is set (depends on T014, T015, T016)
+- [x] T018 [US1] Implement `run_pipeline()` in `autosentinel/__init__.py` and CLI entry `autosentinel/__main__.py`: call `build_graph().invoke(initial_state)`, raise `DiagnosticError` if any error field set, return `Path(report_path)` on success; CLI: `argparse` for `log_path`, exit code 0/1/2 per `contracts/python-interface.md` (depends on T017)
 
 **Checkpoint**: Run `python -m autosentinel data/crash-connectivity.json` — should produce `output/crash-connectivity-report.md` with classified root cause and remediation steps. User Story 1 fully functional and independently testable.
 
@@ -94,16 +94,16 @@ and testable.
 
 > **GATE: Commit T019–T022 and run `pytest` on new tests only — ALL MUST fail before proceeding to T023**
 
-- [ ] T019 [P] [US2] Add failing test `test_parse_log_invalid_json` to `tests/unit/test_parse_log.py`: call `parse_log` with a state whose `log_path` points to a fixture containing `"not valid json {"`, assert `result["parse_error"]` is non-empty string containing the filename and `result["error_log"] is None`
-- [ ] T020 [P] [US2] Add failing test `test_parse_log_missing_required_fields` to `tests/unit/test_parse_log.py`: call `parse_log` with valid JSON missing `service_name`, assert `result["parse_error"]` mentions `"service_name"` and `result["error_log"] is None`
-- [ ] T021 [P] [US2] Add failing test `test_analyze_error_api_failure` to `tests/unit/test_analyze_error.py`: patch `anthropic.Anthropic` to raise `anthropic.APIConnectionError`, assert `result["analysis_error"]` is non-empty and `result["analysis_result"] is None`
-- [ ] T022 [US2] Add failing integration test `test_pipeline_routes_to_end_on_parse_error` to `tests/integration/test_pipeline.py`: invoke graph with a malformed-JSON log path, assert final state has `parse_error` set, `analysis_result is None`, `report_text is None`
+- [x] T019 [P] [US2] Add failing test `test_parse_log_invalid_json` to `tests/unit/test_parse_log.py`: call `parse_log` with a state whose `log_path` points to a fixture containing `"not valid json {"`, assert `result["parse_error"]` is non-empty string containing the filename and `result["error_log"] is None`
+- [x] T020 [P] [US2] Add failing test `test_parse_log_missing_required_fields` to `tests/unit/test_parse_log.py`: call `parse_log` with valid JSON missing `service_name`, assert `result["parse_error"]` mentions `"service_name"` and `result["error_log"] is None`
+- [x] T021 [P] [US2] Add failing test `test_analyze_error_api_failure` to `tests/unit/test_analyze_error.py`: patch `anthropic.Anthropic` to raise `anthropic.APIConnectionError`, assert `result["analysis_error"]` is non-empty and `result["analysis_result"] is None`
+- [x] T022 [US2] Add failing integration test `test_pipeline_routes_to_end_on_parse_error` to `tests/integration/test_pipeline.py`: invoke graph with a malformed-JSON log path, assert final state has `parse_error` set, `analysis_result is None`, `report_text is None`
 
 ### Implementation for User Story 2
 
-- [ ] T023 [US2] Add error-path handling to `autosentinel/nodes/parse_log.py`: catch `FileNotFoundError` (missing `data/` dir), `json.JSONDecodeError`, and missing/null required-field validation — populate `parse_error` with human-readable message for each case (depends on T019, T020)
-- [ ] T024 [US2] Add error-path handling to `autosentinel/nodes/analyze_error.py`: wrap Anthropic call in try/except for `anthropic.APIError` and missing `tool_use` block — populate `analysis_error` (depends on T021)
-- [ ] T025 [US2] Update `run_pipeline()` in `autosentinel/__init__.py` and `autosentinel/__main__.py` to raise/print `DiagnosticError` with `parse_error` or `analysis_error` message and exit with code 1 (depends on T023, T024)
+- [x] T023 [US2] Add error-path handling to `autosentinel/nodes/parse_log.py`: catch `FileNotFoundError` (missing `data/` dir), `json.JSONDecodeError`, and missing/null required-field validation — populate `parse_error` with human-readable message for each case (depends on T019, T020)
+- [x] T024 [US2] Add error-path handling to `autosentinel/nodes/analyze_error.py`: wrap Anthropic call in try/except for `anthropic.APIError` and missing `tool_use` block — populate `analysis_error` (depends on T021)
+- [x] T025 [US2] Update `run_pipeline()` in `autosentinel/__init__.py` and `autosentinel/__main__.py` to raise/print `DiagnosticError` with `parse_error` or `analysis_error` message and exit with code 1 (depends on T023, T024)
 
 **Checkpoint**: Both user stories fully functional and independently testable. Run `pytest` — all tests pass.
 
@@ -113,9 +113,9 @@ and testable.
 
 **Purpose**: Coverage verification, commit order audit, and end-to-end validation
 
-- [ ] T026 [P] Add `pytest-cov` coverage configuration to `pyproject.toml` (`[tool.pytest.ini_options]` and `[tool.coverage.run]`); run `pytest --cov=autosentinel --cov-branch --cov-report=term-missing` and confirm 100% branch coverage on `autosentinel/nodes/`
-- [ ] T027 [P] Verify git commit order satisfies SC-003: run `git log --oneline` and confirm all `test_*.py` files appear in commits that precede the corresponding `nodes/*.py` implementation commits
-- [ ] T028 Run full quickstart.md validation: execute all steps sequentially (`pip install`, set env var, run all 3 fixtures, check 3 report files in `output/`) — confirm SC-001 (< 30s), SC-002 (correct category for all 3 fixtures), SC-005 (malformed input exits with code 1)
+- [x] T026 [P] Add `pytest-cov` coverage configuration to `pyproject.toml` (`[tool.pytest.ini_options]` and `[tool.coverage.run]`); run `pytest --cov=autosentinel --cov-branch --cov-report=term-missing` and confirm 100% branch coverage on `autosentinel/nodes/`
+- [x] T027 [P] Verify git commit order satisfies SC-003: run `git log --oneline` and confirm all `test_*.py` files appear in commits that precede the corresponding `nodes/*.py` implementation commits
+- [x] T028 Run full quickstart.md validation: execute all steps sequentially (`pip install`, set env var, run all 3 fixtures, check 3 report files in `output/`) — confirm SC-001 (< 30s), SC-002 (correct category for all 3 fixtures), SC-005 (malformed input exits with code 1)
 
 ---
 
