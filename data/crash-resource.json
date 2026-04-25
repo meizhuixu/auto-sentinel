@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-04-24T11:00:00Z",
+  "service_name": "order-processor",
+  "error_type": "OOMKilled",
+  "message": "Container killed: memory limit of 512Mi exceeded. Resident set size peaked at 534Mi before SIGKILL.",
+  "stack_trace": null
+}
