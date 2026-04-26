@@ -11,9 +11,9 @@
 
 **Purpose**: Add Sprint 2 dependencies and create the `autosentinel/api/` package skeleton.
 
-- [ ] T001 Update pyproject.toml to add `fastapi>=0.110`, `uvicorn[standard]>=0.29`, `httpx>=0.27` under `[project.dependencies]`; run `pip install -e ".[dev]"` to verify install
-- [ ] T002 Add `data/incoming/` to .gitignore (runtime alert files must not enter VCS)
-- [ ] T003 [P] Create empty `autosentinel/api/__init__.py` as package marker
+- [X] T001 Update pyproject.toml to add `fastapi>=0.110`, `uvicorn[standard]>=0.29`, `httpx>=0.27` under `[project.dependencies]`; run `pip install -e ".[dev]"` to verify install
+- [X] T002 Add `data/incoming/` to .gitignore (runtime alert files must not enter VCS)
+- [X] T003 [P] Create empty `autosentinel/api/__init__.py` as package marker
 
 ---
 
