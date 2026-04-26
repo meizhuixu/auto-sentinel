@@ -5,7 +5,23 @@
       "Bash(mkdir -p /Users/meizhuixu/Repo/AutoSentinel/specs/001-core-diagnostic-engine/checklists)",
       "Bash(cp /Users/meizhuixu/Repo/AutoSentinel/.specify/templates/spec-template.md /Users/meizhuixu/Repo/AutoSentinel/specs/001-core-diagnostic-engine/spec.md)",
       "WebSearch",
-      "WebFetch(domain:docs.langchain.com)"
+      "WebFetch(domain:docs.langchain.com)",
+      "Bash(pip install *)",
+      "Bash(python -m pytest tests/ -x --tb=line -q)",
+      "Bash(python *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh --json)",
+      "Bash(git merge *)",
+      "Bash(.specify/extensions/git/scripts/bash/create-new-feature.sh *)",
+      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_specify *)",
+      "Bash(.specify/scripts/bash/setup-plan.sh *)",
+      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_plan *)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh *)",
+      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_tasks *)"
     ]
   }
 }

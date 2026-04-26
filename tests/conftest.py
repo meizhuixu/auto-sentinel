@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -90,6 +90,29 @@ def populated_connectivity_state(connectivity_state) -> DiagnosticState:
         "stack_trace": "Traceback (most recent call last):\n  File 'db.py', line 42, in connect\n    raise ConnectionTimeout('db.internal:5432 unreachable')",
     }
     return DiagnosticState(**state)
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    """TestClient wrapping the FastAPI app; exercises the full lifespan."""
+    monkeypatch.chdir(tmp_path)
+    from starlette.testclient import TestClient
+    from autosentinel.api.main import create_app
+    with TestClient(create_app()) as c:
+        yield c
+
+
+@pytest.fixture
+def mock_pipeline(tmp_path):
+    """Patch run_pipeline in queue.py's namespace; writes a sentinel report file."""
+    report = tmp_path / "sentinel-report.md"
+    report.write_text("# Sentinel Report")
+
+    def _fake_pipeline(log_path):
+        return report
+
+    with patch("autosentinel.api.queue.run_pipeline", side_effect=_fake_pipeline):
+        yield report
 
 
 @pytest.fixture

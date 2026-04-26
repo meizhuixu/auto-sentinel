@@ -1,6 +1,9 @@
 # Generated diagnostic reports
 output/
 
+# Runtime alert files (ingested via API, not committed)
+data/incoming/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
