@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-04-24T09:30:00Z",
+  "service_name": "auth-service",
+  "error_type": "ConfigurationError",
+  "message": "Required environment variable JWT_SECRET_KEY is not set. Service cannot start without a signing key.",
+  "stack_trace": null
+}

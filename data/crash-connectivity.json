@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-04-24T10:15:00Z",
+  "service_name": "payment-service",
+  "error_type": "ConnectionTimeout",
+  "message": "Database connection timed out after 30s waiting for host db.internal:5432",
+  "stack_trace": "Traceback (most recent call last):\n  File 'db.py', line 42, in connect\n    raise ConnectionTimeout('db.internal:5432 unreachable')"
+}

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash *)",
+      "Bash(mkdir -p /Users/meizhuixu/Repo/AutoSentinel/specs/001-core-diagnostic-engine/checklists)",
+      "Bash(cp /Users/meizhuixu/Repo/AutoSentinel/.specify/templates/spec-template.md /Users/meizhuixu/Repo/AutoSentinel/specs/001-core-diagnostic-engine/spec.md)",
+      "WebSearch",
+      "WebFetch(domain:docs.langchain.com)"
+    ]
+  }
+}

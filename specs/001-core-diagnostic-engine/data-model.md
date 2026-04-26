@@ -1,0 +1,152 @@
+# Data Model: Core Diagnostic AI Engine
+
+**Branch**: `001-core-diagnostic-engine` | **Date**: 2026-04-24
+
+---
+
+## Entity: ErrorLog
+
+Parsed, validated representation of a single microservice crash event read from
+a JSON log file.
+
+**Source**: JSON file under `data/`
+**Populated by**: `parse_log` node
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `timestamp` | `str` (ISO 8601) | ✅ | Non-empty; parseable as datetime |
+| `service_name` | `str` | ✅ | Non-empty |
+| `error_type` | `str` | ✅ | Non-empty (e.g., `ConnectionTimeout`, `OOMKilled`) |
+| `message` | `str` | ✅ | Non-empty |
+| `stack_trace` | `str` | ❌ | May be absent or null in source JSON |
+
+**Validation rules**:
+- If any required field is absent or null, `parse_log` MUST populate
+  `DiagnosticState.parse_error` and halt.
+- `stack_trace` is passed through as-is; the engine does not parse it.
+
+**Sample JSON log (connectivity error)**:
+```json
+{
+  "timestamp": "2026-04-24T10:15:00Z",
+  "service_name": "payment-service",
+  "error_type": "ConnectionTimeout",
+  "message": "Database connection timed out after 30s waiting for host db.internal:5432",
+  "stack_trace": "Traceback (most recent call last):\n  File 'db.py', line 42, in connect\n    raise ConnectionTimeout(...)"
+}
+```
+
+---
+
+## Entity: AnalysisResult
+
+The structured output produced by the `analyze_error` node via the LLM tool_use
+call. Maps directly to the `diagnose_error` tool's `input_schema`.
+
+**Source**: Anthropic API tool_use response
+**Populated by**: `analyze_error` node
+
+| Field | Type | Required | Constraints |
+|-------|------|----------|-------------|
+| `error_category` | `str` (enum) | ✅ | One of: `connectivity`, `resource_exhaustion`, `configuration`, `application_logic` |
+| `root_cause_hypothesis` | `str` | ✅ | Non-empty; 1–5 sentences |
+| `confidence` | `float` | ✅ | `0.0 ≤ confidence ≤ 1.0` |
+| `remediation_steps` | `list[str]` | ✅ | At least 1 item; each step is a concrete action |
+
+**Error category definitions**:
+
+| Category | Meaning | Examples |
+|----------|---------|---------|
+| `connectivity` | Network or host reachability failure | DNS failure, TCP timeout, refused connection |
+| `resource_exhaustion` | CPU, memory, disk, or file descriptor limit | OOM kill, disk full, thread pool exhausted |
+| `configuration` | Invalid or missing configuration value | Wrong env var, bad secret, mis-set flag |
+| `application_logic` | Bug or unhandled exception in service code | NPE, assertion failure, unhandled exception type |
+
+---
+
+## Entity: DiagnosticState
+
+The LangGraph shared graph state passed between all three nodes. Implements
+Python's `TypedDict` so LangGraph can perform partial-state merges on node
+return values.
+
+**All fields are present from graph initialisation; optional fields start as `None`.**
+
+| Field | Type | Set by | Purpose |
+|-------|------|--------|---------|
+| `log_path` | `str` | Caller (input) | Absolute or relative path to source log file |
+| `error_log` | `ErrorLog \| None` | `parse_log` | Validated parsed log contents |
+| `parse_error` | `str \| None` | `parse_log` | Human-readable error if parsing failed |
+| `analysis_result` | `AnalysisResult \| None` | `analyze_error` | Structured LLM analysis |
+| `analysis_error` | `str \| None` | `analyze_error` | Human-readable error if LLM call failed |
+| `report_text` | `str \| None` | `format_report` | Final markdown string |
+| `report_path` | `str \| None` | `format_report` | Absolute path where report was written |
+
+**State transitions**:
+
+```
+                    parse_error set?
+parse_log ──────────────────────────────► END (error exit)
+          │ no error
+          ▼
+     analyze_error ──────────────────────► END (error exit)
+          │ analysis_error set?          (analysis_error set)
+          │ no error
+          ▼
+     format_report ──────────────────────► END (success)
+```
+
+---
+
+## Entity: DiagnosticReport (output artefact)
+
+The markdown file written to `output/`. Not a runtime data structure; described
+here for contract clarity.
+
+**Naming convention**: `output/<source-stem>-report.md`
+- `data/crash-001.json` → `output/crash-001-report.md`
+- `data/payment-svc-20260424.json` → `output/payment-svc-20260424-report.md`
+
+**Markdown structure**:
+
+```markdown
+# Diagnostic Report: <service_name>
+
+**Generated**: <timestamp of report generation>
+**Source log**: <log_path>
+
+## Error Summary
+
+- **Service**: <service_name>
+- **Error type**: <error_type>
+- **Timestamp**: <timestamp>
+- **Message**: <message>
+
+## Root Cause Analysis
+
+**Category**: <error_category>
+**Confidence**: <confidence * 100>%
+
+<root_cause_hypothesis>
+
+## Remediation Steps
+
+1. <step 1>
+2. <step 2>
+...
+
+---
+*Report generated by AutoSentinel Core Diagnostic Engine*
+```
+
+---
+
+## Sample Log Fixtures (`data/`)
+
+Three fixture files MUST be created before tests are written:
+
+| File | Error category | Key error signals |
+|------|----------------|-------------------|
+| `data/crash-connectivity.json` | `connectivity` | `ConnectionTimeout` on DB host |
+| `data/crash-resource.json` | `resource_exhaustion` | `OOMKilled`, memory limit exceeded |
+| `data/crash-config.json` | `configuration` | Missing required env var / bad secret |
