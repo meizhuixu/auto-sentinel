@@ -25,13 +25,13 @@
 
 ### Tests (write first — confirm failing)
 
-- [ ] T004 Write failing unit tests for `JSONFormatter` in `tests/unit/test_api_logging.py` — assert output is valid JSON, contains all schema fields (`timestamp`, `severity`, `component`, `correlation_id`, `trace_id`, `event`, `event_payload`), and is written to stdout
-- [ ] T005 [P] Write failing unit tests for Pydantic models in `tests/unit/test_api_models.py` — `AlertPayload` required field validation (422 on missing), `stack_trace` defaults to `None`, extra fields ignored; `AlertJobResponse` all three fields present
+- [X] T004 Write failing unit tests for `JSONFormatter` in `tests/unit/test_api_logging.py` — assert output is valid JSON, contains all schema fields (`timestamp`, `severity`, `component`, `correlation_id`, `trace_id`, `event`, `event_payload`), and is written to stdout
+- [X] T005 [P] Write failing unit tests for Pydantic models in `tests/unit/test_api_models.py` — `AlertPayload` required field validation (422 on missing), `stack_trace` defaults to `None`, extra fields ignored; `AlertJobResponse` all three fields present
 
 ### Implementation (after tests confirmed failing)
 
-- [ ] T006 Implement `JSONFormatter` subclass and `get_logger(component)` in `autosentinel/api/logging.py` — outputs single-line JSON per log record with all schema fields from Principle IV
-- [ ] T007 [P] Implement `AlertPayload(BaseModel)` and `AlertJobResponse(BaseModel)` in `autosentinel/api/models.py` per data-model.md schema
+- [X] T006 Implement `JSONFormatter` subclass and `get_logger(component)` in `autosentinel/api/logging.py` — outputs single-line JSON per log record with all schema fields from Principle IV
+- [X] T007 [P] Implement `AlertPayload(BaseModel)` and `AlertJobResponse(BaseModel)` in `autosentinel/api/models.py` per data-model.md schema
 
 **Checkpoint**: `T004`–`T007` complete → foundation ready, all US phases can begin.
 
