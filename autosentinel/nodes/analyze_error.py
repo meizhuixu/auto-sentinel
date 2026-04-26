@@ -105,6 +105,13 @@ _MOCK_RULES: list[tuple[tuple[str, ...], AnalysisResult]] = [
     ),
 ]
 
+_MOCK_FIX_SCRIPTS: dict[str, str] = {
+    "connectivity": 'print("Restarting connection pool for upstream dependency...")',
+    "resource_exhaustion": 'print("Triggering garbage collection and releasing memory buffers...")',
+    "configuration": 'print("Reloading environment variables from secrets store...")',
+    "application_logic": 'print("Flushing stale state and re-initialising application context...")',
+}
+
 _FALLBACK = AnalysisResult(
     error_category="application_logic",
     root_cause_hypothesis=(
@@ -135,4 +142,8 @@ def analyze_error(state: DiagnosticState) -> dict:
     """Classify the error in state['error_log'] using local mock data."""
     log = state["error_log"]
     result = _mock_classify(log["error_type"], log["message"])
-    return {"analysis_result": result, "analysis_error": None}
+    return {
+        "analysis_result": result,
+        "analysis_error": None,
+        "fix_script": _MOCK_FIX_SCRIPTS[result["error_category"]],
+    }

@@ -13,8 +13,8 @@ updated `format_report` tests MUST be committed failing before any implementatio
 **Purpose**: Add `ExecutionResult` TypedDict and the three new `DiagnosticState` fields.
 All downstream phases depend on this.
 
-- [ ] T001 Add `ExecutionResult` TypedDict and extend `DiagnosticState` with `fix_script`, `execution_result`, `execution_error` in `autosentinel/models.py`
-- [ ] T002 Update `tests/conftest.py` fixture(s) to include `fix_script=None`, `execution_result=None`, `execution_error=None` in all `DiagnosticState` dict constructors
+- [X] T001 Add `ExecutionResult` TypedDict and extend `DiagnosticState` with `fix_script`, `execution_result`, `execution_error` in `autosentinel/models.py`
+- [X] T002 Update `tests/conftest.py` fixture(s) to include `fix_script=None`, `execution_result=None`, `execution_error=None` in all `DiagnosticState` dict constructors
 
 **Checkpoint**: `python -m pytest tests/ -x` still passes with 100% coverage before any new tests.
 
@@ -26,9 +26,9 @@ All downstream phases depend on this.
 
 **⚠️ CRITICAL**: No Phase 3+ tasks may begin until these tests exist and fail. Commit message MUST state tests are failing.
 
-- [ ] T003 Write `tests/unit/test_execute_fix.py` — 5 scenarios using `patch("autosentinel.nodes.execute_fix.docker")`: success (exit 0), failure (exit 1), timeout (`ReadTimeout`), Docker unavailable (`DockerException`), skipped (`fix_script=None`)
-- [ ] T004 [P] Add 3 sandbox-section tests to `tests/unit/test_format_report.py`: successful execution result, `execution_error` path, skipped status
-- [ ] T005 [P] Update `tests/integration/test_pipeline.py` — add end-to-end test with Docker mocked that asserts `## Sandbox Execution` section appears in the written report file
+- [X] T003 Write `tests/unit/test_execute_fix.py` — 5 scenarios using `patch("autosentinel.nodes.execute_fix.docker")`: success (exit 0), failure (exit 1), timeout (`ReadTimeout`), Docker unavailable (`DockerException`), skipped (`fix_script=None`)
+- [X] T004 [P] Add 3 sandbox-section tests to `tests/unit/test_format_report.py`: successful execution result, `execution_error` path, skipped status
+- [X] T005 [P] Update `tests/integration/test_pipeline.py` — add end-to-end test with Docker mocked that asserts `## Sandbox Execution` section appears in the written report file
 
 **Checkpoint**: `python -m pytest tests/unit/test_execute_fix.py tests/unit/test_format_report.py tests/integration/test_pipeline.py` — **all new tests must FAIL**. Commit with message "test: add Sprint 3 tests (failing — Test-First gate)".
 
@@ -40,9 +40,9 @@ All downstream phases depend on this.
 
 **Independent Test**: `tests/unit/test_execute_fix.py` passes all 5 scenarios with Docker mocked.
 
-- [ ] T006 Add `_MOCK_FIX_SCRIPTS` dict (one `print(...)` one-liner per error category) to `autosentinel/nodes/analyze_error.py` and include `"fix_script": _MOCK_FIX_SCRIPTS[result["error_category"]]` in the return dict
-- [ ] T007 Create `autosentinel/nodes/execute_fix.py` — LangGraph node using `docker.from_env()`, `client.containers.run("python:3.10-alpine", ["python", "-c", fix_script], detach=True, mem_limit="64m", network_mode="none")`, `container.wait(timeout=5)`, logs capture, timeout/error handling, `finally: container.remove(force=True)`
-- [ ] T008 Update `autosentinel/graph.py` — change `_route_after_analyze` to return `"execute_fix"` instead of `"format_report"`; add `execute_fix` node; add unconditional `builder.add_edge("execute_fix", "format_report")`
+- [X] T006 Add `_MOCK_FIX_SCRIPTS` dict (one `print(...)` one-liner per error category) to `autosentinel/nodes/analyze_error.py` and include `"fix_script": _MOCK_FIX_SCRIPTS[result["error_category"]]` in the return dict
+- [X] T007 Create `autosentinel/nodes/execute_fix.py` — LangGraph node using `docker.from_env()`, `client.containers.run("python:3.10-alpine", ["python", "-c", fix_script], detach=True, mem_limit="64m", network_mode="none")`, `container.wait(timeout=5)`, logs capture, timeout/error handling, `finally: container.remove(force=True)`
+- [X] T008 Update `autosentinel/graph.py` — change `_route_after_analyze` to return `"execute_fix"` instead of `"format_report"`; add `execute_fix` node; add unconditional `builder.add_edge("execute_fix", "format_report")`
 
 **Checkpoint**: `python -m pytest tests/unit/test_execute_fix.py -v` — all 5 scenarios pass.
 
@@ -54,7 +54,7 @@ All downstream phases depend on this.
 
 **Independent Test**: `tests/unit/test_format_report.py` new sandbox tests pass; report file contains `## Sandbox Execution` section.
 
-- [ ] T009 [US2] Update `autosentinel/nodes/format_report.py` — read `execution_result` and `execution_error` from state; append the Sandbox Execution section after "Remediation Steps" (three templates: normal result, error path, skipped status per data-model.md)
+- [X] T009 [US2] Update `autosentinel/nodes/format_report.py` — read `execution_result` and `execution_error` from state; append the Sandbox Execution section after "Remediation Steps" (three templates: normal result, error path, skipped status per data-model.md)
 
 **Checkpoint**: `python -m pytest tests/unit/test_format_report.py tests/integration/test_pipeline.py -v` — all tests pass; report file contains the sandbox section.
 
@@ -66,7 +66,7 @@ All downstream phases depend on this.
 
 **Independent Test**: `test_execute_fix.py` Docker-unavailable scenario passes; pipeline integration test produces a valid report with `execution_error` noted.
 
-- [ ] T010 [US3] Verify `execute_fix.py` catches `docker.errors.DockerException` (and any `Exception` fallback) at the `docker.from_env()` call, sets `execution_error` string, sets `execution_result=None`, and returns without raising — confirmed by the Docker-unavailable test scenario passing
+- [X] T010 [US3] Verify `execute_fix.py` catches `docker.errors.DockerException` (and any `Exception` fallback) at the `docker.from_env()` call, sets `execution_error` string, sets `execution_result=None`, and returns without raising — confirmed by the Docker-unavailable test scenario passing
 
 **Checkpoint**: `python -m pytest tests/ -v` — all Sprint 3 tests pass including Docker-unavailable scenario.
 
@@ -76,7 +76,7 @@ All downstream phases depend on this.
 
 **Purpose**: Full test suite validation and 100% coverage confirmation.
 
-- [ ] T011 Run `python -m pytest --cov=autosentinel --cov-report=term-missing` and confirm 100% coverage across all modules; fix any uncovered branches
+- [X] T011 Run `python -m pytest --cov=autosentinel --cov-report=term-missing` and confirm 100% coverage across all modules; fix any uncovered branches
 
 **Checkpoint**: Coverage report shows 100%. `python -m pytest tests/ -v` exits 0.
 
