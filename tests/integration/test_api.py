@@ -18,6 +18,15 @@ VALID_PAYLOAD = {
 }
 
 
+def _drain(client) -> None:
+    """Block the test thread until the app's queue is fully drained."""
+    future = asyncio.run_coroutine_threadsafe(
+        client.app.state.queue.join(),
+        client.app.state.loop,
+    )
+    future.result(timeout=10.0)
+
+
 # ---------------------------------------------------------------------------
 # US1 — Non-blocking Alert Acceptance (5 route tests)
 # ---------------------------------------------------------------------------
@@ -55,6 +64,7 @@ def test_post_alert_extra_fields_accepted(client, mock_pipeline):
 def test_post_alert_job_ids_are_unique(client, mock_pipeline):
     r1 = client.post("/api/v1/alerts", json=VALID_PAYLOAD)
     r2 = client.post("/api/v1/alerts", json=VALID_PAYLOAD)
+    _drain(client)
     assert r1.json()["job_id"] != r2.json()["job_id"]
 
 
@@ -62,16 +72,14 @@ def test_post_alert_job_ids_are_unique(client, mock_pipeline):
 # US2 — Automatic Background Diagnosis (3 background tests)
 # ---------------------------------------------------------------------------
 
-def test_background_worker_processes_queued_alert(client, mock_pipeline, tmp_path):
+def test_background_worker_processes_queued_alert(client, mock_pipeline):
     resp = client.post("/api/v1/alerts", json=VALID_PAYLOAD)
     assert resp.status_code == 202
-    from autosentinel.api.queue import get_queue
-    queue = get_queue()
-    queue.join()
+    _drain(client)
     assert mock_pipeline.exists()
 
 
-def test_background_worker_handles_pipeline_error(client, tmp_path, monkeypatch):
+def test_background_worker_handles_pipeline_error(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from autosentinel.api.main import create_app
     from starlette.testclient import TestClient
@@ -83,15 +91,14 @@ def test_background_worker_handles_pipeline_error(client, tmp_path, monkeypatch)
         with TestClient(create_app()) as c:
             resp = c.post("/api/v1/alerts", json=VALID_PAYLOAD)
             assert resp.status_code == 202
-            from autosentinel.api.queue import get_queue
-            get_queue().join()
+            _drain(c)
             # No unhandled exception — worker survived the error
 
 
 def test_multiple_alerts_all_processed(client, tmp_path):
     reports = []
     payloads = [
-        {**VALID_PAYLOAD, "service_name": f"svc-{i}", "error_type": "ConnectionTimeout"}
+        {**VALID_PAYLOAD, "service_name": f"svc-{i}"}
         for i in range(10)
     ]
 
@@ -105,8 +112,7 @@ def test_multiple_alerts_all_processed(client, tmp_path):
         for p in payloads:
             resp = client.post("/api/v1/alerts", json=p)
             assert resp.status_code == 202
-        from autosentinel.api.queue import get_queue
-        get_queue().join()
+        _drain(client)
 
     assert len(reports) == 10
     assert all(r.exists() for r in reports)
@@ -116,37 +122,26 @@ def test_multiple_alerts_all_processed(client, tmp_path):
 # US3 — Structured Observability Trace (3 log tests)
 # ---------------------------------------------------------------------------
 
-def test_post_alert_emits_alert_received_log(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    from autosentinel.api.main import create_app
-    from starlette.testclient import TestClient
+def _capture_logs_for_post(client, payload):
+    """POST an alert, drain the queue, and return all captured log lines."""
+    import autosentinel.api.logging as api_logging
+    stream = StringIO()
+    logger = api_logging.get_logger("event_gateway")
+    original_stream = logger.handlers[0].stream
+    logger.handlers[0].stream = stream
+    try:
+        resp = client.post("/api/v1/alerts", json=payload)
+        assert resp.status_code == 202
+        job_id = resp.json()["job_id"]
+        _drain(client)
+    finally:
+        logger.handlers[0].stream = original_stream
+    lines = [ln for ln in stream.getvalue().strip().splitlines() if ln]
+    return job_id, [json.loads(ln) for ln in lines]
 
-    captured: list[str] = []
 
-    def _fake(log_path):
-        r = tmp_path / "r.md"
-        r.write_text("# R")
-        return r
-
-    with patch("autosentinel.api.queue.run_pipeline", side_effect=_fake):
-        with TestClient(create_app()) as c:
-            import autosentinel.api.logging as api_logging
-            stream = StringIO()
-            logger = api_logging.get_logger("event_gateway")
-            original_handler = logger.handlers[0]
-            logger.handlers[0].stream = stream
-
-            try:
-                resp = c.post("/api/v1/alerts", json=VALID_PAYLOAD)
-                assert resp.status_code == 202
-                job_id = resp.json()["job_id"]
-                from autosentinel.api.queue import get_queue
-                get_queue().join()
-            finally:
-                logger.handlers[0].stream = original_handler.stream
-
-    log_lines = [ln for ln in stream.getvalue().strip().splitlines() if ln]
-    events = [json.loads(ln) for ln in log_lines]
+def test_post_alert_emits_alert_received_log(client, mock_pipeline):
+    job_id, events = _capture_logs_for_post(client, VALID_PAYLOAD)
     received = [e for e in events if e["event"] == "alert_received"]
     assert received, "Expected alert_received log event"
     e = received[0]
@@ -156,65 +151,15 @@ def test_post_alert_emits_alert_received_log(tmp_path, monkeypatch):
     assert "service_name" in e["event_payload"]
 
 
-def test_post_alert_emits_alert_queued_log_with_depth(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    from autosentinel.api.main import create_app
-    from starlette.testclient import TestClient
-
-    def _fake(log_path):
-        r = tmp_path / "r.md"
-        r.write_text("# R")
-        return r
-
-    with patch("autosentinel.api.queue.run_pipeline", side_effect=_fake):
-        with TestClient(create_app()) as c:
-            import autosentinel.api.logging as api_logging
-            stream = StringIO()
-            logger = api_logging.get_logger("event_gateway")
-            original_stream = logger.handlers[0].stream
-            logger.handlers[0].stream = stream
-
-            try:
-                resp = c.post("/api/v1/alerts", json=VALID_PAYLOAD)
-                assert resp.status_code == 202
-                from autosentinel.api.queue import get_queue
-                get_queue().join()
-            finally:
-                logger.handlers[0].stream = original_stream
-
-    events = [json.loads(ln) for ln in stream.getvalue().strip().splitlines() if ln]
+def test_post_alert_emits_alert_queued_log_with_depth(client, mock_pipeline):
+    _, events = _capture_logs_for_post(client, VALID_PAYLOAD)
     queued = [e for e in events if e["event"] == "alert_queued"]
     assert queued, "Expected alert_queued log event"
     assert "queue_depth" in queued[0]["event_payload"]
 
 
-def test_worker_emits_processing_completed_log_with_duration_ms(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    from autosentinel.api.main import create_app
-    from starlette.testclient import TestClient
-
-    def _fake(log_path):
-        r = tmp_path / "r.md"
-        r.write_text("# R")
-        return r
-
-    with patch("autosentinel.api.queue.run_pipeline", side_effect=_fake):
-        with TestClient(create_app()) as c:
-            import autosentinel.api.logging as api_logging
-            stream = StringIO()
-            logger = api_logging.get_logger("event_gateway")
-            original_stream = logger.handlers[0].stream
-            logger.handlers[0].stream = stream
-
-            try:
-                resp = c.post("/api/v1/alerts", json=VALID_PAYLOAD)
-                assert resp.status_code == 202
-                from autosentinel.api.queue import get_queue
-                get_queue().join()
-            finally:
-                logger.handlers[0].stream = original_stream
-
-    events = [json.loads(ln) for ln in stream.getvalue().strip().splitlines() if ln]
+def test_worker_emits_processing_completed_log_with_duration_ms(client, mock_pipeline):
+    _, events = _capture_logs_for_post(client, VALID_PAYLOAD)
     completed = [e for e in events if e["event"] == "processing_completed"]
     assert completed, "Expected processing_completed log event"
     assert "duration_ms" in completed[0]["event_payload"]

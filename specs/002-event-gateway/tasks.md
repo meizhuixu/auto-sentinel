@@ -45,16 +45,16 @@
 
 ### Tests for US1 (write first — confirm failing)
 
-- [ ] T008 [US1] Extend `tests/conftest.py` with `client` fixture (`TestClient(create_app())` used as context manager) and `mock_pipeline` fixture (patches `autosentinel.api.queue.run_pipeline` with a side-effect that writes a sentinel file and returns its path)
-- [ ] T009 [US1] Write 5 failing route tests in `tests/integration/test_api.py`:
+- [X] T008 [US1] Extend `tests/conftest.py` with `client` fixture (`TestClient(create_app())` used as context manager) and `mock_pipeline` fixture (patches `autosentinel.api.queue.run_pipeline` with a side-effect that writes a sentinel file and returns its path)
+- [X] T009 [US1] Write 5 failing route tests in `tests/integration/test_api.py`:
   `test_post_alert_returns_202`, `test_post_alert_missing_field_returns_422`,
   `test_post_alert_invalid_json_returns_422`, `test_post_alert_extra_fields_accepted`,
   `test_post_alert_job_ids_are_unique`
 
 ### Implementation for US1 (after tests confirmed failing)
 
-- [ ] T010 [US1] Implement `AlertJob` dataclass and `asyncio.Queue` singleton with `get_queue()` in `autosentinel/api/queue.py`
-- [ ] T011 [US1] Implement `create_app()` factory with stub `lifespan` context and `POST /api/v1/alerts` handler in `autosentinel/api/main.py`; add module-level `app = create_app()` for uvicorn entry point
+- [X] T010 [US1] Implement `AlertJob` dataclass and `asyncio.Queue` singleton with `get_queue()` in `autosentinel/api/queue.py`
+- [X] T011 [US1] Implement `create_app()` factory with stub `lifespan` context and `POST /api/v1/alerts` handler in `autosentinel/api/main.py`; add module-level `app = create_app()` for uvicorn entry point
 
 **Checkpoint**: US1 complete — server accepts alerts and returns 202 immediately. Independently testable.
 
@@ -68,15 +68,15 @@
 
 ### Tests for US2 (write first — confirm failing)
 
-- [ ] T012 [US2] Write 3 failing background processing tests in `tests/integration/test_api.py`:
+- [X] T012 [US2] Write 3 failing background processing tests in `tests/integration/test_api.py`:
   `test_background_worker_processes_queued_alert` (POST + drain + check output),
   `test_background_worker_handles_pipeline_error` (mock raises exception → no crash),
   `test_multiple_alerts_all_processed` (10 POSTs + drain → 10 reports)
 
 ### Implementation for US2 (after tests confirmed failing)
 
-- [ ] T013 [US2] Implement `worker(queue)` coroutine in `autosentinel/api/queue.py` — per item: create `data/incoming/{job_id}.json`, call `await asyncio.to_thread(run_pipeline, path)`, call `queue.task_done()`; handle `CancelledError` to exit cleanly
-- [ ] T014 [US2] Replace stub `lifespan` in `autosentinel/api/main.py` with real worker task — `asyncio.create_task(worker(queue))` on enter, `task.cancel()` + `await task` on exit; ensure `data/incoming/` dir exists on startup
+- [X] T013 [US2] Implement `worker(queue)` coroutine in `autosentinel/api/queue.py` — per item: create `data/incoming/{job_id}.json`, call `await asyncio.to_thread(run_pipeline, path)`, call `queue.task_done()`; handle `CancelledError` to exit cleanly
+- [X] T014 [US2] Replace stub `lifespan` in `autosentinel/api/main.py` with real worker task — `asyncio.create_task(worker(queue))` on enter, `task.cancel()` + `await task` on exit; ensure `data/incoming/` dir exists on startup
 
 **Checkpoint**: US2 complete — all accepted alerts are eventually diagnosed. Reports appear on disk. Independently testable.
 
@@ -90,15 +90,15 @@
 
 ### Tests for US3 (write first — confirm failing)
 
-- [ ] T015 [US3] Write 3 failing log-capture tests in `tests/integration/test_api.py`:
+- [X] T015 [US3] Write 3 failing log-capture tests in `tests/integration/test_api.py`:
   `test_post_alert_emits_alert_received_log` (assert log line has correct schema + job_id),
   `test_post_alert_emits_alert_queued_log_with_depth`,
   `test_worker_emits_processing_completed_log_with_duration_ms`
 
 ### Implementation for US3 (after tests confirmed failing)
 
-- [ ] T016 [US3] Wire `get_logger("event_gateway")` calls into `POST /api/v1/alerts` handler in `autosentinel/api/main.py` — emit `alert_received` (service_name, error_type) and `alert_queued` (service_name, queue_depth)
-- [ ] T017 [US3] Wire log emissions into `worker()` in `autosentinel/api/queue.py` — emit `processing_started` (service_name, log_path), `processing_completed` (service_name, report_path, duration_ms), and `processing_failed` (service_name, error, duration_ms) on exception
+- [X] T016 [US3] Wire `get_logger("event_gateway")` calls into `POST /api/v1/alerts` handler in `autosentinel/api/main.py` — emit `alert_received` (service_name, error_type) and `alert_queued` (service_name, queue_depth)
+- [X] T017 [US3] Wire log emissions into `worker()` in `autosentinel/api/queue.py` — emit `processing_started` (service_name, log_path), `processing_completed` (service_name, report_path, duration_ms), and `processing_failed` (service_name, error, duration_ms) on exception
 
 **Checkpoint**: All 3 user stories complete. Full lifecycle observable via structured logs.
 
@@ -106,9 +106,9 @@
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T018 Run `pytest --cov=autosentinel --cov-branch --cov-fail-under=100` and resolve any coverage gaps in `autosentinel/api/`
-- [ ] T019 [P] Add SC-001 timing assertion to `tests/integration/test_api.py` — verify `POST /api/v1/alerts` round-trip (measured with `time.perf_counter`) completes in under 50ms
-- [ ] T020 [P] Run Sprint 1 tests in isolation (`pytest tests/unit tests/integration/test_pipeline.py`) to confirm zero regressions
+- [X] T018 Run `pytest --cov=autosentinel --cov-branch --cov-fail-under=100` and resolve any coverage gaps in `autosentinel/api/`
+- [X] T019 [P] Add SC-001 timing assertion to `tests/integration/test_api.py` — verify `POST /api/v1/alerts` round-trip (measured with `time.perf_counter`) completes in under 50ms
+- [X] T020 [P] Run Sprint 1 tests in isolation (`pytest tests/unit tests/integration/test_pipeline.py`) to confirm zero regressions
 
 ---
 
