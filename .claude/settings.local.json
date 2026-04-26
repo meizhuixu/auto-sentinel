@@ -21,7 +21,11 @@
       "Bash(.specify/scripts/bash/setup-plan.sh *)",
       "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_plan *)",
       "Bash(.specify/scripts/bash/check-prerequisites.sh *)",
-      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_tasks *)"
+      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_tasks *)",
+      "Bash(git pull *)",
+      "Bash(git fetch *)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/alerts -H 'Content-Type: application/json' -d @data/crash-connectivity.json)",
+      "Bash(python3 -m json.tool)"
     ]
   }
 }
