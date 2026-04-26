@@ -19,7 +19,9 @@
       "Bash(.specify/extensions/git/scripts/bash/create-new-feature.sh *)",
       "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_specify *)",
       "Bash(.specify/scripts/bash/setup-plan.sh *)",
-      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_plan *)"
+      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_plan *)",
+      "Bash(.specify/scripts/bash/check-prerequisites.sh *)",
+      "Bash(.specify/extensions/git/scripts/bash/auto-commit.sh after_tasks *)"
     ]
   }
 }
