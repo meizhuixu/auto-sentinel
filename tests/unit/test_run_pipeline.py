@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -13,12 +13,9 @@ from autosentinel.__main__ import main
 
 # --- run_pipeline() ---
 
-def test_run_pipeline_happy_path(connectivity_state, mock_tool_use_response, tmp_path, monkeypatch):
+def test_run_pipeline_happy_path(connectivity_state, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    mock_response = mock_tool_use_response()
-    with patch("autosentinel.nodes.analyze_error.anthropic.Anthropic") as mock_cls:
-        mock_cls.return_value.messages.create.return_value = mock_response
-        result = run_pipeline(connectivity_state["log_path"])
+    result = run_pipeline(connectivity_state["log_path"])
     assert isinstance(result, Path)
     assert result.exists()
 
@@ -36,22 +33,30 @@ def test_run_pipeline_parse_error_raises_diagnostic_error(tmp_path):
     assert "bad.json" in str(exc_info.value)
 
 
-def test_run_pipeline_analysis_error_raises_diagnostic_error(tmp_path):
-    import anthropic as _anthropic
+def test_run_pipeline_returns_existing_report(connectivity_state, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = run_pipeline(connectivity_state["log_path"])
+    assert result.suffix == ".md"
+    assert "report" in result.name
 
+
+def test_run_pipeline_analysis_error_raises_diagnostic_error(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import json
     log = {
-        "timestamp": "2026-04-24T10:00:00Z",
+        "timestamp": "2026-04-25T10:00:00Z",
         "service_name": "svc",
         "error_type": "Error",
         "message": "boom",
     }
     log_file = tmp_path / "test.json"
     log_file.write_text(json.dumps(log))
-    with patch("autosentinel.nodes.analyze_error.anthropic.Anthropic") as mock_cls:
-        mock_cls.return_value.messages.create.side_effect = _anthropic.APIConnectionError(
-            request=MagicMock()
-        )
-        with pytest.raises(DiagnosticError):
+    # Patch the name in graph.py's namespace so build_graph() picks up the mock.
+    with patch(
+        "autosentinel.graph.analyze_error",
+        return_value={"analysis_result": None, "analysis_error": "mock analysis failure"},
+    ):
+        with pytest.raises(DiagnosticError, match="mock analysis failure"):
             run_pipeline(log_file)
 
 
