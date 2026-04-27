@@ -27,6 +27,9 @@ def connectivity_state(tmp_path) -> DiagnosticState:
         parse_error=None,
         analysis_result=None,
         analysis_error=None,
+        fix_script=None,
+        execution_result=None,
+        execution_error=None,
         report_text=None,
         report_path=None,
     )
@@ -50,6 +53,9 @@ def resource_state(tmp_path) -> DiagnosticState:
         parse_error=None,
         analysis_result=None,
         analysis_error=None,
+        fix_script=None,
+        execution_result=None,
+        execution_error=None,
         report_text=None,
         report_path=None,
     )
@@ -73,6 +79,9 @@ def config_state(tmp_path) -> DiagnosticState:
         parse_error=None,
         analysis_result=None,
         analysis_error=None,
+        fix_script=None,
+        execution_result=None,
+        execution_error=None,
         report_text=None,
         report_path=None,
     )
