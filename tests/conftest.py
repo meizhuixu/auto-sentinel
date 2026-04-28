@@ -1,12 +1,13 @@
 """Shared pytest fixtures for the diagnostic pipeline test suite."""
 
 import json
+import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from autosentinel.models import DiagnosticState
+from autosentinel.models import AgentState, DiagnosticState
 
 
 @pytest.fixture
@@ -122,6 +123,46 @@ def mock_pipeline(tmp_path):
 
     with patch("autosentinel.api.queue.run_pipeline", side_effect=_fake_pipeline):
         yield report
+
+
+def build_initial_state(log_file: str, tmp_path: Path) -> AgentState:
+    """Construct a zero-field AgentState pointing to a log file under tmp_path."""
+    return AgentState(
+        log_path=str(tmp_path / log_file),
+        error_log=None,
+        parse_error=None,
+        analysis_result=None,
+        analysis_error=None,
+        fix_script=None,
+        execution_result=None,
+        execution_error=None,
+        report_text=None,
+        report_path=None,
+        error_category=None,
+        fix_artifact=None,
+        security_verdict=None,
+        routing_decision=None,
+        agent_trace=[],
+        approval_required=False,
+    )
+
+
+def _setup_docker_success(mock_docker: MagicMock) -> None:
+    """Configure a docker mock that simulates a successful container run."""
+    mock_client = MagicMock()
+    mock_container = MagicMock()
+    mock_docker.from_env.return_value = mock_client
+    mock_client.containers.run.return_value = mock_container
+    mock_container.wait.return_value = {"StatusCode": 0}
+    mock_container.logs.side_effect = [b"Fix applied\n", b""]
+
+
+def invoke_with_docker_mock(graph, state: AgentState) -> AgentState:
+    """Invoke multi-agent graph with Docker mocked for success."""
+    with patch("autosentinel.agents.verifier.docker") as mock_docker:
+        _setup_docker_success(mock_docker)
+        cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        return graph.invoke(state, cfg)
 
 
 @pytest.fixture

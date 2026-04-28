@@ -134,3 +134,69 @@ def test_sandbox_section_skipped(state_with_execution_skipped, tmp_path, monkeyp
     text = result["report_text"]
     assert "## Sandbox Execution" in text
     assert "skipped" in text
+
+
+# ---------------------------------------------------------------------------
+# Sprint 4: Security Review section tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def state_with_safe_verdict(state_with_execution_success):
+    state = dict(state_with_execution_success)
+    state["error_category"] = "CODE"
+    state["fix_artifact"] = 'print("fix applied")'
+    state["security_verdict"] = "SAFE"
+    state["routing_decision"] = "CODE → CodeFixerAgent"
+    state["agent_trace"] = ["DiagnosisAgent", "SupervisorAgent", "CodeFixerAgent", "SecurityReviewerAgent", "VerifierAgent"]
+    state["approval_required"] = False
+    return state
+
+
+@pytest.fixture
+def state_with_caution_verdict(state_with_execution_success):
+    state = dict(state_with_execution_success)
+    state["error_category"] = "CODE"
+    state["fix_artifact"] = 'print("fix applied")'
+    state["security_verdict"] = "CAUTION"
+    state["routing_decision"] = "CODE → CodeFixerAgent"
+    state["agent_trace"] = ["DiagnosisAgent", "SupervisorAgent", "CodeFixerAgent", "SecurityReviewerAgent", "VerifierAgent"]
+    state["approval_required"] = False
+    return state
+
+
+@pytest.fixture
+def state_with_high_risk_approved(state_with_execution_success):
+    state = dict(state_with_execution_success)
+    state["error_category"] = "SECURITY"
+    state["fix_artifact"] = "DROP TABLE users"
+    state["security_verdict"] = "HIGH_RISK"
+    state["routing_decision"] = "SECURITY → CodeFixerAgent"
+    state["agent_trace"] = ["DiagnosisAgent", "SupervisorAgent", "CodeFixerAgent", "SecurityReviewerAgent", "VerifierAgent"]
+    state["approval_required"] = True
+    return state
+
+
+def test_security_section_safe_no_badge(state_with_safe_verdict, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = format_report(state_with_safe_verdict)
+    text = result["report_text"]
+    assert "## Security Review" in text
+    assert "SAFE" in text
+    assert "⚠ CAUTION" not in text
+    assert "HIGH RISK" not in text
+
+
+def test_security_section_caution_badge(state_with_caution_verdict, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = format_report(state_with_caution_verdict)
+    text = result["report_text"]
+    assert "## Security Review" in text
+    assert "⚠ CAUTION" in text
+
+
+def test_security_section_high_risk_badge(state_with_high_risk_approved, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = format_report(state_with_high_risk_approved)
+    text = result["report_text"]
+    assert "## Security Review" in text
+    assert "HIGH RISK" in text
