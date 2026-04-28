@@ -59,9 +59,10 @@ the VerifierAgent executes.
 and arbitration rationale. Example: `"CODE → CodeFixerAgent (error_category=CODE)"`.
 
 **`agent_trace`**: List of agent names appended by each agent that ran. Uses
-`Annotated[list[str], operator.add]` reducer so parallel branches can both append
-without conflict. Example after a CODE run: `["DiagnosisAgent", "CodeFixerAgent",
-"SecurityReviewerAgent", "VerifierAgent"]`.
+`Annotated[list[str], operator.add]` reducer. Sprint 4 is sequential (no parallel branches),
+so the reducer is not strictly required; it is retained to allow Sprint 5 to restore
+fan-out without a state-schema migration. Example after a CODE run:
+`["DiagnosisAgent", "SupervisorAgent", "CodeFixerAgent", "SecurityReviewerAgent", "VerifierAgent"]`.
 
 **`approval_required`**: Set to `True` by the `security_gate` node when
 `security_verdict == "HIGH_RISK"` and `interrupt()` is about to be issued.
@@ -98,16 +99,15 @@ changed fields need to be returned. All mock implementations MUST include
 
 | `error_category` | Specialist fired | Security Reviewer fired |
 |-----------------|-----------------|------------------------|
-| `CODE` | `CodeFixerAgent` | Yes (parallel) |
-| `INFRA` | `InfraSREAgent` | Yes (parallel) |
-| `CONFIG` | `InfraSREAgent` | Yes (parallel) |
-| `SECURITY` | `CodeFixerAgent` | Yes (parallel) |
-| `UNKNOWN` | `CodeFixerAgent` (fallback) | Yes (parallel) |
+| `CODE` | `CodeFixerAgent` | Yes (sequential, after specialist) |
+| `INFRA` | `InfraSREAgent` | Yes (sequential, after specialist) |
+| `CONFIG` | `InfraSREAgent` | Yes (sequential, after specialist) |
+| `SECURITY` | `CodeFixerAgent` [^1] | Yes (sequential, after specialist) |
+| `UNKNOWN` | `CodeFixerAgent` (fallback) | Yes (sequential, after specialist) |
 
-Security Reviewer always fires in parallel with the specialist. In the fan-out, both
-nodes receive the same state snapshot (pre-fix_artifact). SecurityReviewer in Sprint 4
-mock mode runs keyword detection on `state["fix_script"]` (Sprint 3 field, already
-set by `analyze_error`) as a proxy for the not-yet-generated `fix_artifact`.
+[^1]: SECURITY → CodeFixerAgent is a Sprint 4 mock-phase simplification. Sprint 5 will revisit whether SecurityReviewerAgent should also generate security-class fixes directly.
+
+Security Reviewer fires sequentially after the specialist. This ensures SecurityReviewer reads `state["fix_artifact"]` (the v2 fix field produced by the specialist), satisfying Constitution Principle VI. The v2 graph has no `analyze_error` node, so `state["fix_script"]` is always `None` — sequential wiring is the only architecture where SC-003 can be reliably triggered in CI.
 
 ---
 
@@ -115,7 +115,7 @@ set by `analyze_error`) as a proxy for the not-yet-generated `fix_artifact`.
 
 ### Sprint 4 Mock Rule (keyword-based)
 
-The following keywords in `fix_script` / `fix_artifact` trigger `HIGH_RISK`:
+The following keywords in `fix_artifact` trigger `HIGH_RISK`:
 
 ```python
 _HIGH_RISK_KEYWORDS = [
@@ -148,41 +148,39 @@ START
 parse_log
   │  parse_error? → END (no report)
   ▼
-diagnosis_agent         ← sets: error_category, agent_trace += ["DiagnosisAgent"]
+diagnosis_agent          ← sets: error_category, agent_trace += ["DiagnosisAgent"]
   │
   ▼
-supervisor_route        ← sets: routing_decision; conditional fan-out
+supervisor_route         ← sets: routing_decision; conditional edge to one specialist
   │
-  ├──► code_fixer_agent     ─────────────────────┐
-  │    (if CODE or SECURITY or fallback)          │ parallel fan-out
-  │    sets: fix_artifact, agent_trace            │
-  │                                               │
-  ├──► infra_sre_agent      ─────────────────────┤
-  │    (if INFRA or CONFIG)                       │
-  │    sets: fix_artifact, agent_trace            │
-  │                                               │
-  └──► security_reviewer_agent  ─────────────────┘
-       (always, in parallel with specialist)
-       sets: security_verdict, agent_trace
-                                          │
-                                          ▼
-                                  supervisor_merge
-                                  (no-op merge node; state already merged by LangGraph)
-                                          │
-                                          ▼
-                                  security_gate
-                                  HIGH_RISK? → log + interrupt() → human approval
-                                  SAFE/CAUTION → pass through
-                                          │
-                                          ▼
-                                  verifier_agent      ← sets: execution_result, execution_error
-                                  (sole Docker SDK caller)
-                                          │
-                                          ▼
-                                  format_report       ← reads: all fields; appends Sandbox + Security sections
-                                          │
-                                          ▼
-                                        END
+  ├──► code_fixer_agent  ← (if CODE or SECURITY or UNKNOWN fallback)
+  │    sets: fix_artifact, agent_trace += ["CodeFixerAgent"]
+  │         │
+  │         ▼
+  │    security_reviewer_agent
+  │         │
+  └──► infra_sre_agent   ← (if INFRA or CONFIG)
+       sets: fix_artifact, agent_trace += ["InfraSREAgent"]
+            │
+            ▼
+       security_reviewer_agent
+       ← reads: state["fix_artifact"] (v2 field, set by specialist above)
+       sets: security_verdict, agent_trace += ["SecurityReviewerAgent"]
+            │
+            ▼
+       security_gate
+       HIGH_RISK? → log human_approval_required + interrupt() → human approval
+       SAFE/CAUTION → pass through
+            │
+            ▼
+       verifier_agent     ← sets: execution_result, execution_error
+       (sole Docker SDK caller)
+            │
+            ▼
+       format_report      ← reads: all fields; appends Sandbox + Security sections
+            │
+            ▼
+          END
 ```
 
 **v1 graph** (unchanged, used by benchmark):

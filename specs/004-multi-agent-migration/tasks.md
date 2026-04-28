@@ -37,14 +37,15 @@ All of Phase 1 MUST complete before Phase 2 begins.
 - [ ] T005 [P] ⚠ WRITE FAILING — `tests/unit/test_supervisor_agent.py`: tests for SupervisorAgent routing table (CODE→CodeFixer, INFRA→InfraSRE, CONFIG→InfraSRE, SECURITY→CodeFixer, UNKNOWN→CodeFixer fallback, routing_decision format, agent_trace append)
 - [ ] T006 [P] ⚠ WRITE FAILING — `tests/unit/test_code_fixer_agent.py`: tests for CodeFixerAgent mock fix generation (fix_artifact set, TODO comment present, agent_trace append)
 - [ ] T007 [P] ⚠ WRITE FAILING — `tests/unit/test_infra_sre_agent.py`: tests for InfraSREAgent mock fix generation (fix_artifact set for INFRA/CONFIG, agent_trace append)
-- [ ] T008 [P] ⚠ WRITE FAILING — `tests/unit/test_security_reviewer_agent.py`: tests for SecurityReviewerAgent keyword detection (SAFE for clean scripts, HIGH_RISK for each keyword in _HIGH_RISK_KEYWORDS, agent_trace append)
+- [ ] T008 [P] ⚠ WRITE FAILING — `tests/unit/test_security_reviewer_agent.py`: tests for SecurityReviewerAgent keyword detection on `fix_artifact` field (SAFE for clean fix_artifact, HIGH_RISK for each keyword in _HIGH_RISK_KEYWORDS, empty/None fix_artifact → SAFE, agent_trace append)
 - [ ] T009 [P] ⚠ WRITE FAILING — `tests/unit/test_verifier_agent.py`: tests for VerifierAgent (produces ExecutionResult, reads fix_artifact, appends to agent_trace; mock Docker success/failure/timeout/unavailable)
 - [ ] T010 [P] ⚠ WRITE FAILING — `tests/unit/test_docker_import_boundary.py`: SC-004 AST check — walks all `.py` under `autosentinel/`, asserts only `autosentinel/agents/verifier.py` imports `docker`
-- [ ] T011 ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph.py`: integration tests for routing (4 categories), interrupt/resume (HIGH_RISK), parallel fan-out (both agents in agent_trace), CAUTION pass-through, Docker-unavailable resilience (quickstart.md scenarios 1–8)
+- [ ] T011a [P] ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph_routing.py`: routing tests — 4 category routing (CODE/INFRA/CONFIG/SECURITY), UNKNOWN fallback, routing_decision format, agent_trace order (specialist before SecurityReviewerAgent) (quickstart.md scenarios 1–3, 8)
+- [ ] T011b [P] ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph_security.py`: security gate tests — HIGH_RISK interrupt/resume (specialist produces fix_artifact with HIGH_RISK keyword → SecurityReviewer sees it → interrupt fires), CAUTION pass-through, Docker-unavailable resilience; MUST include end-to-end case where fix_artifact contains HIGH_RISK keyword and SC-003 is verifiable (quickstart.md scenarios 4–7)
 - [ ] T012 [P] ⚠ WRITE FAILING — `tests/test_benchmark.py`: assert `output/benchmark-report.json` exists after `run_benchmark()`, contains `scenario_count=5`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
 - [ ] T013 [P] ⚠ WRITE FAILING — update `tests/unit/test_format_report.py`: add 3 tests for Security Review section (SAFE no badge, CAUTION badge "⚠ CAUTION", HIGH_RISK approved badge "🚨 HIGH RISK")
 
-**GATE**: Run `pytest tests/unit/test_diagnosis_agent.py tests/unit/test_supervisor_agent.py tests/unit/test_code_fixer_agent.py tests/unit/test_infra_sre_agent.py tests/unit/test_security_reviewer_agent.py tests/unit/test_verifier_agent.py tests/unit/test_docker_import_boundary.py tests/integration/test_multi_agent_graph.py tests/test_benchmark.py -q 2>&1 | tail -5` — confirm all ERROR/FAILED, then:
+**GATE**: Run `pytest tests/unit/test_diagnosis_agent.py tests/unit/test_supervisor_agent.py tests/unit/test_code_fixer_agent.py tests/unit/test_infra_sre_agent.py tests/unit/test_security_reviewer_agent.py tests/unit/test_verifier_agent.py tests/unit/test_docker_import_boundary.py tests/integration/test_multi_agent_graph_routing.py tests/integration/test_multi_agent_graph_security.py tests/test_benchmark.py -q 2>&1 | tail -5` — confirm all ERROR/FAILED, then:
 
 ```
 git add tests/
@@ -71,14 +72,14 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 ## Phase 4: User Story 2 — Security Review Gate (Priority: P1)
 
-**Goal**: SecurityReviewerAgent classifies fix_script with keyword mock; security_gate suspends pipeline on HIGH_RISK via interrupt(); human_approval_required log event emitted; CAUTION passes through.
+**Goal**: SecurityReviewerAgent classifies `fix_artifact` with keyword mock; security_gate suspends pipeline on HIGH_RISK via interrupt(); human_approval_required log event emitted; CAUTION passes through.
 
-**Independent Test**: `pytest tests/unit/test_security_reviewer_agent.py -v` all green; `pytest tests/integration/test_multi_agent_graph.py -k "high_risk or interrupt or caution" -v` all green.
+**Independent Test**: `pytest tests/unit/test_security_reviewer_agent.py -v` all green; `pytest tests/integration/test_multi_agent_graph_security.py -k "high_risk or interrupt or caution" -v` all green.
 
-- [ ] T017 [US2] Implement `autosentinel/agents/security_reviewer.py` — SecurityReviewerAgent with `_HIGH_RISK_KEYWORDS` list, keyword-scans `state.get("fix_script") or ""`, returns `{security_verdict: "SAFE"|"HIGH_RISK", agent_trace: ["SecurityReviewerAgent"]}`, `# TODO(W2): replace with real LLM call`
-- [ ] T018 [US2] Implement `security_gate` node in `autosentinel/multi_agent_graph.py` — reads `security_verdict`; for HIGH_RISK: logs `human_approval_required` (soft guarantee — log failure must NOT block interrupt), calls `interrupt({reason, fix_artifact})`; always returns `{approval_required: verdict=="HIGH_RISK"}`
+- [ ] T017 [US2] Implement `autosentinel/agents/security_reviewer.py` — SecurityReviewerAgent with `_HIGH_RISK_KEYWORDS` list, keyword-scans `state.get("fix_artifact") or ""`, returns `{security_verdict: "SAFE"|"HIGH_RISK", agent_trace: ["SecurityReviewerAgent"]}`, `# TODO(W2): replace with real LLM call`
+- [ ] T018 [US2] Implement `security_gate` node in `autosentinel/multi_agent_graph.py` — reads `security_verdict`; for HIGH_RISK: logs `human_approval_required` with `_logger.exception` fallback (soft guarantee — log failure must NOT block interrupt), calls `interrupt({reason, fix_artifact})`; always returns `{approval_required: verdict=="HIGH_RISK"}`
 
-**Checkpoint**: `pytest tests/unit/test_security_reviewer_agent.py tests/integration/test_multi_agent_graph.py -k "security or interrupt or caution" -v` → all PASSED.
+**Checkpoint**: `pytest tests/unit/test_security_reviewer_agent.py tests/integration/test_multi_agent_graph_security.py -v` → all PASSED.
 
 ---
 
@@ -96,15 +97,15 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 ---
 
-## Phase 6: User Story 3 — Parallel Fan-Out (Priority: P2)
+## Phase 6: User Story 3 — Sequential Security Gate Enforcement (Priority: P2)
 
-**Goal**: After supervisor_route, specialist agent AND security_reviewer run in parallel via LangGraph fan-out edges; both appear in agent_trace; `Annotated[list[str], operator.add]` reducer prevents InvalidUpdateError.
+**Goal**: Wire specialist → security_reviewer sequential edges; remove supervisor_merge no-op node; verify SecurityReviewerAgent reads fix_artifact and agent_trace order is specialist-before-reviewer.
 
-**Independent Test**: `pytest tests/integration/test_multi_agent_graph.py -k "parallel" -v` all green; agent_trace contains both specialist and SecurityReviewerAgent.
+**Independent Test**: `pytest tests/integration/test_multi_agent_graph_routing.py -v` all green; agent_trace order shows specialist before SecurityReviewerAgent.
 
-- [ ] T022 [US3] Wire parallel fan-out in `autosentinel/multi_agent_graph.py` — replace sequential specialist→security_reviewer with fan-out: `add_conditional_edges("supervisor_route", _route_to_specialist, {"code_fixer": "code_fixer_agent", "infra_sre": "infra_sre_agent"})` + `add_edge("supervisor_route", "security_reviewer")`; fan-in: both specialist edges + security_reviewer edge → supervisor_merge; verify AgentState.agent_trace uses `Annotated[list[str], operator.add]` (already set in T001)
+- [ ] T022 [US3] Wire sequential edges in `autosentinel/multi_agent_graph.py` — add `add_edge("code_fixer_agent", "security_reviewer")` and `add_edge("infra_sre_agent", "security_reviewer")`; add `add_edge("security_reviewer", "security_gate")`; remove `supervisor_merge` node and its edges; verify T016 graph stub is updated to this topology
 
-**Checkpoint**: `pytest tests/integration/test_multi_agent_graph.py -v` → all PASSED; run one scenario and confirm both specialist + SecurityReviewerAgent in agent_trace.
+**Checkpoint**: `pytest tests/integration/test_multi_agent_graph_routing.py tests/integration/test_multi_agent_graph_security.py -v` → all PASSED; agent_trace in CODE scenario is `["DiagnosisAgent", "SupervisorAgent", "CodeFixerAgent", "SecurityReviewerAgent", "VerifierAgent"]`.
 
 ---
 
@@ -126,7 +127,7 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/test_benchmark.py -v` all green; output file parseable by json.loads().
 
-- [ ] T024 [US5] Implement `autosentinel/benchmark.py` — define `SCENARIOS: list[dict]` with 5 entries (s01=CODE, s02=INFRA, s03=CONFIG, s04=SECURITY, s05=UNKNOWN/fallback); implement `run_benchmark() -> dict`; `if __name__ == "__main__"` CLI entry; writes `output/benchmark-report.json` with fields: `scenario_count`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
+- [ ] T024 [US5] Implement `autosentinel/benchmark.py` — define `SCENARIOS: list[dict]` with 5 entries (s01=CODE, s02=INFRA, s03=CONFIG, s04=SECURITY, s05=UNKNOWN/fallback); **s04 SECURITY mock specialist output MUST include a `_HIGH_RISK_KEYWORDS` entry** (e.g., `"DROP TABLE users"`) so the HIGH_RISK path is exercised in at least one benchmark scenario; implement `run_benchmark() -> dict`; `if __name__ == "__main__"` CLI entry; writes `output/benchmark-report.json` with fields: `scenario_count`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
 
 **Checkpoint**: `pytest tests/test_benchmark.py -v` → all PASSED; `python -m autosentinel.benchmark` exits 0.
 
@@ -151,10 +152,10 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 - **Phase 1 (Setup)**: No dependencies — start immediately
 - **Phase 2 (Test-First Gate)**: Depends on Phase 1 — write all tests, commit "failing — Test-First gate" before Phase 3
 - **Phase 3 (US1 Routing)**: Depends on Phase 2 commit — P1
-- **Phase 4 (US2 Security Gate)**: Depends on Phase 3 (needs graph stub) — P1
-- **Phase 5 (US4 Verifier)**: Depends on Phase 2 commit (can run after Phase 3/4 or in parallel with Phase 4 for different files) — P1
-- **Phase 6 (US3 Fan-Out)**: Depends on Phase 3 + Phase 4 + Phase 5 complete — P2
-- **Phase 7 (Report)**: Depends on Phase 6 (needs security_verdict in state) — can run after Phase 4
+- **Phase 4 (US2 Security Gate)**: T017 (security_reviewer.py) depends only on Phase 2 commit; T018 (security_gate in graph) depends on T016 (graph stub) — P1
+- **Phase 5 (US4 Verifier)**: T019/T020/T021 are standalone new files — depend only on Phase 2 commit; can run in parallel with Phase 4 T017 (different files) — P1
+- **Phase 6 (US3 Sequential Wiring)**: Depends on T016 + T018 + T017 + T021 complete — P2
+- **Phase 7 (Report)**: Depends on Phase 4 (needs security_verdict in state); can run after T018 — P1-adjacent
 - **Phase 8 (US5 Benchmark)**: Depends on all P1 phases complete — P3
 - **Phase 9 (Polish)**: Depends on all prior phases
 
@@ -162,24 +163,36 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 ```
 T001 → T002 → T003
-             ↓
-      T004–T013 (parallel, all Phase 2)
-             ↓
-      COMMIT "failing — Test-First gate"
-             ↓
-      T014 → T015 → T016      (US1, sequential)
-             ↓
-      T017 → T018              (US2, sequential)
-      T019 ─┐                  (US4, parallel)
-      T020 ─┤ → T021           (US4)
-             ↓
-      T022                     (US3 fan-out, depends on US1+US2+US4)
-             ↓
-      T023                     (Report, depends on fan-out)
-             ↓
-      T024                     (US5 Benchmark)
-             ↓
-      T025 → T026 → T027       (Polish)
+                  ↓
+T004─┐
+T005─┤
+T006─┤
+T007─┤ (all parallel, Phase 2)
+T008─┤
+T009─┤
+T010─┤
+T011a┤
+T011b┤
+T012─┤
+T013─┘
+      ↓
+COMMIT "failing — Test-First gate"
+      │
+      ├── Stream A: T014 → T015 → T016      (US1 agents → graph stub)
+      │                             │
+      ├── Stream B: T017 ────────────────→ T018  (US2: reviewer file → security_gate in graph)
+      │                                     │
+      ├── Stream C: T019 ─┐                 │
+      │             T020 ─┘→ T021 ──────────┘
+      │             (US4: specialist files → verifier)
+      │
+      └── All streams converge → T022 (sequential wiring, needs T016+T017+T018+T021)
+                                   ↓
+                                 T023 (Report)
+                                   ↓
+                                 T024 (Benchmark)
+                                   ↓
+                          T025 → T026 → T027 (Polish)
 ```
 
 ### Within Each Phase
@@ -194,16 +207,17 @@ T001 → T002 → T003
 
 ### Phase 2: All test files can be written in parallel
 ```
-T004 test_diagnosis_agent.py    ─┐
-T005 test_supervisor_agent.py   ─┤
-T006 test_code_fixer_agent.py   ─┤ all in parallel
-T007 test_infra_sre_agent.py    ─┤ (different files)
-T008 test_security_reviewer.py  ─┤
-T009 test_verifier_agent.py     ─┤
-T010 test_docker_boundary.py    ─┤
-T012 test_benchmark.py          ─┤
-T013 test_format_report.py      ─┘
-T011 test_multi_agent_graph.py  (slightly more complex — write last)
+T004 test_diagnosis_agent.py        ─┐
+T005 test_supervisor_agent.py       ─┤
+T006 test_code_fixer_agent.py       ─┤ all in parallel
+T007 test_infra_sre_agent.py        ─┤ (different files)
+T008 test_security_reviewer.py      ─┤
+T009 test_verifier_agent.py         ─┤
+T010 test_docker_boundary.py        ─┤
+T011a test_multi_agent_graph_routing ─┤
+T011b test_multi_agent_graph_security─┤
+T012 test_benchmark.py              ─┤
+T013 test_format_report.py          ─┘
 ```
 
 ### Phase 5: Agent stubs can be written in parallel
@@ -241,6 +255,7 @@ T021 verifier.py       (after T019/T020 to avoid merge confusion in graph)
 - **Phase 2 is a hard gate** — no implementation PR is valid without the "failing — Test-First gate" commit preceding it on the branch (SC-006)
 - All mock `run()` methods MUST include `# TODO(W2): replace with real LLM call` (FR-010)
 - Docker is NEVER imported outside `autosentinel/agents/verifier.py` (FR-008 / SC-004)
-- `agent_trace: Annotated[list[str], operator.add]` is the only field requiring a reducer; `fix_artifact` and `security_verdict` are written by exactly one branch each (research.md Decision 1)
+- SecurityReviewerAgent reads `state["fix_artifact"]` (v2 field set by specialist); NOT `state["fix_script"]` — sequential wiring is what makes SC-003 testable (plan.md Decision 3)
+- `agent_trace: Annotated[list[str], operator.add]` reducer is retained for Sprint 5 fan-out compatibility; Sprint 4 is sequential so reducer is never triggered (data-model.md agent_trace note)
 - `build_multi_agent_graph()` MUST compile with `checkpointer=MemorySaver()` for interrupt() to work (research.md Decision 2)
-- Task count: 27 tasks total (3 setup + 10 test-first + 14 implementation)
+- Task count: 28 tasks total (3 setup + 11 test-first + 14 implementation)

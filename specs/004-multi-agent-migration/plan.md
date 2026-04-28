@@ -104,9 +104,13 @@ Naive fan-out with plain TypedDict fields raises `InvalidUpdateError`. Only `age
 
 `build_multi_agent_graph()` MUST compile with `checkpointer=MemorySaver()`. Tests pass a `{"configurable": {"thread_id": ...}}` config. Production upgrade to a persistent checkpointer (e.g., PostgreSQL) is Sprint 5 scope.
 
-### 3. Security Reviewer Reads `fix_script` in Parallel Step
+### 3. Sequential Security Review (Sprint 4 Decision)
 
-In the fan-out, both parallel nodes see the same pre-step state. SecurityReviewer cannot see CodeFixer's `fix_artifact` during the parallel step. In Sprint 4 mock mode, it runs keyword check on `state["fix_script"]` (Sprint 3 field set by `analyze_error`). This is documented as a Sprint 5 TODO.
+Fan-out was evaluated and rejected for Sprint 4. In a parallel step, both nodes receive the pre-step state snapshot — SecurityReviewer cannot see `fix_artifact` produced by the specialist in the same step. The v2 graph has no `analyze_error` node, so `state["fix_script"]` is always `None`; a parallel SecurityReviewer would always return `SAFE`, making SC-003 (HIGH_RISK gate) untestable.
+
+Sprint 4 wiring: `specialist_agent → security_reviewer → security_gate`. SecurityReviewer reads `state["fix_artifact"]` (v2 field), satisfying Constitution Principle VI.
+
+Sprint 5 option: if real LLM latency makes sequential review a bottleneck, revisit fan-out where SecurityReviewer runs a pre-analysis pass in parallel, then performs a second targeted pass on `fix_artifact` after the specialist completes.
 
 ### 4. CI Docker Import Check — stdlib `ast`, No New Dependency
 
@@ -146,10 +150,10 @@ In the fan-out, both parallel nodes see the same pre-step state. SecurityReviewe
 - Add `CodeFixerAgent` and `InfraSREAgent` (mock fix generators)
 - Verify Docker import boundary test passes
 
-### Phase 6 — P2: Parallel Fan-Out (US3)
-- Add `Annotated[list[str], operator.add]` reducer to `agent_trace`
-- Replace sequential wiring with fan-out edges in `build_multi_agent_graph()`
-- Verify parallel execution test (both agents in `agent_trace`)
+### Phase 6 — P2: Sequential Wiring (US3)
+- Wire `code_fixer_agent → security_reviewer` and `infra_sre_agent → security_reviewer` edges
+- Remove `supervisor_merge` no-op node; `security_reviewer` feeds directly to `security_gate`
+- Verify SecurityReviewer reads `fix_artifact` and `agent_trace` order is specialist-before-reviewer
 
 ### Phase 7 — P2: Report Integration + Security Section
 - Update `format_report` to read `security_verdict`, `routing_decision`, `agent_trace`
@@ -164,6 +168,4 @@ In the fan-out, both parallel nodes see the same pre-step state. SecurityReviewe
 
 ## Complexity Tracking
 
-No constitution violations. Fan-out requires `Annotated` reducers (standard LangGraph
-pattern, not a deviation). `interrupt()` requires checkpointer (documented as known
-production gap, Sprint 5 scope).
+No constitution violations. Sequential `specialist → security_reviewer` wiring ensures SecurityReviewer reads `fix_artifact` (v2 field), fully satisfying Constitution Principle VI. `interrupt()` requires checkpointer (documented as known production gap, Sprint 5 scope). Fan-out parallelism deferred to Sprint 5 pending real LLM latency measurements.

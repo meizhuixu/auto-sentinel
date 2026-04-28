@@ -41,19 +41,19 @@ Every fix artifact produced by a specialist agent is reviewed by the Security Re
 
 ---
 
-### User Story 3 - Parallel Execution of Code Fixer and Security Reviewer (Priority: P2)
+### User Story 3 — Sequential Security Gate Enforcement (Priority: P2)
 
-After Diagnosis completes, the Code Fixer Agent and the Security Reviewer Agent run in parallel on the same error context. The pipeline does not wait for Code Fixer to finish before starting Security Review. Operators observe reduced end-to-end latency compared to the sequential v1 pipeline.
+After the specialist agent generates `fix_artifact`, the Security Reviewer Agent inspects it before the Verifier Agent is invoked. This guarantees Constitution Principle VI is satisfied: every fix artifact passes through Security Review with full visibility of the fix content before any container is started.
 
-**Why this priority**: Parallelism is a latency optimisation that builds on P1 (routing and security gate must exist first). Delivers the MTTR improvement that justifies the migration.
+**Why this priority**: Enforcing that SecurityReviewer reads `fix_artifact` (not a stale proxy field) is the condition under which SC-003 can be reliably triggered in CI. Sprint 4 uses all-mock agents, so any latency benefit from fan-out would be synthetic; architectural correctness takes precedence. Sprint 5 may revisit parallelism once real LLM latencies are measurable.
 
-**Independent Test**: Record wall-clock timestamps for Code Fixer start, Security Reviewer start, and their respective completions. Assert that Security Reviewer start time < Code Fixer completion time (i.e., they overlapped).
+**Independent Test**: Run a CODE-category scenario where the specialist mock produces a `fix_artifact` containing a HIGH_RISK keyword. Assert that `agent_trace` order is `[..., "CodeFixerAgent", "SecurityReviewerAgent", ...]` (specialist completes before reviewer), `security_verdict == "HIGH_RISK"`, and the pipeline suspends at `interrupt()`.
 
 **Acceptance Scenarios**:
 
-1. **Given** the Diagnosis Agent completes, **When** the graph executes the next step, **Then** Code Fixer and Security Reviewer nodes are dispatched concurrently via LangGraph's parallel fan-out.
-2. **Given** both parallel agents complete, **When** the Supervisor collects results, **Then** it merges their outputs before passing to the Verifier Agent.
-3. **Given** one parallel agent fails (mock exception), **When** the other completes, **Then** the pipeline still produces a partial result rather than crashing.
+1. **Given** the Supervisor routes to a specialist, **When** the specialist completes, **Then** SecurityReviewerAgent reads `state["fix_artifact"]` and `agent_trace` records the specialist before SecurityReviewerAgent.
+2. **Given** SecurityReviewer returns a verdict, **When** the pipeline continues, **Then** security_gate receives the verdict and either passes through (SAFE/CAUTION) or suspends (HIGH_RISK).
+3. **Given** the specialist produces a `fix_artifact` containing a HIGH_RISK keyword, **When** SecurityReviewer runs, **Then** `security_verdict == "HIGH_RISK"` and the CI log captures the `human_approval_required` event.
 
 ---
 
@@ -94,7 +94,7 @@ A smoke benchmark harness runs 5 synthetic error scenarios (one per major catego
 ### Edge Cases
 
 - What if the Diagnosis Agent cannot classify the error? (Supervisor falls back to `application_logic` category, routes to Code Fixer as default, sets low-confidence flag in state.)
-- What if both Code Fixer and Security Reviewer are still running when a timeout fires? (LangGraph's parallel branch timeout cancels both; partial results are preserved in state.)
+- What if the specialist agent produces a very long `fix_artifact`? (SecurityReviewer scans the full string in memory; no truncation in Sprint 4. Sprint 5 scope: token-limit guard before LLM classification.)
 - What if the human approval for a `HIGH_RISK` fix is never received? (Pipeline remains suspended; a timeout policy cancels and records `approval_timeout` in state — out of scope for Sprint 4, documented as assumption.)
 - What if the Verifier Agent's Docker container image is not available? (Same behavior as Sprint 3 `execute_fix`: error captured in `execution_error`, pipeline continues to report generation.)
 

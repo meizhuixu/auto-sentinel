@@ -139,7 +139,7 @@ return {
 
 ### `SecurityReviewerAgent.run(state) -> AgentState`
 
-**Reads**: `state["fix_script"]` (Sprint 3 field, proxy for fix_artifact in parallel step), `state["error_category"]`
+**Reads**: `state["fix_artifact"]`, `state["error_category"]`
 **Writes**: `security_verdict`, `agent_trace`
 
 ```python
@@ -150,7 +150,7 @@ _HIGH_RISK_KEYWORDS = [
 ]
 
 def run(self, state):
-    artifact = state.get("fix_script") or ""
+    artifact = state.get("fix_artifact") or ""
     verdict = "SAFE"
     if any(kw in artifact for kw in _HIGH_RISK_KEYWORDS):
         verdict = "HIGH_RISK"
@@ -166,15 +166,16 @@ def run(self, state):
 
 ```python
 def security_gate(state: AgentState) -> AgentState:
-    if state.get("security_verdict") == "HIGH_RISK":
+    verdict = state.get("security_verdict")
+    approval_required = (verdict == "HIGH_RISK")
+    if approval_required:
         try:
-            _logger.info("human_approval_required", extra={...})
+            _logger.info("human_approval_required", extra={"fix_artifact": state.get("fix_artifact")})
         except Exception:
-            pass   # soft guarantee — log failure must not block interrupt
-        finally:
-            interrupt({"reason": "HIGH_RISK fix requires human approval",
-                       "fix_artifact": state.get("fix_artifact")})
-    return {"approval_required": state.get("security_verdict") == "HIGH_RISK"}
+            _logger.exception("Failed to emit human_approval_required event")
+        interrupt({"reason": "HIGH_RISK fix requires human approval",
+                   "fix_artifact": state.get("fix_artifact")})
+    return {"approval_required": approval_required}
 ```
 
 ---
@@ -215,7 +216,6 @@ def build_multi_agent_graph() -> CompiledStateGraph:
     builder.add_node("code_fixer_agent",       lambda s: code_fixer_agent.run(s))
     builder.add_node("infra_sre_agent",        lambda s: infra_sre_agent.run(s))
     builder.add_node("security_reviewer",      lambda s: security_reviewer_agent.run(s))
-    builder.add_node("supervisor_merge",       lambda s: {})   # no-op; state merged by LangGraph
     builder.add_node("security_gate",          security_gate)
     builder.add_node("verifier_agent",         lambda s: verifier_agent.run(s))
     builder.add_node("format_report",          format_report)
@@ -226,21 +226,17 @@ def build_multi_agent_graph() -> CompiledStateGraph:
     builder.add_edge("parse_log", "diagnosis_agent")
     builder.add_edge("diagnosis_agent", "supervisor_route")
 
-    # Fan-out: specialist + security_reviewer in parallel
+    # Sequential: route to specialist, then security_reviewer reads fix_artifact
     builder.add_conditional_edges("supervisor_route", _route_to_specialist,
                                   {"code_fixer": "code_fixer_agent",
                                    "infra_sre":  "infra_sre_agent"})
-    builder.add_edge("supervisor_route", "security_reviewer")   # always parallel
+    builder.add_edge("code_fixer_agent", "security_reviewer")   # sequential after specialist
+    builder.add_edge("infra_sre_agent",  "security_reviewer")   # sequential after specialist
 
-    # Fan-in
-    builder.add_edge("code_fixer_agent", "supervisor_merge")
-    builder.add_edge("infra_sre_agent",  "supervisor_merge")
-    builder.add_edge("security_reviewer", "supervisor_merge")
-
-    builder.add_edge("supervisor_merge", "security_gate")
-    builder.add_edge("security_gate",    "verifier_agent")
-    builder.add_edge("verifier_agent",   "format_report")
-    builder.add_edge("format_report",    END)
+    builder.add_edge("security_reviewer", "security_gate")
+    builder.add_edge("security_gate",     "verifier_agent")
+    builder.add_edge("verifier_agent",    "format_report")
+    builder.add_edge("format_report",     END)
 
     return builder.compile(checkpointer=MemorySaver())
 ```
