@@ -57,11 +57,11 @@ After Diagnosis completes, the Code Fixer Agent and the Security Reviewer Agent 
 
 ---
 
-### User Story 4 - Verifier Agent as Sole Docker Executor (Priority: P2)
+### User Story 4 - Verifier Agent as Sole Docker Executor (Priority: P1)
 
 The Verifier Agent is the only component in the system that may call the Docker SDK. All other agents are prohibited from starting containers. The Verifier runs the approved fix script, captures the result, and updates the pipeline state with pass/fail evidence.
 
-**Why this priority**: Consolidates the Docker sandbox access pattern established in Sprint 3 into a first-class agent boundary. Depends on US2 (security gate must approve first).
+**Why this priority**: Elevated to P1 because Constitution Principle VI makes this a mandatory architectural constraint from day one — implementing other agents before the Docker isolation boundary is established would produce code that violates the constitution and then requires a breaking rewrite. Building the boundary first prevents that pattern.
 
 **Independent Test**: After replacing the existing `execute_fix` node with the Verifier Agent, verify: (a) no other agent module imports the Docker SDK, (b) Verifier produces the same `ExecutionResult` structure as the Sprint 3 node, (c) the full pipeline still achieves 100% coverage with Docker mocked.
 
@@ -73,19 +73,21 @@ The Verifier Agent is the only component in the system that may call the Docker 
 
 ---
 
-### User Story 5 - v1 vs v2 Benchmark (50-Scenario Suite) (Priority: P3)
+### User Story 5 - v1 vs v2 Smoke Benchmark (5-Scenario Suite) (Priority: P3)
 
-A benchmark harness runs 50 synthetic error scenarios through both the v1 (single-agent) and v2 (multi-agent) pipelines, comparing resolution rate and average processing time. Results are written to a benchmark report file.
+A smoke benchmark harness runs 5 synthetic error scenarios (one per major category plus one edge case) through both the v1 (single-agent) and v2 (multi-agent) pipelines, comparing resolution rate and average processing time. Results are written to a benchmark report file. The full 50-scenario suite is deferred to Sprint 5.
 
-**Why this priority**: Validates that the migration delivers measurable improvement without regressing correctness. P3 because it requires all other stories to be complete first.
+**Why this priority**: Validates that the migration does not regress correctness on the most representative cases, without crowding out Sprint 4's implementation time. P3 because it requires all other stories to be complete first. The 5-scenario scope is intentionally minimal — sufficient for CI gating, not for statistical conclusions.
 
-**Independent Test**: Run `python -m autosentinel.benchmark` and assert the output file exists and contains fields `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`.
+**Independent Test**: Run `python -m autosentinel.benchmark` and assert the output file exists and contains fields `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`, `scenario_count`.
 
 **Acceptance Scenarios**:
 
-1. **Given** 50 pre-defined error scenarios (12 CODE, 15 INFRA, 8 SECURITY, 15 CONFIG), **When** the benchmark runs, **Then** v2 resolution rate is ≥ v1 resolution rate.
-2. **Given** the benchmark runs both pipelines with Docker mocked, **When** results are collected, **Then** v2 avg processing time is measured and reported alongside v1.
-3. **Given** the benchmark report is written, **Then** it is a valid JSON file parseable by `json.loads()`.
+1. **Given** 5 pre-defined smoke scenarios (1 CODE, 1 INFRA, 1 SECURITY, 1 CONFIG, 1 unknown/fallback), **When** the benchmark runs both pipelines with Docker mocked, **Then** both complete without unhandled exceptions.
+2. **Given** the benchmark completes, **When** results are written, **Then** `v2_resolution_rate` is reported alongside `v1_resolution_rate` and neither is `null`.
+3. **Given** the benchmark report is written, **Then** it is a valid JSON file parseable by `json.loads()` and contains `scenario_count: 5`.
+
+**Sprint 5 extension**: The 5 scenarios are designed to be extended to 50 (12 CODE, 15 INFRA, 8 SECURITY, 15 CONFIG) in Sprint 5 without changing the benchmark module's interface.
 
 ---
 
@@ -103,7 +105,7 @@ A benchmark harness runs 50 synthetic error scenarios through both the v1 (singl
 ### Functional Requirements
 
 - **FR-001**: The system MUST replace the existing linear LangGraph pipeline with a 6-node agent graph: Supervisor, Diagnosis, Code Fixer, Infra/SRE, Security Reviewer, Verifier.
-- **FR-002**: Each agent MUST implement a `BaseAgent` interface with a single `run(state) -> dict` method; agents MUST NOT expose other public methods for inter-agent invocation.
+- **FR-002**: Each agent MUST implement a `BaseAgent` interface with a single `run(state: AgentState) -> AgentState` method, where `AgentState` is a Pydantic V2 model or a `TypedDict` compatible with LangGraph's state channel reducer. Returning a bare `dict` is prohibited. Agents MUST NOT expose other public methods for inter-agent invocation.
 - **FR-003**: Agent communication MUST flow exclusively through LangGraph state channels (TypedDict fields); direct Python method calls between agent instances are prohibited.
 - **FR-004**: The Supervisor Agent MUST route based on the Diagnosis Agent's `error_category` output and MUST arbitrate conflicts by selecting the lower-blast-radius action.
 - **FR-005**: The Security Reviewer Agent MUST classify every fix as `SAFE`, `CAUTION`, or `HIGH_RISK` before it reaches the Verifier Agent.
@@ -112,12 +114,12 @@ A benchmark harness runs 50 synthetic error scenarios through both the v1 (singl
 - **FR-008**: The Verifier Agent MUST be the only agent that imports or invokes the Docker SDK; all other agent modules MUST NOT import `docker`.
 - **FR-009**: The existing FastAPI gateway, `asyncio.Queue`, and `run_pipeline()` entry point MUST remain unchanged in interface; the multi-agent graph is a drop-in replacement for the existing `build_graph()` call.
 - **FR-010**: All agent implementations in Sprint 4 MUST use mock `run()` methods that return deterministic state; real LLM API calls are deferred to Sprint 5. Every mock MUST include a `# TODO(W2): replace with real LLM call` comment.
-- **FR-011**: A benchmark module `autosentinel/benchmark.py` MUST run 50 synthetic scenarios through v1 and v2 pipelines and write results to `output/benchmark-report.json`.
+- **FR-011**: A benchmark module `autosentinel/benchmark.py` MUST run 5 smoke scenarios through v1 and v2 pipelines and write results to `output/benchmark-report.json`. The scenario list MUST be defined in a separate data structure (not inline) so Sprint 5 can extend it to 50 without modifying the runner logic.
 - **FR-012**: CI MUST remain green (all existing tests pass, 100% coverage maintained) after every committed increment.
 
 ### Key Entities
 
-- **BaseAgent**: Abstract class with `run(state: AgentState) -> dict`. All six agent classes inherit from it.
+- **BaseAgent**: Abstract class with a single abstract method `run(state: AgentState) -> AgentState`, where `AgentState` is a Pydantic V2 model or a LangGraph-compatible `TypedDict`. Returning a bare `dict` is prohibited. All six agent classes inherit from it.
 - **AgentState**: Extended `DiagnosticState` TypedDict with new fields: `error_category` (str), `fix_artifact` (Optional[str]), `security_verdict` (str: SAFE/CAUTION/HIGH_RISK), `routing_decision` (str), `agent_trace` (list[str]), `approval_required` (bool).
 - **SupervisorAgent**: Routes, arbitrates. No LLM call.
 - **DiagnosisAgent**: Classifies error into CODE / INFRA / SECURITY / CONFIG. Mock in Sprint 4.
@@ -132,21 +134,22 @@ A benchmark harness runs 50 synthetic error scenarios through both the v1 (singl
 
 ### Measurable Outcomes
 
-- **SC-001**: All 50 benchmark scenarios complete without unhandled exceptions in both v1 and v2.
-- **SC-002**: v2 resolution rate ≥ v1 resolution rate across the 50-scenario benchmark.
-- **SC-003**: `HIGH_RISK` classified fixes never reach the Verifier Agent without a recorded `human_approval_required` log event — verified in CI by a dedicated test.
-- **SC-004**: No agent module other than `VerifierAgent` imports the `docker` package — verified by a static import check in CI.
-- **SC-005**: The full test suite (including all Sprint 1–3 tests) passes at 100% coverage after the migration.
-- **SC-006**: Test-First gate: all agent tests committed failing before any agent implementation is written (Constitution Principle III NON-NEGOTIABLE).
-- **SC-007**: End-to-end latency for a CODE-category error in v2 is measurably reported in the benchmark (no regression target set until SC-002 is met; measurement is mandatory).
+- **SC-001**: All 5 smoke benchmark scenarios complete without unhandled exceptions in both v1 and v2 pipelines.
+- **SC-002**: `v2_resolution_rate` is reported in `benchmark-report.json` and is ≥ `v1_resolution_rate` across the 5 smoke scenarios.
+- **SC-003**: `HIGH_RISK` classified fixes never reach the Verifier Agent without a recorded `human_approval_required` log event — verified in CI by a dedicated test that inspects the captured log stream.
+- **SC-004**: No agent module other than `VerifierAgent` imports the `docker` package — verified by an automated CI check (ruff custom rule, import-linter, or equivalent AST-level tool; grep is insufficient).
+- **SC-005**: The full test suite (including all Sprint 1–3 tests) passes at 100% branch coverage after the migration.
+- **SC-006**: Test-First gate (Constitution Principle III — NON-NEGOTIABLE): for each of the six agent classes and the multi-agent graph, a corresponding test file MUST exist and all new tests MUST be confirmed failing (ImportError or AssertionError) in a dedicated commit before any agent implementation file is created. The commit message for that commit MUST contain the string "failing — Test-First gate". No implementation commit may be merged unless the immediately preceding commit on the same branch contains that string.
+- **SC-007**: `v2_avg_ms` for a CODE-category smoke scenario is written to `benchmark-report.json` (value may be any non-null integer; no performance regression target is imposed in Sprint 4).
 
 ---
 
 ## Assumptions
 
-- Sprint 4 uses mock agent implementations only; real LLM integration is deferred to Sprint 5 ("W2" work).
-- The benchmark's 50 scenarios are synthetic (hard-coded in `autosentinel/benchmark.py`), not real incident data.
+- Sprint 4 uses mock agent implementations only; real LLM integration is deferred to Sprint 5 ("W2" work). Every mock `run()` method MUST include a `# TODO(W2): replace with real LLM call` comment.
+- The smoke benchmark contains 5 synthetic scenarios hard-coded in `autosentinel/benchmark.py`; expansion to 50 is Sprint 5 scope. Scenario definitions are stored in a separate data structure to make that extension non-breaking.
 - Human approval for `HIGH_RISK` fixes is simulated in tests by directly resuming the LangGraph checkpoint; no external approval UI is built in Sprint 4.
-- The existing `asyncio.Queue` + FastAPI gateway remains unchanged; the multi-agent graph is only invoked via `run_pipeline()`.
-- LangGraph's built-in parallel node execution (Send API or fan-out edges) is used for the Code Fixer / Security Reviewer parallel step; no additional concurrency libraries are introduced.
-- `interrupt()` approval timeout policy (what happens if approval never arrives) is out of scope for Sprint 4; it is documented as a known gap.
+- The existing `asyncio.Queue` + FastAPI gateway remains unchanged; the multi-agent graph is a drop-in replacement for `build_graph()` and is only invoked via `run_pipeline()`.
+- LangGraph's built-in parallel node execution (Send API or fan-out edges) is the assumed mechanism for the Code Fixer / Security Reviewer parallel step; this MUST be confirmed and recorded in research.md during `/speckit.plan`.
+- `interrupt()` approval timeout policy (what happens if approval never arrives) is out of scope for Sprint 4; it is documented as a known gap and MUST be addressed in Sprint 5.
+- US3 (parallel execution) is P2, depending on US1 (routing), US2 (security gate), and US4 (Verifier isolation) all being P1 and implemented first.
