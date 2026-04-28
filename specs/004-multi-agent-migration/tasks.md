@@ -20,9 +20,9 @@
 **Purpose**: Extend models with AgentState, create agents/ package skeleton, update conftest fixtures.
 All of Phase 1 MUST complete before Phase 2 begins.
 
-- [ ] T001 Add `AgentState` TypedDict to `autosentinel/models.py` — extend DiagnosticState with 6 new fields: `error_category`, `fix_artifact`, `security_verdict`, `routing_decision`, `agent_trace: Annotated[list[str], operator.add]`, `approval_required`
-- [ ] T002 Create `autosentinel/agents/` package: `__init__.py` (empty), `base.py` (BaseAgent ABC with `run(state: AgentState) -> AgentState`), `state.py` (re-exports AgentState from models)
-- [ ] T003 Update `tests/conftest.py` — add AgentState initial-value helpers: `build_initial_state()`, `invoke_with_docker_mock()`, `_setup_docker_success()` per quickstart.md fixtures section
+- [X] T001 Add `AgentState` TypedDict to `autosentinel/models.py` — extend DiagnosticState with 6 new fields: `error_category`, `fix_artifact`, `security_verdict`, `routing_decision`, `agent_trace: Annotated[list[str], operator.add]`, `approval_required`
+- [X] T002 Create `autosentinel/agents/` package: `__init__.py` (empty), `base.py` (BaseAgent ABC with `run(state: AgentState) -> AgentState`), `state.py` (re-exports AgentState from models)
+- [X] T003 Update `tests/conftest.py` — add AgentState initial-value helpers: `build_initial_state()`, `invoke_with_docker_mock()`, `_setup_docker_success()` per quickstart.md fixtures section
 
 **Checkpoint**: `python -c "from autosentinel.models import AgentState; from autosentinel.agents.base import BaseAgent"` succeeds with no errors.
 
@@ -33,17 +33,17 @@ All of Phase 1 MUST complete before Phase 2 begins.
 **Purpose**: Write ALL failing tests. Every file below MUST raise `ImportError` or `AssertionError` when run.
 **⚠️ CRITICAL**: After completing all T004–T013, run `pytest --no-header -q 2>&1 | grep -E "ERROR|FAILED"` to confirm failures, then make a single git commit whose message contains exactly `"failing — Test-First gate"`. NO implementation may start before this commit exists.
 
-- [ ] T004 [P] ⚠ WRITE FAILING — `tests/unit/test_diagnosis_agent.py`: tests for DiagnosisAgent keyword routing (CODE/INFRA/CONFIG/SECURITY classification, fallback, agent_trace append)
-- [ ] T005 [P] ⚠ WRITE FAILING — `tests/unit/test_supervisor_agent.py`: tests for SupervisorAgent routing table (CODE→CodeFixer, INFRA→InfraSRE, CONFIG→InfraSRE, SECURITY→CodeFixer, UNKNOWN→CodeFixer fallback, routing_decision format, agent_trace append)
-- [ ] T006 [P] ⚠ WRITE FAILING — `tests/unit/test_code_fixer_agent.py`: tests for CodeFixerAgent mock fix generation (fix_artifact set, TODO comment present, agent_trace append)
-- [ ] T007 [P] ⚠ WRITE FAILING — `tests/unit/test_infra_sre_agent.py`: tests for InfraSREAgent mock fix generation (fix_artifact set for INFRA/CONFIG, agent_trace append)
-- [ ] T008 [P] ⚠ WRITE FAILING — `tests/unit/test_security_reviewer_agent.py`: tests for SecurityReviewerAgent keyword detection on `fix_artifact` field (SAFE for clean fix_artifact, HIGH_RISK for each keyword in _HIGH_RISK_KEYWORDS, empty/None fix_artifact → SAFE, agent_trace append)
-- [ ] T009 [P] ⚠ WRITE FAILING — `tests/unit/test_verifier_agent.py`: tests for VerifierAgent (produces ExecutionResult, reads fix_artifact, appends to agent_trace; mock Docker success/failure/timeout/unavailable)
-- [ ] T010 [P] ⚠ WRITE FAILING — `tests/unit/test_docker_import_boundary.py`: SC-004 AST check — walks all `.py` under `autosentinel/`, asserts only `autosentinel/agents/verifier.py` imports `docker`
-- [ ] T011a [P] ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph_routing.py`: routing tests — 4 category routing (CODE/INFRA/CONFIG/SECURITY), UNKNOWN fallback, routing_decision format, agent_trace order (specialist before SecurityReviewerAgent) (quickstart.md scenarios 1–3, 8)
-- [ ] T011b [P] ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph_security.py`: security gate tests — HIGH_RISK interrupt/resume (specialist produces fix_artifact with HIGH_RISK keyword → SecurityReviewer sees it → interrupt fires), CAUTION pass-through, Docker-unavailable resilience; MUST include end-to-end case where fix_artifact contains HIGH_RISK keyword and SC-003 is verifiable (quickstart.md scenarios 4–7)
-- [ ] T012 [P] ⚠ WRITE FAILING — `tests/test_benchmark.py`: assert `output/benchmark-report.json` exists after `run_benchmark()`, contains `scenario_count=5`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
-- [ ] T013 [P] ⚠ WRITE FAILING — update `tests/unit/test_format_report.py`: add 3 tests for Security Review section (SAFE no badge, CAUTION badge "⚠ CAUTION", HIGH_RISK approved badge "🚨 HIGH RISK")
+- [X] T004 [P] ⚠ WRITE FAILING — `tests/unit/test_diagnosis_agent.py`: tests for DiagnosisAgent keyword routing (CODE/INFRA/CONFIG/SECURITY classification, fallback, agent_trace append)
+- [X] T005 [P] ⚠ WRITE FAILING — `tests/unit/test_supervisor_agent.py`: tests for SupervisorAgent routing table (CODE→CodeFixer, INFRA→InfraSRE, CONFIG→InfraSRE, SECURITY→CodeFixer, UNKNOWN→CodeFixer fallback, routing_decision format, agent_trace append)
+- [X] T006 [P] ⚠ WRITE FAILING — `tests/unit/test_code_fixer_agent.py`: tests for CodeFixerAgent mock fix generation (fix_artifact set, TODO comment present, agent_trace append)
+- [X] T007 [P] ⚠ WRITE FAILING — `tests/unit/test_infra_sre_agent.py`: tests for InfraSREAgent mock fix generation (fix_artifact set for INFRA/CONFIG, agent_trace append)
+- [X] T008 [P] ⚠ WRITE FAILING — `tests/unit/test_security_reviewer_agent.py`: tests for SecurityReviewerAgent keyword detection on `fix_artifact` field (SAFE for clean fix_artifact, HIGH_RISK for each keyword in _HIGH_RISK_KEYWORDS, empty/None fix_artifact → SAFE, agent_trace append)
+- [X] T009 [P] ⚠ WRITE FAILING — `tests/unit/test_verifier_agent.py`: tests for VerifierAgent (produces ExecutionResult, reads fix_artifact, appends to agent_trace; mock Docker success/failure/timeout/unavailable)
+- [X] T010 [P] ⚠ WRITE FAILING — `tests/unit/test_docker_import_boundary.py`: SC-004 AST check — walks all `.py` under `autosentinel/`, asserts only `autosentinel/agents/verifier.py` imports `docker`
+- [X] T011a [P] ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph_routing.py`: routing tests — 4 category routing (CODE/INFRA/CONFIG/SECURITY), UNKNOWN fallback, routing_decision format, agent_trace order (specialist before SecurityReviewerAgent) (quickstart.md scenarios 1–3, 8)
+- [X] T011b [P] ⚠ WRITE FAILING — `tests/integration/test_multi_agent_graph_security.py`: security gate tests — HIGH_RISK interrupt/resume (specialist produces fix_artifact with HIGH_RISK keyword → SecurityReviewer sees it → interrupt fires), CAUTION pass-through, Docker-unavailable resilience; MUST include end-to-end case where fix_artifact contains HIGH_RISK keyword and SC-003 is verifiable (quickstart.md scenarios 4–7)
+- [X] T012 [P] ⚠ WRITE FAILING — `tests/test_benchmark.py`: assert `output/benchmark-report.json` exists after `run_benchmark()`, contains `scenario_count=5`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
+- [X] T013 [P] ⚠ WRITE FAILING — update `tests/unit/test_format_report.py`: add 3 tests for Security Review section (SAFE no badge, CAUTION badge "⚠ CAUTION", HIGH_RISK approved badge "🚨 HIGH RISK")
 
 **GATE**: Run `pytest tests/unit/test_diagnosis_agent.py tests/unit/test_supervisor_agent.py tests/unit/test_code_fixer_agent.py tests/unit/test_infra_sre_agent.py tests/unit/test_security_reviewer_agent.py tests/unit/test_verifier_agent.py tests/unit/test_docker_import_boundary.py tests/integration/test_multi_agent_graph_routing.py tests/integration/test_multi_agent_graph_security.py tests/test_benchmark.py -q 2>&1 | tail -5` — confirm all ERROR/FAILED, then:
 
@@ -62,9 +62,9 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/unit/test_diagnosis_agent.py tests/unit/test_supervisor_agent.py -v` all green; `pytest tests/integration/test_multi_agent_graph.py -k "routing" -v` all green.
 
-- [ ] T014 [US1] Implement `autosentinel/agents/diagnosis.py` — DiagnosisAgent with keyword mock `_mock_classify()` mapping (connectivity/resource_exhaustion → INFRA, configuration → CONFIG, application_logic → CODE), `# TODO(W2): replace with real LLM call`, returns `{error_category, agent_trace: ["DiagnosisAgent"]}`
-- [ ] T015 [US1] Implement `autosentinel/agents/supervisor.py` — SupervisorAgent routing table (CODE/SECURITY/UNKNOWN → "code_fixer"; INFRA/CONFIG → "infra_sre"), returns `{routing_decision: "CATEGORY → AgentName", agent_trace: ["SupervisorAgent"]}`
-- [ ] T016 [US1] Create `autosentinel/multi_agent_graph.py` — `build_multi_agent_graph()` sequential stub: parse_log → diagnosis_agent → supervisor_route → (code_fixer_agent OR infra_sre_agent) → security_reviewer → supervisor_merge → security_gate → verifier_agent → format_report → END; compile with `checkpointer=MemorySaver()`
+- [X] T014 [US1] Implement `autosentinel/agents/diagnosis.py` — DiagnosisAgent with keyword mock `_mock_classify()` mapping (connectivity/resource_exhaustion → INFRA, configuration → CONFIG, application_logic → CODE), `# TODO(W2): replace with real LLM call`, returns `{error_category, agent_trace: ["DiagnosisAgent"]}`
+- [X] T015 [US1] Implement `autosentinel/agents/supervisor.py` — SupervisorAgent routing table (CODE/SECURITY/UNKNOWN → "code_fixer"; INFRA/CONFIG → "infra_sre"), returns `{routing_decision: "CATEGORY → AgentName", agent_trace: ["SupervisorAgent"]}`
+- [X] T016 [US1] Create `autosentinel/multi_agent_graph.py` — `build_multi_agent_graph()` sequential stub: parse_log → diagnosis_agent → supervisor_route → (code_fixer_agent OR infra_sre_agent) → security_reviewer → supervisor_merge → security_gate → verifier_agent → format_report → END; compile with `checkpointer=MemorySaver()`
 
 **Checkpoint**: `pytest tests/unit/test_diagnosis_agent.py tests/unit/test_supervisor_agent.py -v` → all PASSED.
 
@@ -76,8 +76,8 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/unit/test_security_reviewer_agent.py -v` all green; `pytest tests/integration/test_multi_agent_graph_security.py -k "high_risk or interrupt or caution" -v` all green.
 
-- [ ] T017 [US2] Implement `autosentinel/agents/security_reviewer.py` — SecurityReviewerAgent with `_HIGH_RISK_KEYWORDS` list, keyword-scans `state.get("fix_artifact") or ""`, returns `{security_verdict: "SAFE"|"HIGH_RISK", agent_trace: ["SecurityReviewerAgent"]}`, `# TODO(W2): replace with real LLM call`
-- [ ] T018 [US2] Implement `security_gate` node in `autosentinel/multi_agent_graph.py` — reads `security_verdict`; for HIGH_RISK: logs `human_approval_required` with `_logger.exception` fallback (soft guarantee — log failure must NOT block interrupt), calls `interrupt({reason, fix_artifact})`; always returns `{approval_required: verdict=="HIGH_RISK"}`
+- [X] T017 [US2] Implement `autosentinel/agents/security_reviewer.py` — SecurityReviewerAgent with `_HIGH_RISK_KEYWORDS` list, keyword-scans `state.get("fix_artifact") or ""`, returns `{security_verdict: "SAFE"|"HIGH_RISK", agent_trace: ["SecurityReviewerAgent"]}`, `# TODO(W2): replace with real LLM call`
+- [X] T018 [US2] Implement `security_gate` node in `autosentinel/multi_agent_graph.py` — reads `security_verdict`; for HIGH_RISK: logs `human_approval_required` with `_logger.exception` fallback (soft guarantee — log failure must NOT block interrupt), calls `interrupt({reason, fix_artifact})`; always returns `{approval_required: verdict=="HIGH_RISK"}`
 
 **Checkpoint**: `pytest tests/unit/test_security_reviewer_agent.py tests/integration/test_multi_agent_graph_security.py -v` → all PASSED.
 
@@ -89,9 +89,9 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/unit/test_verifier_agent.py tests/unit/test_docker_import_boundary.py tests/unit/test_code_fixer_agent.py tests/unit/test_infra_sre_agent.py -v` all green.
 
-- [ ] T019 [P] [US4] Implement `autosentinel/agents/code_fixer.py` — CodeFixerAgent with `_MOCK_FIXES` dict (CODE/SECURITY categories), `# TODO(W2)`, returns `{fix_artifact, agent_trace: ["CodeFixerAgent"]}`
-- [ ] T020 [P] [US4] Implement `autosentinel/agents/infra_sre.py` — InfraSREAgent with `_MOCK_FIXES` dict (INFRA/CONFIG categories), `# TODO(W2)`, returns `{fix_artifact, agent_trace: ["InfraSREAgent"]}`
-- [ ] T021 [US4] Implement `autosentinel/agents/verifier.py` — VerifierAgent: ONLY agent that imports `docker`; reads `fix_artifact`, proxies to extracted `_execute_fix_logic()` from `nodes/execute_fix.py`, returns `{execution_result, execution_error, agent_trace: ["VerifierAgent"]}`
+- [X] T019 [P] [US4] Implement `autosentinel/agents/code_fixer.py` — CodeFixerAgent with `_MOCK_FIXES` dict (CODE/SECURITY categories), `# TODO(W2)`, returns `{fix_artifact, agent_trace: ["CodeFixerAgent"]}`
+- [X] T020 [P] [US4] Implement `autosentinel/agents/infra_sre.py` — InfraSREAgent with `_MOCK_FIXES` dict (INFRA/CONFIG categories), `# TODO(W2)`, returns `{fix_artifact, agent_trace: ["InfraSREAgent"]}`
+- [X] T021 [US4] Implement `autosentinel/agents/verifier.py` — VerifierAgent: ONLY agent that imports `docker`; reads `fix_artifact`, proxies to extracted `_execute_fix_logic()` from `nodes/execute_fix.py`, returns `{execution_result, execution_error, agent_trace: ["VerifierAgent"]}`
 
 **Checkpoint**: `pytest tests/unit/test_verifier_agent.py tests/unit/test_docker_import_boundary.py tests/unit/test_code_fixer_agent.py tests/unit/test_infra_sre_agent.py -v` → all PASSED (Docker mocked).
 
@@ -103,7 +103,7 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/integration/test_multi_agent_graph_routing.py -v` all green; agent_trace order shows specialist before SecurityReviewerAgent.
 
-- [ ] T022 [US3] Wire sequential edges in `autosentinel/multi_agent_graph.py` — add `add_edge("code_fixer_agent", "security_reviewer")` and `add_edge("infra_sre_agent", "security_reviewer")`; add `add_edge("security_reviewer", "security_gate")`; remove `supervisor_merge` node and its edges; verify T016 graph stub is updated to this topology
+- [X] T022 [US3] Wire sequential edges in `autosentinel/multi_agent_graph.py` — add `add_edge("code_fixer_agent", "security_reviewer")` and `add_edge("infra_sre_agent", "security_reviewer")`; add `add_edge("security_reviewer", "security_gate")`; remove `supervisor_merge` node and its edges; verify T016 graph stub is updated to this topology
 
 **Checkpoint**: `pytest tests/integration/test_multi_agent_graph_routing.py tests/integration/test_multi_agent_graph_security.py -v` → all PASSED; agent_trace in CODE scenario is `["DiagnosisAgent", "SupervisorAgent", "CodeFixerAgent", "SecurityReviewerAgent", "VerifierAgent"]`.
 
@@ -115,7 +115,7 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/unit/test_format_report.py -v` all green (including 3 new security-verdict tests from T013).
 
-- [ ] T023 Update `autosentinel/nodes/format_report.py` — append `## Security Review` section after "## Sandbox Execution": reads `state.get("security_verdict")`, `state.get("routing_decision")`, `state.get("agent_trace", [])`; renders CAUTION badge (`⚠ CAUTION`) when verdict=="CAUTION"; renders HIGH_RISK badge (`🚨 HIGH RISK — executed after human approval`) when `approval_required==True`
+- [X] T023 Update `autosentinel/nodes/format_report.py` — append `## Security Review` section after "## Sandbox Execution": reads `state.get("security_verdict")`, `state.get("routing_decision")`, `state.get("agent_trace", [])`; renders CAUTION badge (`⚠ CAUTION`) when verdict=="CAUTION"; renders HIGH_RISK badge (`🚨 HIGH RISK — executed after human approval`) when `approval_required==True`
 
 **Checkpoint**: `pytest tests/unit/test_format_report.py -v` → all PASSED including security section tests.
 
@@ -127,7 +127,7 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Independent Test**: `pytest tests/test_benchmark.py -v` all green; output file parseable by json.loads().
 
-- [ ] T024 [US5] Implement `autosentinel/benchmark.py` — define `SCENARIOS: list[dict]` with 5 entries (s01=CODE, s02=INFRA, s03=CONFIG, s04=SECURITY, s05=UNKNOWN/fallback); **s04 SECURITY mock specialist output MUST include a `_HIGH_RISK_KEYWORDS` entry** (e.g., `"DROP TABLE users"`) so the HIGH_RISK path is exercised in at least one benchmark scenario; implement `run_benchmark() -> dict`; `if __name__ == "__main__"` CLI entry; writes `output/benchmark-report.json` with fields: `scenario_count`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
+- [X] T024 [US5] Implement `autosentinel/benchmark.py` — define `SCENARIOS: list[dict]` with 5 entries (s01=CODE, s02=INFRA, s03=CONFIG, s04=SECURITY, s05=UNKNOWN/fallback); **s04 SECURITY mock specialist output MUST include a `_HIGH_RISK_KEYWORDS` entry** (e.g., `"DROP TABLE users"`) so the HIGH_RISK path is exercised in at least one benchmark scenario; implement `run_benchmark() -> dict`; `if __name__ == "__main__"` CLI entry; writes `output/benchmark-report.json` with fields: `scenario_count`, `v1_resolution_rate`, `v2_resolution_rate`, `v1_avg_ms`, `v2_avg_ms`
 
 **Checkpoint**: `pytest tests/test_benchmark.py -v` → all PASSED; `python -m autosentinel.benchmark` exits 0.
 
@@ -137,9 +137,9 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 **Purpose**: Wire feature flag, update run_pipeline(), verify full suite at 100% coverage.
 
-- [ ] T025 Update `autosentinel/__init__.py` — add `AUTOSENTINEL_MULTI_AGENT` feature flag to `run_pipeline()`: `use_multi_agent = os.getenv("AUTOSENTINEL_MULTI_AGENT", "0") == "1"`; call `build_multi_agent_graph()` when set, else `build_graph()`; initial_state MUST include all AgentState fields (fix Sprint 3 gap: `fix_script=None, execution_result=None, execution_error=None`)
-- [ ] T026 Update `tests/integration/test_pipeline.py` — update `test_pipeline_node_execution_order` to assert v1 order `["parse_log", "analyze_error", "execute_fix", "format_report"]` still passes; add test for v2 pipeline invocation via feature flag
-- [ ] T027 Run full test suite and confirm 100% branch coverage: `pytest --cov=autosentinel --cov-branch --cov-report=term-missing -q`; fix any gaps
+- [X] T025 Update `autosentinel/__init__.py` — add `AUTOSENTINEL_MULTI_AGENT` feature flag to `run_pipeline()`: `use_multi_agent = os.getenv("AUTOSENTINEL_MULTI_AGENT", "0") == "1"`; call `build_multi_agent_graph()` when set, else `build_graph()`; initial_state MUST include all AgentState fields (fix Sprint 3 gap: `fix_script=None, execution_result=None, execution_error=None`)
+- [X] T026 Update `tests/integration/test_pipeline.py` — update `test_pipeline_node_execution_order` to assert v1 order `["parse_log", "analyze_error", "execute_fix", "format_report"]` still passes; add test for v2 pipeline invocation via feature flag
+- [X] T027 Run full test suite and confirm 100% branch coverage: `pytest --cov=autosentinel --cov-branch --cov-report=term-missing -q`; fix any gaps
 
 **Final Checkpoint**: `pytest --cov=autosentinel --cov-branch -q` → all PASSED, 100% coverage, no regressions on Sprint 1–3 tests.
 

@@ -65,16 +65,22 @@ class TestHighRiskInterrupt:
 
         assert "__interrupt__" in result1
 
-    def test_high_risk_sets_approval_required(self, graph, tmp_path):
+    def test_high_risk_sets_approval_required_after_resume(self, graph, tmp_path):
+        """approval_required is set in state after security_gate resumes (not before).
+        interrupt() prevents the node's return value from being committed on first pass;
+        after resume, security_gate completes and sets approval_required=True.
+        """
         log = _write_log(tmp_path, "SecurityException", "sql injection", "hr2.json")
         cfg = {"configurable": {"thread_id": "test-hr-approval-" + str(uuid.uuid4())}}
 
-        with patch("autosentinel.agents.verifier.docker"), \
+        with patch("autosentinel.agents.verifier.docker") as md, \
              patch("autosentinel.agents.code_fixer.CodeFixerAgent._get_fix_for_security",
                    return_value="DROP TABLE users"):
-            result1 = graph.invoke(_initial_state(log), cfg)
+            graph.invoke(_initial_state(log), cfg)
+            _setup_docker_success(md)
+            result2 = graph.invoke(Command(resume="approved"), cfg)
 
-        assert result1.get("approval_required") is True
+        assert result2.get("approval_required") is True
 
     def test_high_risk_verifier_not_called_before_approval(self, graph, tmp_path):
         log = _write_log(tmp_path, "SecurityException", "sql injection", "hr3.json")
@@ -156,6 +162,23 @@ class TestCautionPassThrough:
             result = graph.invoke(_initial_state(log), cfg)
 
         assert "⚠ CAUTION" in result.get("report_text", "")
+
+
+class TestSecurityGateLogFailure:
+    def test_log_failure_does_not_block_interrupt(self, graph, tmp_path):
+        """_logger.exception branch: if _logger.info raises, interrupt still fires."""
+        log = _write_log(tmp_path, "SecurityException", "injection", "logfail.json")
+        cfg = {"configurable": {"thread_id": "test-logfail-" + str(uuid.uuid4())}}
+
+        with patch("autosentinel.agents.verifier.docker"), \
+             patch("autosentinel.agents.code_fixer.CodeFixerAgent._get_fix_for_security",
+                   return_value="DROP TABLE users"), \
+             patch("autosentinel.multi_agent_graph._logger") as mock_logger:
+            mock_logger.info.side_effect = RuntimeError("logging infra down")
+            result = graph.invoke(_initial_state(log), cfg)
+
+        assert "__interrupt__" in result
+        mock_logger.exception.assert_called_once()
 
 
 class TestDockerUnavailable:

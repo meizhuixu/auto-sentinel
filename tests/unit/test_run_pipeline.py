@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -16,6 +16,21 @@ from autosentinel.__main__ import main
 def test_run_pipeline_happy_path(connectivity_state, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = run_pipeline(connectivity_state["log_path"])
+    assert isinstance(result, Path)
+    assert result.exists()
+
+
+def test_run_pipeline_multi_agent_flag(connectivity_state, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AUTOSENTINEL_MULTI_AGENT", "1")
+    with patch("autosentinel.agents.verifier.docker") as md:
+        mock_client = MagicMock()
+        mock_container = MagicMock()
+        md.from_env.return_value = mock_client
+        mock_client.containers.run.return_value = mock_container
+        mock_container.wait.return_value = {"StatusCode": 0}
+        mock_container.logs.side_effect = [b"OK\n", b""]
+        result = run_pipeline(connectivity_state["log_path"])
     assert isinstance(result, Path)
     assert result.exists()
 

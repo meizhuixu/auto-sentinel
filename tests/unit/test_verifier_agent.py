@@ -152,6 +152,23 @@ class TestVerifierAgentDockerUnavailable:
         assert "VerifierAgent" in result["agent_trace"]
 
 
+class TestVerifierAgentContainerCleanup:
+    def test_container_remove_failure_is_swallowed(self):
+        """container.remove() raising must not propagate — verifier must not crash."""
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            mock_client = MagicMock()
+            mock_container = MagicMock()
+            mock_docker.from_env.return_value = mock_client
+            mock_client.containers.run.return_value = mock_container
+            mock_container.wait.return_value = {"StatusCode": 0}
+            mock_container.logs.side_effect = [b"out\n", b""]
+            mock_container.remove.side_effect = Exception("daemon disconnected")
+            agent = VerifierAgent()
+            result = agent.run(_make_state('print("x")'))
+        assert result["execution_result"]["status"] == "success"
+        assert result["execution_error"] is None
+
+
 class TestVerifierAgentReadsFixArtifact:
     def test_reads_fix_artifact_not_fix_script(self, mock_docker_success):
         """Verifier must use fix_artifact (v2), not fix_script (v1)."""
