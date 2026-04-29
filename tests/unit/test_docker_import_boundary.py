@@ -1,4 +1,7 @@
-"""SC-004: Only autosentinel/agents/verifier.py may import the docker SDK."""
+"""SC-004: Only autosentinel/agents/verifier.py may import the docker SDK.
+
+Allowlist below corresponds to Constitution v2.1.1 grandfathering clause.
+"""
 
 import ast
 from pathlib import Path

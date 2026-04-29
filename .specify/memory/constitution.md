@@ -1,16 +1,16 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.0.0 → 2.1.0 (MINOR — new Principle VI added; Principles I and V
-extended with multi-agent governance constraints)
+Version change: 2.1.0 → 2.1.1 (PATCH — grandfathering clause added to Principle I
+for pre-existing v1 LangGraph node; no semantic change to the Docker import boundary
+rule itself)
 
 Modified principles:
-  - I.   AI Agent Sandboxing       — extended: Verifier-only Docker access rule added;
-                                     CI enforcement requirement specified (AST-level tool,
-                                     canonical path as hint only, allowlist in CI config)
-  - V.   LLM Reasoning Reliability — extended: LangGraph interrupt() for HIGH_RISK fixes;
-                                     mock-phase keyword trigger list (destructive commands
-                                     only); keyword list removal required in Sprint 5
+  - I.   AI Agent Sandboxing       — v2.1.1 PATCH: grandfathering clause added for
+                                     autosentinel/nodes/execute_fix.py (v1 legacy node);
+                                     allowlist expansion procedure formalised; no change
+                                     to the core Docker import boundary rule
+  - V.   LLM Reasoning Reliability — (unchanged from v2.1.0)
 
 Added principles:
   - VI.  Multi-Agent Governance    — BaseAgent interface (AgentState → AgentState);
@@ -65,6 +65,14 @@ Agent's implementation (canonical location: `src/autosentinel/agents/verifier/`)
 The exact import-path allowlist MUST be specified in the CI check configuration.
 The check MAY be implemented via `ruff` custom rule, `import-linter`, or an
 equivalent AST-level tool — `grep` is insufficient.
+
+**Grandfathering clause (v2.1.1)**: Existing v1 LangGraph nodes (Sprint 3 era) that
+pre-date this constraint MAY continue to import `docker` until the v1 pipeline is
+retired. The CI allowlist MUST list each grandfathered module by full path; new
+modules MUST NOT be added to this allowlist without a constitution amendment. The
+current grandfathered list is: `autosentinel/nodes/execute_fix.py` (v1 execute_fix
+node, retained for benchmark v1/v2 comparison; will be removed when v1 pipeline is
+retired in Sprint 6 or later).
 
 **Rationale**: Unbounded agent execution in a distributed environment can cascade
 failures faster than any human can intervene. Sandboxing is the hard boundary
@@ -222,4 +230,4 @@ every PR review. A full constitution review MUST be conducted at least once per
 quarter to assess whether principles remain current with the project's agent
 capabilities and service scale.
 
-**Version**: 2.1.0 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-04-28
+**Version**: 2.1.1 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-04-28
