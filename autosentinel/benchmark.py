@@ -8,6 +8,14 @@ SPRINT 4 SEMANTIC DECISION (2026-04-28):
   is recorded in benchmark-report.json for audit. Sprint 5 will re-evaluate
   whether HIGH_RISK counts as "resolved" when real human approval UI is required
   — this decision does not retroactively change Sprint 4 benchmark data.
+
+Sprint 5 cleanup: remove `unittest.mock.patch` import and the
+`patch.object(CodeFixerAgent, ...)` block in `_run_v2_detail` once real LLM
+is wired in. With real LLM classification, SecurityReviewer should produce
+HIGH_RISK verdicts naturally for SQL-injection-class scenarios (s04),
+eliminating the need for benchmark-side keyword injection. The
+SPRINT4_MOCK_APPROVAL constant should also be replaced with a real
+approval payload structure once human-in-the-loop UI exists.
 """
 from __future__ import annotations
 
