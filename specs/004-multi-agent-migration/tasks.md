@@ -145,6 +145,24 @@ Commit message MUST contain `"failing — Test-First gate"` (SC-006). No impleme
 
 ---
 
+---
+
+## Phase 10: Canonical Benchmark Generation
+
+**Purpose**: Generate and commit a real benchmark report as the authoritative metric source. Proves SC-003 fires under actual LangGraph execution, not only in unit-test mocks.
+
+- [ ] T028 [POLISH] Generate and commit canonical benchmark report
+  - `mkdir -p output`
+  - `python -m autosentinel.benchmark`
+  - Verify `output/benchmark-report.json` exists
+  - Verify `scenario_count == 5`
+  - Verify s04 (SECURITY) scenario agent_trace contains `SecurityReviewerAgent` and `security_verdict == "HIGH_RISK"` (proves SC-003 path triggered under real LangGraph execution, not only in unit-test mocks)
+  - Confirm `.gitignore` does not exclude `output/benchmark-report.json` (negation rule required if `output/` is blanket-excluded)
+  - `git add output/benchmark-report.json`
+  - `git commit -m "chore: generate canonical Sprint 4 benchmark report"`
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -242,7 +260,7 @@ T021 verifier.py       (after T019/T020 to avoid merge confusion in graph)
 
 ### Full Sprint 4 Delivery
 
-1. MVP above → then Phase 6 (US3 Fan-Out, T022)
+1. MVP above → then Phase 6 (US3 Sequential Wiring, T022)
 2. Phase 7 (Report integration, T023)
 3. Phase 8 (US5 Benchmark, T024)
 4. Phase 9 (Polish, T025–T027)
