@@ -1,32 +1,34 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 2.0.0 (MAJOR — all five principles redefined to reflect
-AI-Native Observability & Self-Healing Agent System scope; prior security/threat-
-detection framing removed)
+Version change: 2.1.0 → 2.1.1 (PATCH — grandfathering clause added to Principle I
+for pre-existing v1 LangGraph node; no semantic change to the Docker import boundary
+rule itself)
 
 Modified principles:
-  - I.  Security-First                   → I.  AI Agent Sandboxing
-  - II. Automation & Reliability         → II. Self-Healing First (MTTR Reduction)
-  - III. Test-First (NON-NEGOTIABLE)     → III. Test-First (NON-NEGOTIABLE) [retained;
-         examples updated from "detection rules" to agent behaviour scenarios]
-  - IV. Observability                    → IV. Observability & Distributed Tracing
-         [reframed for distributed microservices + MTTR dashboards]
-  - V.  Minimal Privilege                → V.  LLM Reasoning Reliability
+  - I.   AI Agent Sandboxing       — v2.1.1 PATCH: grandfathering clause added for
+                                     autosentinel/nodes/execute_fix.py (v1 legacy node);
+                                     allowlist expansion procedure formalised; no change
+                                     to the core Docker import boundary rule
+  - V.   LLM Reasoning Reliability — (unchanged from v2.1.0)
 
-Renamed sections:
-  - "Security Requirements" → "Agent Execution Requirements"
+Added principles:
+  - VI.  Multi-Agent Governance    — BaseAgent interface (AgentState → AgentState);
+                                     state-channel-only communication; Security Reviewer
+                                     gate; Supervisor as sole router
 
-Added sections: none
+Added requirements:
+  - Agent Execution Requirements: human_approval_required log event obligation;
+    interrupt() hard-guarantee semantics; logging-failure fallback
+
 Removed sections: none
 
 Templates requiring updates:
-  - .specify/templates/plan-template.md ✅ no structural changes required
-  - .specify/templates/spec-template.md ✅ no structural changes required
+  - .specify/templates/plan-template.md  ✅ no structural changes required
+  - .specify/templates/spec-template.md  ✅ no structural changes required
   - .specify/templates/tasks-template.md ✅ no structural changes required
-  - .specify/templates/commands/ — no command files found; skipped
 
-Follow-up TODOs:
+Follow-up TODOs (carried forward):
   - TODO(RATIFICATION_APPROVERS): List team members who ratified this constitution
     once the team is assembled.
   - TODO(COMPLIANCE_REVIEW_CADENCE): Confirm quarterly vs. bi-annual review schedule
@@ -35,6 +37,8 @@ Follow-up TODOs:
     < 5 min, P2 < 15 min) once the service catalogue is established.
   - TODO(LLM_CONFIDENCE_THRESHOLD): Set the numeric confidence threshold below which
     an agent MUST escalate to human-in-the-loop rather than self-heal automatically.
+  - TODO(SPRINT5_KEYWORD_REMOVAL): Remove mock-phase HIGH_RISK keyword list from
+    Principle V when real LLM classification is wired in (Sprint 5).
 -->
 
 # AutoSentinel Constitution
@@ -50,6 +54,25 @@ actions that mutate production state (restart, scale, rollback) MUST be declared
 in a typed action manifest before the agent is deployed; undeclared actions MUST
 be rejected at runtime. Agents MUST NOT share container namespaces with other
 agents or with host processes.
+
+In a multi-agent system, only the Verifier Agent is permitted to instantiate
+Docker containers via the Docker SDK. All other agents MUST NOT import or invoke
+the Docker SDK directly. This constraint MUST be enforced by (a) code review, and
+(b) an automated check in CI that fails the build if any module other than the
+`verifier` agent module imports `docker` or any submodule thereof, where the
+`verifier` agent module is the single Python module designated as the Verifier
+Agent's implementation (canonical location: `src/autosentinel/agents/verifier/`).
+The exact import-path allowlist MUST be specified in the CI check configuration.
+The check MAY be implemented via `ruff` custom rule, `import-linter`, or an
+equivalent AST-level tool — `grep` is insufficient.
+
+**Grandfathering clause (v2.1.1)**: Existing v1 LangGraph nodes (Sprint 3 era) that
+pre-date this constraint MAY continue to import `docker` until the v1 pipeline is
+retired. The CI allowlist MUST list each grandfathered module by full path; new
+modules MUST NOT be added to this allowlist without a constitution amendment. The
+current grandfathered list is: `autosentinel/nodes/execute_fix.py` (v1 execute_fix
+node, retained for benchmark v1/v2 comparison; will be removed when v1 pipeline is
+retired in Sprint 6 or later).
 
 **Rationale**: Unbounded agent execution in a distributed environment can cascade
 failures faster than any human can intervene. Sandboxing is the hard boundary
@@ -107,10 +130,50 @@ recommendation; plans below the project-defined threshold MUST escalate to
 human-in-the-loop review rather than execute automatically. Prompt templates
 that encode remediation logic MUST be versioned and tested like source code.
 
+High-risk remediation categories — defined as any fix that modifies production
+configuration, issues database write operations, or touches secrets/credentials —
+MUST trigger a LangGraph interrupt() that suspends the pipeline and awaits
+explicit human approval before the Verifier Agent is invoked. The high-risk
+classification MUST originate from the Security Reviewer Agent and MUST be
+recorded in AgentState.
+
+During the mock phase (Sprint 4), high-risk classification MUST be triggered by
+the presence of any of the following keywords in the fix artifact: `DROP TABLE`,
+`DROP DATABASE`, `TRUNCATE TABLE`, `rm -rf /`, `rm -rf ~`, `chmod 777`, `mkfs`,
+`dd if=`. This keyword-based trigger is a temporary surrogate and MUST be removed
+in Sprint 5 when real LLM classification is wired in.
+
 **Rationale**: LLM reasoning can hallucinate plausible-sounding but incorrect
 remediation steps. Guardrails at the execution boundary, not just at generation
 time, are the only reliable way to prevent an LLM mistake from becoming a
 production incident.
+
+### VI. Multi-Agent Governance
+
+All specialist agents MUST implement a common BaseAgent interface that exposes a
+single `run(state: AgentState) -> AgentState` method, where `AgentState` is a
+Pydantic V2 model or a `TypedDict` compatible with LangGraph's state channel
+reducer. Returning a bare `dict` is prohibited. Agents MUST NOT expose other
+public methods for inter-agent invocation.
+
+Agent communication MUST flow exclusively through LangGraph state channels
+(TypedDict fields). Direct Python method calls between agent instances are
+prohibited; violations MUST be caught in code review.
+
+Every fix artifact MUST pass through the Security Reviewer Agent before reaching
+the Verifier Agent. The Security Reviewer MUST classify each fix as SAFE, CAUTION,
+or HIGH_RISK. HIGH_RISK fixes MUST NOT proceed without a LangGraph interrupt
+approval (see Principle V).
+
+The Supervisor Agent is the sole router. It MUST select specialist agent(s) based
+on the Diagnosis Agent's `error_category` output and MUST arbitrate conflicts by
+always preferring the lower-blast-radius action, recording its reasoning in
+AgentState.
+
+**Rationale**: Without explicit governance, multi-agent systems drift toward tight
+coupling — agents call each other directly, bypassing the audit trail that
+LangGraph state channels provide. Centralising routing in the Supervisor makes
+the decision graph inspectable and testable.
 
 ## Agent Execution Requirements
 
@@ -123,6 +186,14 @@ production incident.
   string-concatenated SQL is permitted.
 - Agent action manifests MUST be stored in version control and reviewed as part of
   the PR that introduces or modifies the agent.
+- High-risk remediation requests MUST emit a structured log event with field
+  `event: "human_approval_required"` before `LangGraph interrupt()` is issued,
+  ensuring the approval request is traceable in the structured log stream even if
+  the pipeline is later abandoned or timed out. If the log emission itself fails
+  (exception raised by the logging handler), the pipeline MUST still issue
+  `interrupt()`, and the failure MUST be re-raised after the interrupt is
+  registered. Approval traceability is a soft guarantee; pipeline suspension is a
+  hard guarantee.
 
 ## Development Workflow
 
@@ -159,4 +230,4 @@ every PR review. A full constitution review MUST be conducted at least once per
 quarter to assess whether principles remain current with the project's agent
 capabilities and service scale.
 
-**Version**: 2.0.0 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-04-24
+**Version**: 2.1.1 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-04-28

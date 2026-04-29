@@ -1,5 +1,6 @@
-# Generated diagnostic reports
-output/
+# Generated diagnostic reports (runtime files excluded, canonical benchmark kept)
+output/*
+!output/benchmark-report.json
 
 # Runtime alert files (ingested via API, not committed)
 data/incoming/

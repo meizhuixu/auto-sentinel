@@ -1,0 +1,119 @@
+{
+  "scenario_count": 5,
+  "v1_resolution_rate": 1.0,
+  "v2_resolution_rate": 1.0,
+  "v1_avg_ms": 4,
+  "v2_avg_ms": 4,
+  "scenarios": [
+    {
+      "id": "s01",
+      "category": "CODE",
+      "v1": {
+        "resolved": true,
+        "duration_ms": 9
+      },
+      "v2": {
+        "resolved": true,
+        "duration_ms": 5,
+        "agent_trace": [
+          "DiagnosisAgent",
+          "SupervisorAgent",
+          "CodeFixerAgent",
+          "SecurityReviewerAgent",
+          "VerifierAgent"
+        ],
+        "security_verdict": "SAFE",
+        "routing_decision": "CODE \u2192 CodeFixerAgent",
+        "was_interrupted": false
+      }
+    },
+    {
+      "id": "s02",
+      "category": "INFRA",
+      "v1": {
+        "resolved": true,
+        "duration_ms": 3
+      },
+      "v2": {
+        "resolved": true,
+        "duration_ms": 4,
+        "agent_trace": [
+          "DiagnosisAgent",
+          "SupervisorAgent",
+          "InfraSREAgent",
+          "SecurityReviewerAgent",
+          "VerifierAgent"
+        ],
+        "security_verdict": "SAFE",
+        "routing_decision": "INFRA \u2192 InfraSREAgent",
+        "was_interrupted": false
+      }
+    },
+    {
+      "id": "s03",
+      "category": "CONFIG",
+      "v1": {
+        "resolved": true,
+        "duration_ms": 4
+      },
+      "v2": {
+        "resolved": true,
+        "duration_ms": 4,
+        "agent_trace": [
+          "DiagnosisAgent",
+          "SupervisorAgent",
+          "InfraSREAgent",
+          "SecurityReviewerAgent",
+          "VerifierAgent"
+        ],
+        "security_verdict": "SAFE",
+        "routing_decision": "CONFIG \u2192 InfraSREAgent",
+        "was_interrupted": false
+      }
+    },
+    {
+      "id": "s04",
+      "category": "SECURITY",
+      "v1": {
+        "resolved": true,
+        "duration_ms": 3
+      },
+      "v2": {
+        "resolved": true,
+        "duration_ms": 5,
+        "agent_trace": [
+          "DiagnosisAgent",
+          "SupervisorAgent",
+          "CodeFixerAgent",
+          "SecurityReviewerAgent",
+          "VerifierAgent"
+        ],
+        "security_verdict": "HIGH_RISK",
+        "routing_decision": "SECURITY \u2192 CodeFixerAgent",
+        "was_interrupted": true
+      }
+    },
+    {
+      "id": "s05",
+      "category": "UNKNOWN",
+      "v1": {
+        "resolved": true,
+        "duration_ms": 3
+      },
+      "v2": {
+        "resolved": true,
+        "duration_ms": 4,
+        "agent_trace": [
+          "DiagnosisAgent",
+          "SupervisorAgent",
+          "CodeFixerAgent",
+          "SecurityReviewerAgent",
+          "VerifierAgent"
+        ],
+        "security_verdict": "SAFE",
+        "routing_decision": "CODE \u2192 CodeFixerAgent",
+        "was_interrupted": false
+      }
+    }
+  ]
+}

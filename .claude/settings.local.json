@@ -25,7 +25,8 @@
       "Bash(git pull *)",
       "Bash(git fetch *)",
       "Bash(curl -s -X POST http://127.0.0.1:8000/api/v1/alerts -H 'Content-Type: application/json' -d @data/crash-connectivity.json)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(pip show *)"
     ]
   }
 }
