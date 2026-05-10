@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-28T00:00:00Z", "service_name": "auth-service", "error_type": "ConfigurationError", "message": "required environment variable JWT_SECRET_KEY is not set", "stack_trace": null}

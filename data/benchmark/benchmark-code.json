@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-28T00:00:00Z", "service_name": "app-service", "error_type": "UnhandledError", "message": "unexpected None value in user context object", "stack_trace": null}
