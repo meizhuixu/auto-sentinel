@@ -123,8 +123,11 @@ hit per-key rate limits, splitting requires only a config change.
 ## Decision 5 — Dedicated PostgresSaver container (vs. reusing Langfuse Postgres)
 
 **Decision**: Sprint 5 spins up its own `postgres:16` container named
-`auto-sentinel-checkpointer` on `localhost:5433`. It does **not** reuse the
-project-4 Langfuse Postgres on `5432`.
+`auto-sentinel-checkpointer` on `localhost:5434`. It does **not** reuse the
+project-4 Langfuse Postgres (which is bound to `localhost:5433` on the dev
+machine — note: 5432 was the originally documented port for Langfuse but the
+local install uses 5433, so AutoSentinel's checkpointer moved one slot up to
+5434 for collision avoidance).
 
 **Rationale**: Service-boundary cleanliness. AutoSentinel's checkpointer state
 is operationally distinct from the LLMOps observability database — different
@@ -143,7 +146,7 @@ duplication buys clean failure isolation.
   complicates the cross-process resume test (process B locking process A's
   file).
 
-**Consequences**: Operators learn a second port (5433). Backups are independent
+**Consequences**: Operators learn a third port (5434). Backups are independent
 — a Langfuse DB dump does NOT include AutoSentinel checkpoint state and vice
 versa. One extra `docker compose up` invocation in quickstart.
 

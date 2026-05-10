@@ -56,7 +56,7 @@ benchmarks/scenarios/*.yaml      ← add new scenarios here (one file per scenar
 | Pipeline stuck on HIGH_RISK interrupt | `POST /incidents/{id}/resume` with `{"decision":"approve","reviewer_notes":"..."}`. |
 | `trace_id` missing in Langfuse | Inspect `state["trace_id"]`; it should be a 32-char hex string. Empty/malformed surfaces as `ValueError` from LLMTracer. |
 | AST boundary check fails | `grep -rn "import openai\|from openai" autosentinel/ \| grep -v "autosentinel/llm/"` — anything found is the bug. |
-| PostgresSaver unreachable | `docker ps \| grep auto-sentinel-checkpointer` (port 5433). |
+| PostgresSaver unreachable | `docker ps \| grep auto-sentinel-checkpointer` (port 5434). |
 
 ## 7. PR sequence
 

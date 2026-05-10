@@ -13,7 +13,7 @@ a singleton `CostGuard` with a hard `$20.6` per-run ceiling (≈ ¥150 at 7.3 ¥
 trace propagation flows from the FastAPI ingest endpoint through `AgentState`
 into the existing project-4 `LLMTracer` (sync context manager). Cross-process
 interrupt durability is delivered by swapping `MemorySaver` for `PostgresSaver`
-on a dedicated `localhost:5433` Postgres container. The Sprint 4 5-scenario
+on a dedicated `localhost:5434` Postgres container. The Sprint 4 5-scenario
 inline benchmark migrates to a yaml-per-file layout under `benchmarks/scenarios/`
 and grows to 50 human-labelled scenarios.
 
@@ -27,7 +27,7 @@ the LLMTracer (which is itself sync).
 **Language/Version**: Python 3.12
 **Primary Dependencies**: `langgraph==1.1.9`, `langgraph-checkpoint-postgres`, `psycopg[binary]>=3.1` (sync driver), `openai>=1.40` (only inside `autosentinel/llm/`), `httpx`, `tenacity`, `pydantic>=2`, `pydantic-settings`, `pyyaml`
 **External services**: Volcano-Engine Ark (`doubao-1.5-lite-32k`, `doubao-seed-2.0-pro`) and Zhipu BigModel (`glm-4.7`); project-4 `LLMTracer` → Langfuse
-**Storage**: PostgreSQL 16 in dedicated container `auto-sentinel-checkpointer` (port `5433`); benchmark scenarios as yaml files under `benchmarks/scenarios/`; existing `data/benchmark/*.json` log fixtures retained and referenced (not copied)
+**Storage**: PostgreSQL 16 in dedicated container `auto-sentinel-checkpointer` (port `5434`); benchmark scenarios as yaml files under `benchmarks/scenarios/`; existing `data/benchmark/*.json` log fixtures retained and referenced (not copied)
 **Testing**: `pytest`, `pytest-cov`, dependency-injected `MockLLMClient` (no `patch.object`)
 **Target Platform**: macOS/Linux developer machine + CI (CI runs smoke benchmark with mock client; full 50-scenario run is manual)
 **Project Type**: Multi-agent LangGraph pipeline + FastAPI ingest
@@ -99,7 +99,7 @@ config/
 └── model_routing.yaml                    ← NEW: per-agent model + per-endpoint base_url + api_key_env
 
 infra/
-└── docker-compose.checkpointer.yml       ← NEW: postgres:16 on localhost:5433
+└── docker-compose.checkpointer.yml       ← NEW: postgres:16 on localhost:5434
 
 benchmarks/
 ├── scenarios/                            ← NEW: yaml-per-file (50 files: 001-050)
@@ -289,7 +289,7 @@ files under `autosentinel/agents/` for the substrings `doubao-`, `glm-`,
 |---|---|
 | Library | `langgraph.checkpoint.postgres.PostgresSaver` (LangGraph official). No bespoke wrapper. |
 | Driver | `psycopg[binary]` v3 sync API (matches the sync stack). |
-| Container | `postgres:16` named `auto-sentinel-checkpointer`, port `localhost:5433` (5432 reserved for project-4 Langfuse Postgres — avoiding collision). |
+| Container | `postgres:16` named `auto-sentinel-checkpointer`, port `localhost:5434` (project-4 Langfuse Postgres already binds `localhost:5433` on the dev machine — moved up to 5434 for collision avoidance). |
 | Compose file | `infra/docker-compose.checkpointer.yml` (separate file, not merged into a root compose, for clean service-boundary semantics). |
 | Credentials (Sprint 5) | hard-coded `postgres / postgres` for local dev. **Marked as Phase 4 / AWS technical debt to be replaced with Secrets Manager**. |
 | Schema setup | `PostgresSaver.setup()` is idempotent; called at startup. |
