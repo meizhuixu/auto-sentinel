@@ -1,27 +1,46 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.1.0 → 2.1.1 (PATCH — grandfathering clause added to Principle I
-for pre-existing v1 LangGraph node; no semantic change to the Docker import boundary
-rule itself)
+Version change: 2.1.1 → 2.2.0 (MINOR — new Principle VII added for LLM provider
+boundary and cost governance; Principle V refactored from keyword-list implementation
+detail to outcome-level invariants; Principle I clarified for Verifier LLM execution
+boundary. Driven by Sprint 5 real-LLM integration, see specs/005-real-llm-integration/.)
 
 Modified principles:
-  - I.   AI Agent Sandboxing       — v2.1.1 PATCH: grandfathering clause added for
-                                     autosentinel/nodes/execute_fix.py (v1 legacy node);
-                                     allowlist expansion procedure formalised; no change
-                                     to the core Docker import boundary rule
-  - V.   LLM Reasoning Reliability — (unchanged from v2.1.0)
+  - I.   AI Agent Sandboxing          — v2.2.0 MINOR: clarification that LLM API
+                                        calls (e.g. from a Verifier that summarises
+                                        Docker output via LLM) MUST execute outside
+                                        the sandbox container. No change to the
+                                        Verifier-only Docker import boundary.
+  - V.   LLM Reasoning Reliability    — v2.2.0 MINOR: mock-phase keyword-list trigger
+                                        removed (TODO(SPRINT5_KEYWORD_REMOVAL) closed);
+                                        replaced with outcome-level invariants for
+                                        Security Reviewer (binary verdict, 100%
+                                        coverage, interrupt() on HIGH_RISK, audit
+                                        trail). Mechanism is now implementation-
+                                        agnostic (keyword scan, LLM semantic review,
+                                        rule engine, etc. all permitted).
 
 Added principles:
-  - VI.  Multi-Agent Governance    — BaseAgent interface (AgentState → AgentState);
-                                     state-channel-only communication; Security Reviewer
-                                     gate; Supervisor as sole router
+  - VII. LLM Provider Boundary &      — Four sub-clauses:
+         Cost Governance                VII.1 LLM Provider Isolation (AST-enforced):
+                                              only src/auto_sentinel/llm/** may import
+                                              LLM SDKs; v1 pipeline grandfathered.
+                                        VII.2 Cost Guard Is Non-Negotiable: every
+                                              outbound LLM request passes CostGuard;
+                                              budget threshold from env, never
+                                              hard-coded.
+                                        VII.3 Trace Propagation Is Mandatory: every
+                                              LLM call accepts external trace_id and
+                                              forwards to LLMTracer.
+                                        VII.4 Model-Routing Configuration Is
+                                              Declarative: no in-agent hard-coding
+                                              of endpoint or model name.
 
-Added requirements:
-  - Agent Execution Requirements: human_approval_required log event obligation;
-    interrupt() hard-guarantee semantics; logging-failure fallback
-
-Removed sections: none
+Removed clauses:
+  - Principle V mock-phase HIGH_RISK keyword list (DROP TABLE / rm -rf / chmod 777
+    / etc.) — superseded by outcome-level invariants. Keyword scanning remains a
+    permissible mechanism but is no longer mandated by the constitution.
 
 Templates requiring updates:
   - .specify/templates/plan-template.md  ✅ no structural changes required
@@ -37,8 +56,9 @@ Follow-up TODOs (carried forward):
     < 5 min, P2 < 15 min) once the service catalogue is established.
   - TODO(LLM_CONFIDENCE_THRESHOLD): Set the numeric confidence threshold below which
     an agent MUST escalate to human-in-the-loop rather than self-heal automatically.
-  - TODO(SPRINT5_KEYWORD_REMOVAL): Remove mock-phase HIGH_RISK keyword list from
-    Principle V when real LLM classification is wired in (Sprint 5).
+  - TODO(SPRINT6_V1_RETIREMENT): Remove the v1-pipeline grandfathering exemption from
+    Principle VII.1 (and the Principle I Docker grandfathering list) when the v1
+    LangGraph pipeline is retired.
 -->
 
 # AutoSentinel Constitution
@@ -73,6 +93,14 @@ modules MUST NOT be added to this allowlist without a constitution amendment. Th
 current grandfathered list is: `autosentinel/nodes/execute_fix.py` (v1 execute_fix
 node, retained for benchmark v1/v2 comparison; will be removed when v1 pipeline is
 retired in Sprint 6 or later).
+
+**LLM-execution boundary (v2.2.0)**: When an agent (e.g. the Verifier Agent
+summarising Docker output, or any agent that consumes container logs) issues an
+LLM API call, the LLM call itself MUST execute outside the sandbox container. The
+agent's orchestration logic — including Docker SDK usage and any subsequent LLM
+request — runs in the host process; only the workload under verification runs
+inside the sandbox. Issuing outbound LLM API requests from inside a network-
+restricted sandbox is prohibited and would deadlock the pipeline.
 
 **Rationale**: Unbounded agent execution in a distributed environment can cascade
 failures faster than any human can intervene. Sandboxing is the hard boundary
@@ -137,11 +165,24 @@ explicit human approval before the Verifier Agent is invoked. The high-risk
 classification MUST originate from the Security Reviewer Agent and MUST be
 recorded in AgentState.
 
-During the mock phase (Sprint 4), high-risk classification MUST be triggered by
-the presence of any of the following keywords in the fix artifact: `DROP TABLE`,
-`DROP DATABASE`, `TRUNCATE TABLE`, `rm -rf /`, `rm -rf ~`, `chmod 777`, `mkfs`,
-`dd if=`. This keyword-based trigger is a temporary surrogate and MUST be removed
-in Sprint 5 when real LLM classification is wired in.
+The Security Reviewer Agent MUST emit a binary verdict — `SAFE` or `HIGH_RISK` —
+for every fix artifact that reaches it. The internal classification mechanism is
+implementation-agnostic: keyword scanning, LLM semantic review, deterministic rule
+engines, or any combination thereof are permitted, provided the following outcome-
+level invariants hold:
+
+(a) **Coverage**: 100 % of fix artifacts produced by any specialist agent MUST
+    pass through the Security Reviewer before reaching the Verifier Agent. No
+    bypass path is permitted, including for "obviously safe" fixes.
+(b) **Interrupt obligation**: A `HIGH_RISK` verdict MUST cause the LangGraph
+    pipeline to issue `interrupt()` and suspend until human approval is recorded
+    in `AgentState`. The Verifier Agent MUST NOT be invoked on a `HIGH_RISK` fix
+    that has not been approved.
+(c) **Auditability**: Every verdict MUST be persisted to the trace stream with
+    enough context to reconstruct the decision in post-incident review — at
+    minimum: the fix artifact hash, the verdict, the classifier identity (model
+    name or rule-engine version), and any intermediate reasoning the classifier
+    exposes. A verdict that cannot be replayed from the trace is non-compliant.
 
 **Rationale**: LLM reasoning can hallucinate plausible-sounding but incorrect
 remediation steps. Guardrails at the execution boundary, not just at generation
@@ -161,9 +202,9 @@ Agent communication MUST flow exclusively through LangGraph state channels
 prohibited; violations MUST be caught in code review.
 
 Every fix artifact MUST pass through the Security Reviewer Agent before reaching
-the Verifier Agent. The Security Reviewer MUST classify each fix as SAFE, CAUTION,
-or HIGH_RISK. HIGH_RISK fixes MUST NOT proceed without a LangGraph interrupt
-approval (see Principle V).
+the Verifier Agent. The Security Reviewer MUST classify each fix as SAFE or
+HIGH_RISK (per Principle V). HIGH_RISK fixes MUST NOT proceed without a LangGraph
+interrupt approval (see Principle V).
 
 The Supervisor Agent is the sole router. It MUST select specialist agent(s) based
 on the Diagnosis Agent's `error_category` output and MUST arbitrate conflicts by
@@ -174,6 +215,76 @@ AgentState.
 coupling — agents call each other directly, bypassing the audit trail that
 LangGraph state channels provide. Centralising routing in the Supervisor makes
 the decision graph inspectable and testable.
+
+### VII. LLM Provider Boundary & Cost Governance
+
+This principle governs how AutoSentinel agents reach LLM providers. It exists to
+preserve provider-agnosticism, enforce cost ceilings, and keep multi-agent traces
+correlated end-to-end.
+
+**VII.1 — LLM Provider Isolation (AST-enforced)**
+
+Only modules under `src/auto_sentinel/llm/` (the LLM client abstraction layer) MAY
+import an LLM provider SDK (`openai`, `anthropic`, or any equivalent). All six
+specialist/orchestrator agent modules (Diagnosis, Supervisor, CodeFixer, InfraSRE,
+SecurityReviewer, Verifier) MUST consume LLM functionality exclusively through the
+`LLMClient` abstraction; direct SDK imports from agent modules are prohibited.
+
+This constraint MUST be enforced by an automated CI check that walks the AST of
+each non-allowlisted module and fails the build on any LLM SDK import. The check
+MUST be implemented in `tests/unit/test_llm_sdk_import_boundary.py` using stdlib
+`ast.walk()`, in parallel with the existing `test_docker_import_boundary.py`. The
+allowlist MUST be specified in the test's configuration; `grep` is insufficient.
+
+**Grandfathering clause (v2.2.0)**: The v1 pipeline modules under
+`src/auto_sentinel/nodes/` (e.g. `analyze_error.py`) MAY continue to import
+`anthropic` until the v1 pipeline is retired. The grandfathered list MUST be
+explicit in the boundary test's allowlist; new modules MUST NOT be added without
+a constitution amendment. Removal is tracked as `TODO(SPRINT6_V1_RETIREMENT)`.
+
+**VII.2 — Cost Guard Is Non-Negotiable**
+
+Every outbound LLM request — without exception — MUST pass through `CostGuard.check()`
+before the SDK call is issued. The `CostGuard` component MUST:
+
+- Track cumulative spend across all agents within a single pipeline run, and
+  optionally across a configurable window (e.g. per-day) for global ceilings.
+- Raise a typed `CostGuardError` when a configured threshold is reached; the error
+  MUST propagate to the LangGraph orchestrator and abort the pipeline cleanly
+  rather than silently truncate output.
+- Read budget thresholds from the environment variable `AUTOSENTINEL_LLM_BUDGET_USD`
+  (and any companion variables for sub-budgets). Hard-coding budget values in
+  source code is prohibited.
+- Expose a testing-mode injection point for mock budgets so the cost-guard logic
+  itself can be exercised under Test-First (Principle III) without real spend.
+
+This sub-clause is **NON-NEGOTIABLE** — equal in strength to Principle III. A PR
+that adds an LLM call path bypassing `CostGuard` is rejected on sight.
+
+**VII.3 — Trace Propagation Is Mandatory**
+
+`LLMClient.complete()` (and any equivalent entry point on the LLM abstraction)
+MUST accept an external `trace_id: str | None = None` parameter and MUST forward
+it to the `LLMTracer` so every LLM call is correlatable with (a) the originating
+LangGraph state at the time of the call, and (b) the upstream trace surfaced on
+the LLMOps Dashboard. Agents MUST pass the trace ID from `AgentState` into every
+LLM call they issue; dropping the trace ID at any agent boundary is a violation.
+
+**VII.4 — Model-Routing Configuration Is Declarative**
+
+Which LLM model an agent uses MUST be expressed declaratively — in a configuration
+module (e.g. `src/auto_sentinel/llm/config.py`) or via environment variables —
+never hard-coded inside an agent's `run()` method. Endpoint base URLs (e.g. the
+provider gateway) MUST be configurable via environment variable so that switching
+providers requires zero code change in agent modules. Agents MUST resolve their
+model assignment by name through the configuration layer at construction time.
+
+**Rationale**: Locking provider SDK access to a single layer keeps the codebase
+provider-agnostic — switching from one gateway to another is an env-var change,
+not a refactor. Cost guarding at the abstraction boundary is the only place where
+a single check covers every agent. Trace propagation through the same layer makes
+multi-agent LLM behaviour debuggable; without it, the LLMOps Dashboard sees
+disconnected fragments instead of one coherent run.
 
 ## Agent Execution Requirements
 
@@ -230,4 +341,4 @@ every PR review. A full constitution review MUST be conducted at least once per
 quarter to assess whether principles remain current with the project's agent
 capabilities and service scale.
 
-**Version**: 2.1.1 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-04-28
+**Version**: 2.2.0 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-05-07
