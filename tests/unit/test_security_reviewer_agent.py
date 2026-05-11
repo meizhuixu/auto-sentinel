@@ -6,10 +6,63 @@ import pytest
 
 from autosentinel.agents.security_reviewer import SecurityReviewerAgent, _HIGH_RISK_KEYWORDS
 from autosentinel.models import AgentState
+from decimal import Decimal
+
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.mock_client import MockLLMClient
+from autosentinel.llm.protocol import LLMResponse
 
 
-def _make_state(fix_artifact: str | None) -> AgentState:
-    return AgentState(
+_TEST_TRACE_ID = "d" * 32
+
+
+def _safe_fixture() -> LLMResponse:
+    return LLMResponse(
+        content='{"verdict": "SAFE", "reasoning": "no destructive ops"}',
+        model="glm-4.7",
+        prompt_tokens=100,
+        completion_tokens=30,
+        cost_usd=Decimal("0.0005"),
+        latency_ms=500,
+        trace_id=_TEST_TRACE_ID,
+    )
+
+
+def _high_risk_fixture() -> LLMResponse:
+    return LLMResponse(
+        content='{"verdict": "HIGH_RISK", "reasoning": "DROP TABLE detected"}',
+        model="glm-4.7",
+        prompt_tokens=120,
+        completion_tokens=40,
+        cost_usd=Decimal("0.0008"),
+        latency_ms=850,
+        trace_id=_TEST_TRACE_ID,
+    )
+
+
+def _caution_fixture() -> LLMResponse:
+    return LLMResponse(
+        content='{"verdict": "CAUTION", "reasoning": "ambiguous shell command"}',
+        model="glm-4.7",
+        prompt_tokens=110,
+        completion_tokens=35,
+        cost_usd=Decimal("0.0006"),
+        latency_ms=700,
+        trace_id=_TEST_TRACE_ID,
+    )
+
+
+def _make_mock_config() -> AgentModelConfig:
+    return AgentModelConfig(
+        model="mock-security-reviewer",
+        temperature=0.0,
+        max_tokens=1024,
+        endpoint_alias="mock",
+    )
+
+
+def _make_state(fix_artifact: str | None, trace_id: str | None = None) -> AgentState:
+    state = AgentState(
         log_path="dummy.json",
         error_log=None,
         parse_error=None,
@@ -27,11 +80,18 @@ def _make_state(fix_artifact: str | None) -> AgentState:
         agent_trace=[],
         approval_required=False,
     )
+    if trace_id is not None:
+        state["trace_id"] = trace_id
+    return state
 
 
 class TestSecurityReviewerSafeArtifacts:
     def setup_method(self):
-        self.agent = SecurityReviewerAgent()
+        self.mock_client = MockLLMClient().with_fixture_response(_safe_fixture())
+        self.agent = SecurityReviewerAgent(
+            llm_client=self.mock_client,
+            model_config=_make_mock_config(),
+        )
 
     def test_clean_script_returns_safe(self):
         result = self.agent.run(_make_state('print("Restarting connection pool...")'))
@@ -52,7 +112,11 @@ class TestSecurityReviewerSafeArtifacts:
 
 class TestSecurityReviewerHighRiskKeywords:
     def setup_method(self):
-        self.agent = SecurityReviewerAgent()
+        self.mock_client = MockLLMClient().with_fixture_response(_high_risk_fixture())
+        self.agent = SecurityReviewerAgent(
+            llm_client=self.mock_client,
+            model_config=_make_mock_config(),
+        )
 
     @pytest.mark.parametrize("keyword", _HIGH_RISK_KEYWORDS)
     def test_each_keyword_triggers_high_risk(self, keyword):
@@ -77,7 +141,11 @@ class TestSecurityReviewerHighRiskKeywords:
 
 class TestSecurityReviewerAgentTrace:
     def setup_method(self):
-        self.agent = SecurityReviewerAgent()
+        self.mock_client = MockLLMClient().with_fixture_response(_caution_fixture())
+        self.agent = SecurityReviewerAgent(
+            llm_client=self.mock_client,
+            model_config=_make_mock_config(),
+        )
 
     def test_appends_to_agent_trace(self):
         result = self.agent.run(_make_state("clean script"))
@@ -108,3 +176,25 @@ class TestSecurityReviewerAgentTrace:
         )
         result = self.agent.run(state)
         assert result["security_verdict"] == "HIGH_RISK"
+
+
+class TestSecurityReviewerLLMWiring:
+    """T028: assert SecurityReviewerAgent invokes LLMClient.complete()
+    with GLM-bound model_config and correct trace_id."""
+
+    def setup_method(self):
+        self.mock_client = MockLLMClient().with_fixture_response(_safe_fixture())
+        self.agent = SecurityReviewerAgent(
+            llm_client=self.mock_client,
+            model_config=_make_mock_config(),
+        )
+
+    def test_complete_called_with_correct_kwargs(self):
+        state = _make_state("clean script", trace_id=_TEST_TRACE_ID)
+        self.agent.run(state)
+        assert self.mock_client.call_count == 1
+        req = self.mock_client.last_request
+        assert req is not None
+        assert req.agent_name == "security_reviewer"
+        assert req.model == "mock-security-reviewer"
+        assert req.trace_id == _TEST_TRACE_ID

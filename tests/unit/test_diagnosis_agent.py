@@ -4,10 +4,12 @@ import pytest
 
 from autosentinel.agents.diagnosis import DiagnosisAgent
 from autosentinel.models import AgentState
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.mock_client import MockLLMClient
 
 
-def _make_state(error_type: str, message: str) -> AgentState:
-    return AgentState(
+def _make_state(error_type: str, message: str, trace_id: str | None = None) -> AgentState:
+    state = AgentState(
         log_path="dummy.json",
         error_log={
             "timestamp": "2026-04-28T00:00:00Z",
@@ -31,11 +33,24 @@ def _make_state(error_type: str, message: str) -> AgentState:
         agent_trace=[],
         approval_required=False,
     )
+    if trace_id is not None:
+        state["trace_id"] = trace_id
+    return state
 
 
 class TestDiagnosisAgentRouting:
     def setup_method(self):
-        self.agent = DiagnosisAgent()
+        self.mock_client = MockLLMClient()
+        self.mock_config = AgentModelConfig(
+            model="mock-diagnosis",
+            temperature=0.0,
+            max_tokens=1024,
+            endpoint_alias="mock",
+        )
+        self.agent = DiagnosisAgent(
+            llm_client=self.mock_client,
+            model_config=self.mock_config,
+        )
 
     def test_connectivity_maps_to_infra(self):
         state = _make_state("ConnectionTimeout", "connection refused")
@@ -102,3 +117,30 @@ class TestDiagnosisAgentRouting:
         import autosentinel.agents.diagnosis as mod
         src = inspect.getsource(mod)
         assert "TODO(W2)" in src
+
+
+class TestDiagnosisAgentLLMWiring:
+    """T025: assert DiagnosisAgent invokes LLMClient.complete() with correct kwargs."""
+
+    def setup_method(self):
+        self.mock_client = MockLLMClient()
+        self.mock_config = AgentModelConfig(
+            model="mock-diagnosis",
+            temperature=0.0,
+            max_tokens=1024,
+            endpoint_alias="mock",
+        )
+        self.agent = DiagnosisAgent(
+            llm_client=self.mock_client,
+            model_config=self.mock_config,
+        )
+
+    def test_complete_called_once_with_correct_agent_name_and_trace_id(self):
+        state = _make_state("UnhandledError", "test", trace_id="a" * 32)
+        self.agent.run(state)
+        assert self.mock_client.call_count == 1
+        req = self.mock_client.last_request
+        assert req is not None
+        assert req.agent_name == "diagnosis"
+        assert req.model == "mock-diagnosis"
+        assert req.trace_id == "a" * 32

@@ -6,10 +6,12 @@ import pytest
 
 from autosentinel.agents.infra_sre import InfraSREAgent
 from autosentinel.models import AgentState
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.mock_client import MockLLMClient
 
 
-def _make_state(error_category: str) -> AgentState:
-    return AgentState(
+def _make_state(error_category: str, trace_id: str | None = None) -> AgentState:
+    state = AgentState(
         log_path="dummy.json",
         error_log=None,
         parse_error=None,
@@ -27,11 +29,24 @@ def _make_state(error_category: str) -> AgentState:
         agent_trace=[],
         approval_required=False,
     )
+    if trace_id is not None:
+        state["trace_id"] = trace_id
+    return state
 
 
 class TestInfraSREAgent:
     def setup_method(self):
-        self.agent = InfraSREAgent()
+        self.mock_client = MockLLMClient()
+        self.mock_config = AgentModelConfig(
+            model="mock-infra-sre",
+            temperature=0.0,
+            max_tokens=1024,
+            endpoint_alias="mock",
+        )
+        self.agent = InfraSREAgent(
+            llm_client=self.mock_client,
+            model_config=self.mock_config,
+        )
 
     def test_sets_fix_artifact_for_infra(self):
         result = self.agent.run(_make_state("INFRA"))
@@ -64,3 +79,30 @@ class TestInfraSREAgent:
         import autosentinel.agents.infra_sre as mod
         src = inspect.getsource(mod)
         assert "TODO(W2)" in src
+
+
+class TestInfraSREAgentLLMWiring:
+    """T027: assert InfraSREAgent invokes LLMClient.complete() with correct kwargs."""
+
+    def setup_method(self):
+        self.mock_client = MockLLMClient()
+        self.mock_config = AgentModelConfig(
+            model="mock-infra-sre",
+            temperature=0.0,
+            max_tokens=1024,
+            endpoint_alias="mock",
+        )
+        self.agent = InfraSREAgent(
+            llm_client=self.mock_client,
+            model_config=self.mock_config,
+        )
+
+    def test_complete_called_with_correct_agent_name_and_trace_id(self):
+        state = _make_state("INFRA", trace_id="e" * 32)
+        self.agent.run(state)
+        assert self.mock_client.call_count == 1
+        req = self.mock_client.last_request
+        assert req is not None
+        assert req.agent_name == "infra_sre"
+        assert req.model == "mock-infra-sre"
+        assert req.trace_id == "e" * 32
