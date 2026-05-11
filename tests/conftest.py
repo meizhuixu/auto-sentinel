@@ -1,13 +1,39 @@
 """Shared pytest fixtures for the diagnostic pipeline test suite."""
 
 import json
+import os
 import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from autosentinel.llm.cost_guard import get_cost_guard
 from autosentinel.models import AgentState, DiagnosticState
+
+
+@pytest.fixture(autouse=True)
+def cost_guard_reset():
+    """Reset the CostGuard singleton between tests so cumulative spend from
+    one test never bleeds into the next.
+
+    Relies on PYTEST_CURRENT_TEST being set by pytest during the runtest
+    phases (setup/call/teardown) — CostGuard.reset_for_test() refuses without
+    it. The defensive assert below makes the failure mode loud if pytest's
+    behaviour ever changes (e.g., a future plugin runs autouse fixtures
+    outside the runtest phase).
+
+    Sprint 1-4 tests that never touch CostGuard are unaffected: the singleton
+    starts at total_spent_usd=0, this fixture sets it back to 0 — no-op.
+    Tests that DO accumulate (T012/T013 ark/glm client tests) get a clean
+    slate per test instead of inheriting spend from prior tests.
+    """
+    assert os.environ.get("PYTEST_CURRENT_TEST"), (
+        "cost_guard_reset autouse fixture expects PYTEST_CURRENT_TEST to be set "
+        "by pytest before fixture body runs"
+    )
+    get_cost_guard().reset_for_test()
+    yield
 
 
 @pytest.fixture
@@ -144,6 +170,11 @@ def build_initial_state(log_file: str, tmp_path: Path) -> AgentState:
         routing_decision=None,
         agent_trace=[],
         approval_required=False,
+        # Sprint 5 sentinel defaults — "0"*32 is a valid 32-char lowercase
+        # hex string (passes LLMRequest trace_id regex); 0.0 is the natural
+        # zero-spend starting point for CostGuard accumulation.
+        trace_id="0" * 32,
+        cost_accumulated_usd=0.0,
     )
 
 
