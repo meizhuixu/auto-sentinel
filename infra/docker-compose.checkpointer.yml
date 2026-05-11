@@ -1,0 +1,37 @@
+# Sprint 5 — LangGraph PostgresSaver checkpointer for cross-process interrupt
+# durability (US1 acceptance: HIGH_RISK interrupt raised in process A is
+# resumable from process B).
+#
+# Dedicated container on localhost:5434. (Originally planned for 5433 per
+# plan.md Block 5, but the project-4 Langfuse Postgres on this dev machine
+# already occupies localhost:5433, so AutoSentinel's checkpointer moved one
+# slot up to 5434 for collision avoidance. See research.md Decision 5.)
+#
+# TECHNICAL DEBT — Phase 4 (AWS rollout): the hard-coded postgres/postgres
+# credentials below are LOCAL-DEV-ONLY. Before any non-laptop deployment they
+# MUST be replaced with AWS Secrets Manager-issued credentials, and the
+# database moved to RDS / Aurora. This file is intentionally not consumed by
+# any production runbook. See plan.md "Complexity Tracking" + research.md
+# §5 for the deferral rationale.
+
+services:
+  checkpointer:
+    image: postgres:16
+    container_name: auto-sentinel-checkpointer
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - checkpointer_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  checkpointer_data:

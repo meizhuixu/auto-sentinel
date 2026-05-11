@@ -1,0 +1,40 @@
+# Sprint 5 — declarative LLM routing for the 5 LLM-backed agents.
+# Verifier is deliberately absent — it is deterministic by design (no LLM).
+# Constitution VII.4: agent code MUST NOT contain model name or endpoint URL
+# string literals; everything resolves through this file via factory.build_client_for_agent().
+# API keys are NEVER stored here — only the env var *names* are referenced.
+
+agents:
+  diagnosis:
+    model: doubao-seed-2.0-pro
+    temperature: 0.2
+    max_tokens: 2048
+  supervisor:
+    model: doubao-1.5-lite-32k
+    temperature: 0.0
+    max_tokens: 512
+  code_fixer:
+    model: doubao-seed-2.0-pro
+    temperature: 0.3
+    max_tokens: 4096
+  infra_sre:
+    model: doubao-seed-2.0-pro
+    temperature: 0.3
+    max_tokens: 4096
+  security_reviewer:
+    model: glm-4.7
+    temperature: 0.0
+    max_tokens: 2048
+
+endpoints:
+  ark:
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    api_key_env: ARK_API_KEY
+    models:
+      - doubao-1.5-lite-32k
+      - doubao-seed-2.0-pro
+  glm:
+    base_url: https://open.bigmodel.cn/api/paas/v4
+    api_key_env: GLM_API_KEY
+    models:
+      - glm-4.7

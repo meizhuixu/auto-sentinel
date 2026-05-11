@@ -2,7 +2,7 @@
 
 import operator
 from typing import Annotated, Optional
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class ErrorLog(TypedDict):
@@ -61,3 +61,14 @@ class AgentState(TypedDict):
     routing_decision: Optional[str]                       # human-readable routing log
     agent_trace: Annotated[list[str], operator.add]       # retained for Sprint 5 fan-out
     approval_required: bool
+    # ── Sprint 5 (new) ──────────────────────────────────────────────────
+    # trace_id: 32-char lowercase hex; stamped at FastAPI ingest, threaded
+    # through the pipeline. Regex-validated inside LLMRequest (data-model.md §2),
+    # NOT here — TypedDict cannot run validators. NotRequired so Sprint 1-4
+    # AgentState literals (which omit it) keep type-checking.
+    trace_id: NotRequired[str]
+    # cost_accumulated_usd: float (NOT Decimal) per data-model.md §8 — JSON
+    # round-trip through PostgresSaver requires native JSON types; Decimal
+    # needs a custom serialiser. CostGuardState.total_spent_usd remains
+    # Decimal as the source of truth; this is a mirror for in-state visibility.
+    cost_accumulated_usd: NotRequired[float]

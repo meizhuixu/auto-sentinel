@@ -30,11 +30,11 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 
 - [ ] T001 [PR-1] Create `autosentinel/llm/` package with `__init__.py` (empty body, the package marker only)
 - [ ] T002 [P] [PR-1] Create `config/model_routing.yaml` with the full 5-agent + 2-endpoint declaration per `plan.md` Block 4 (agents: diagnosis/supervisor/code_fixer/infra_sre/security_reviewer; endpoints: ark + glm with `api_key_env` ARK_API_KEY / GLM_API_KEY)
-- [ ] T003 [P] [PR-1] Create `infra/docker-compose.checkpointer.yml` declaring `postgres:16` service `auto-sentinel-checkpointer` on `localhost:5433` with credentials `postgres/postgres` (acknowledge as Phase-4 AWS technical debt in inline comment)
+- [ ] T003 [P] [PR-1] Create `infra/docker-compose.checkpointer.yml` declaring `postgres:16` service `auto-sentinel-checkpointer` on `localhost:5434` with credentials `postgres/postgres` (acknowledge as Phase-4 AWS technical debt in inline comment)
 - [ ] T004 [P] [PR-1] Create directory structure `benchmarks/scenarios/`, `benchmarks/results/` with `.gitkeep` files
 - [ ] T005 [P] [PR-1] Add Sprint 5 dependencies to `pyproject.toml`: `openai>=1.40`, `langgraph-checkpoint-postgres`, `psycopg[binary]>=3.1`, `tenacity`, `pydantic-settings`, `pyyaml`, `httpx` (verify `langgraph==1.1.9` already present from Sprint 4)
 
-**Checkpoint**: Setup complete. Run `docker compose -f infra/docker-compose.checkpointer.yml up -d` and `nc -z localhost 5433` succeeds. `uv sync` completes without errors.
+**Checkpoint**: Setup complete. Run `docker compose -f infra/docker-compose.checkpointer.yml up -d` and `nc -z localhost 5434` succeeds. `uv sync` completes without errors.
 
 ---
 
@@ -97,7 +97,7 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 
 ### Implementation — PR-4 (cross-process resume — depends on T035 PostgresSaver swap below)
 
-- [ ] T035 [US1] [PR-4] Swap `MemorySaver()` → `PostgresSaver.from_conn_string("postgresql://postgres:postgres@localhost:5433/postgres")` at `autosentinel/multi_agent_graph.py:80`; call `PostgresSaver.setup()` once at module import. Connection string read from `AUTOSENTINEL_CHECKPOINTER_DSN` env var with the local-dev value as default.
+- [ ] T035 [US1] [PR-4] Swap `MemorySaver()` → `PostgresSaver.from_conn_string("postgresql://postgres:postgres@localhost:5434/postgres")` at `autosentinel/multi_agent_graph.py:80`; call `PostgresSaver.setup()` once at module import. Connection string read from `AUTOSENTINEL_CHECKPOINTER_DSN` env var with the local-dev value as default.
 - [ ] T036 [US1] [PR-4] Add `POST /incidents/{incident_id}/resume` endpoint in `autosentinel/api/main.py`: body `{"decision": "approve"|"reject", "reviewer_notes": str}`; internally `graph.invoke(Command(resume=body), config={"configurable": {"thread_id": incident_id}})`. Returns 200 with the post-resume state summary.
 - [ ] T037 [US1] [PR-4] Verify T029 turns GREEN: run process-A → process-B subprocess test against the live PostgresSaver container; assert agent_trace ordering shows specialists ran exactly once and Verifier ran in process-B.
 
