@@ -1,6 +1,8 @@
 """InfraSREAgent — mock fix generator for INFRA and CONFIG categories."""
 
 from autosentinel.agents.base import BaseAgent
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.protocol import LLMClient
 from autosentinel.models import AgentState
 
 _MOCK_FIXES = {
@@ -10,6 +12,15 @@ _MOCK_FIXES = {
 
 
 class InfraSREAgent(BaseAgent):
+    def __init__(
+        self,
+        *,
+        llm_client: LLMClient,
+        model_config: AgentModelConfig,
+    ) -> None:
+        self._llm_client = llm_client
+        self._model_config = model_config
+
     def run(self, state: AgentState) -> AgentState:
         # TODO(W2): replace with real LLM call
         category = state.get("error_category", "INFRA")

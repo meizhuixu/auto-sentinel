@@ -1,6 +1,8 @@
 """CodeFixerAgent — mock fix generator for CODE and SECURITY categories."""
 
 from autosentinel.agents.base import BaseAgent
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.protocol import LLMClient
 from autosentinel.models import AgentState
 
 _MOCK_FIXES = {
@@ -10,6 +12,15 @@ _MOCK_FIXES = {
 
 
 class CodeFixerAgent(BaseAgent):
+    def __init__(
+        self,
+        *,
+        llm_client: LLMClient,
+        model_config: AgentModelConfig,
+    ) -> None:
+        self._llm_client = llm_client
+        self._model_config = model_config
+
     def _get_fix_for_security(self) -> str:
         """Overridable in tests to inject HIGH_RISK artifact."""
         return _MOCK_FIXES["SECURITY"]

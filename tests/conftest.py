@@ -1,7 +1,19 @@
 """Shared pytest fixtures for the diagnostic pipeline test suite."""
 
-import json
+# Sprint 5: multi_agent_graph constructs LLM clients at module-import time
+# via build_client_for_agent(), which checks ARK_API_KEY / GLM_API_KEY env
+# vars upfront. Tests use MockLLMClient and never call real APIs, but the
+# env check still runs. Use setdefault so developers with real keys set
+# locally aren't overridden when running integration tests.
+#
+# PR-4 follow-up: refactor multi_agent_graph to lazy/factory construction
+# so module-import side effects (env check, future PostgresSaver connection)
+# don't bleed into pytest collection.
 import os
+os.environ.setdefault("ARK_API_KEY", "test-fake-ark-key")
+os.environ.setdefault("GLM_API_KEY", "test-fake-glm-key")
+
+import json
 import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch

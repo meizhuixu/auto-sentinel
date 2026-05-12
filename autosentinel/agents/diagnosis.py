@@ -1,6 +1,8 @@
 """DiagnosisAgent — classifies error into CODE/INFRA/CONFIG/SECURITY."""
 
 from autosentinel.agents.base import BaseAgent
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.protocol import LLMClient
 from autosentinel.models import AgentState
 
 _INFRA_KEYWORDS = (
@@ -18,6 +20,15 @@ _SECURITY_KEYWORDS = (
 
 
 class DiagnosisAgent(BaseAgent):
+    def __init__(
+        self,
+        *,
+        llm_client: LLMClient,
+        model_config: AgentModelConfig,
+    ) -> None:
+        self._llm_client = llm_client
+        self._model_config = model_config
+
     def run(self, state: AgentState) -> AgentState:
         # TODO(W2): replace with real LLM call
         log = state["error_log"]

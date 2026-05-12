@@ -4,6 +4,8 @@ import pytest
 
 from autosentinel.agents.supervisor import SupervisorAgent
 from autosentinel.models import AgentState
+from autosentinel.llm.factory import AgentModelConfig
+from autosentinel.llm.mock_client import MockLLMClient
 
 
 def _make_state(error_category: str) -> AgentState:
@@ -29,7 +31,17 @@ def _make_state(error_category: str) -> AgentState:
 
 class TestSupervisorRouting:
     def setup_method(self):
-        self.agent = SupervisorAgent()
+        self.mock_client = MockLLMClient()
+        self.mock_config = AgentModelConfig(
+            model="mock-supervisor",
+            temperature=0.0,
+            max_tokens=512,
+            endpoint_alias="mock",
+        )
+        self.agent = SupervisorAgent(
+            llm_client=self.mock_client,
+            model_config=self.mock_config,
+        )
 
     def test_code_routes_to_code_fixer(self):
         result = self.agent.run(_make_state("CODE"))

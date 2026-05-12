@@ -12,17 +12,40 @@ from autosentinel.agents.infra_sre import InfraSREAgent
 from autosentinel.agents.security_reviewer import SecurityReviewerAgent
 from autosentinel.agents.supervisor import SupervisorAgent
 from autosentinel.agents.verifier import VerifierAgent
+from autosentinel.llm.factory import build_client_for_agent
 from autosentinel.models import AgentState
 from autosentinel.nodes.format_report import format_report
 from autosentinel.nodes.parse_log import parse_log
 
 _logger = logging.getLogger(__name__)
 
-_diagnosis_agent = DiagnosisAgent()
-_supervisor_agent = SupervisorAgent()
-_code_fixer_agent = CodeFixerAgent()
-_infra_sre_agent = InfraSREAgent()
-_security_reviewer_agent = SecurityReviewerAgent()
+_diagnosis_client, _diagnosis_config = build_client_for_agent("diagnosis")
+_diagnosis_agent = DiagnosisAgent(
+    llm_client=_diagnosis_client, model_config=_diagnosis_config
+)
+
+_supervisor_client, _supervisor_config = build_client_for_agent("supervisor")
+_supervisor_agent = SupervisorAgent(
+    llm_client=_supervisor_client, model_config=_supervisor_config
+)
+
+_code_fixer_client, _code_fixer_config = build_client_for_agent("code_fixer")
+_code_fixer_agent = CodeFixerAgent(
+    llm_client=_code_fixer_client, model_config=_code_fixer_config
+)
+
+_infra_sre_client, _infra_sre_config = build_client_for_agent("infra_sre")
+_infra_sre_agent = InfraSREAgent(
+    llm_client=_infra_sre_client, model_config=_infra_sre_config
+)
+
+_security_reviewer_client, _security_reviewer_config = build_client_for_agent(
+    "security_reviewer"
+)
+_security_reviewer_agent = SecurityReviewerAgent(
+    llm_client=_security_reviewer_client, model_config=_security_reviewer_config
+)
+
 _verifier_agent = VerifierAgent()
 
 

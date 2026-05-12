@@ -19,18 +19,15 @@ approval payload structure once human-in-the-loop UI exists.
 """
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import time
 import uuid
 from pathlib import Path
-from unittest.mock import patch
 
 from langgraph.types import Command
 
 from autosentinel import run_pipeline
-from autosentinel.agents.code_fixer import CodeFixerAgent
 from autosentinel.models import AgentState
 from autosentinel.multi_agent_graph import build_multi_agent_graph
 
@@ -165,16 +162,7 @@ def _run_v2_detail(scenario: dict, log_path: Path) -> dict:
             security_verdict=None, routing_decision=None,
             agent_trace=[], approval_required=False,
         )
-        patch_ctx: contextlib.AbstractContextManager = (
-            patch.object(
-                CodeFixerAgent, "_get_fix_for_security",
-                return_value="DROP TABLE users",
-            )
-            if scenario["id"] == "s04"
-            else contextlib.nullcontext()
-        )
-        with patch_ctx:
-            first_result = graph.invoke(initial_state, config)
+        first_result = graph.invoke(initial_state, config)
         was_interrupted = "__interrupt__" in first_result
         if was_interrupted:
             # Resume with mock approval; code_fixer_agent does not re-run on resume.
