@@ -135,7 +135,14 @@ def build_client_for_agent(
             f"(required for agent {agent_name!r} → endpoint {agent_cfg.endpoint_alias!r})"
         )
 
-    # PR-1/PR-2 placeholder; concrete dispatch (ArkLLMClient | GlmLLMClient)
-    # wired later in PR-2/PR-3 after T021/T022 land in graph.
+    # PR-2 transitional: factory hands out MockLLMClient pre-loaded with a
+    # placeholder response so the production graph can drive 4 specialist
+    # agents end-to-end. PR-3 (T022) replaces this branch with concrete
+    # ArkLLMClient / GlmLLMClient dispatch on agent_cfg.endpoint_alias.
+    from autosentinel.llm._placeholder_responses import get_placeholder_response
     from autosentinel.llm.mock_client import MockLLMClient
-    return MockLLMClient(), agent_cfg
+
+    client = MockLLMClient().with_fixture_response(
+        get_placeholder_response(agent_name)
+    )
+    return client, agent_cfg

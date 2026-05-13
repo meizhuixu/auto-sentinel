@@ -1,6 +1,7 @@
 """build_multi_agent_graph() — Sprint 4 v2 multi-agent LangGraph pipeline."""
 
 import logging
+import secrets
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
@@ -57,6 +58,19 @@ def _route_to_specialist(state: AgentState) -> str:
     return _supervisor_agent.get_specialist_key(state.get("error_category"))
 
 
+def dispatch(state: AgentState) -> AgentState:
+    """Boundary 3 — LangGraph dispatch (per contracts/trace-propagation.md).
+
+    Ensures every state entering the multi-agent pipeline carries a valid
+    32-char lowercase hex trace_id. Future PR-4 will move this generation
+    upstream to FastAPI ingest_alert (boundary 1); this node then becomes
+    a defensive pass-through (only seeds when upstream omitted).
+    """
+    if not state.get("trace_id"):
+        return {"trace_id": secrets.token_hex(16)}
+    return {}
+
+
 def security_gate(state: AgentState) -> AgentState:
     verdict = state.get("security_verdict")
     approval_required = (verdict == "HIGH_RISK")
@@ -73,6 +87,7 @@ def security_gate(state: AgentState) -> AgentState:
 def build_multi_agent_graph() -> StateGraph:
     builder = StateGraph(AgentState)
 
+    builder.add_node("dispatch",           dispatch)
     builder.add_node("parse_log",          parse_log)
     builder.add_node("diagnosis_agent",    lambda s: _diagnosis_agent.run(s))
     builder.add_node("supervisor_route",   lambda s: _supervisor_agent.run(s))
@@ -83,7 +98,8 @@ def build_multi_agent_graph() -> StateGraph:
     builder.add_node("verifier_agent",     lambda s: _verifier_agent.run(s))
     builder.add_node("format_report",      format_report)
 
-    builder.add_edge(START, "parse_log")
+    builder.add_edge(START, "dispatch")
+    builder.add_edge("dispatch", "parse_log")
     builder.add_conditional_edges("parse_log", _route_after_parse,
                                   {END: END, "diagnosis_agent": "diagnosis_agent"})
     builder.add_edge("diagnosis_agent",   "supervisor_route")
