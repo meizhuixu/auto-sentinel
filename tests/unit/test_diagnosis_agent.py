@@ -7,6 +7,8 @@ from autosentinel.models import AgentState
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.mock_client import MockLLMClient
 
+from tests.unit._llm_fixtures import diagnosis_fixture
+
 
 def _make_state(error_type: str, message: str, trace_id: str | None = None) -> AgentState:
     state = AgentState(
@@ -123,7 +125,7 @@ class TestDiagnosisAgentLLMWiring:
     """T025: assert DiagnosisAgent invokes LLMClient.complete() with correct kwargs."""
 
     def setup_method(self):
-        self.mock_client = MockLLMClient()
+        self.mock_client = MockLLMClient().with_fixture_response(diagnosis_fixture())
         self.mock_config = AgentModelConfig(
             model="mock-diagnosis",
             temperature=0.0,

@@ -6,50 +6,18 @@ import pytest
 
 from autosentinel.agents.security_reviewer import SecurityReviewerAgent, _HIGH_RISK_KEYWORDS
 from autosentinel.models import AgentState
-from decimal import Decimal
 
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.mock_client import MockLLMClient
-from autosentinel.llm.protocol import LLMResponse
+
+from tests.unit._llm_fixtures import (
+    safe_fixture,
+    high_risk_fixture,
+    caution_fixture,
+)
 
 
-_TEST_TRACE_ID = "d" * 32
-
-
-def _safe_fixture() -> LLMResponse:
-    return LLMResponse(
-        content='{"verdict": "SAFE", "reasoning": "no destructive ops"}',
-        model="glm-4.7",
-        prompt_tokens=100,
-        completion_tokens=30,
-        cost_usd=Decimal("0.0005"),
-        latency_ms=500,
-        trace_id=_TEST_TRACE_ID,
-    )
-
-
-def _high_risk_fixture() -> LLMResponse:
-    return LLMResponse(
-        content='{"verdict": "HIGH_RISK", "reasoning": "DROP TABLE detected"}',
-        model="glm-4.7",
-        prompt_tokens=120,
-        completion_tokens=40,
-        cost_usd=Decimal("0.0008"),
-        latency_ms=850,
-        trace_id=_TEST_TRACE_ID,
-    )
-
-
-def _caution_fixture() -> LLMResponse:
-    return LLMResponse(
-        content='{"verdict": "CAUTION", "reasoning": "ambiguous shell command"}',
-        model="glm-4.7",
-        prompt_tokens=110,
-        completion_tokens=35,
-        cost_usd=Decimal("0.0006"),
-        latency_ms=700,
-        trace_id=_TEST_TRACE_ID,
-    )
+_TEST_TRACE_ID = "0" * 32
 
 
 def _make_mock_config() -> AgentModelConfig:
@@ -87,7 +55,7 @@ def _make_state(fix_artifact: str | None, trace_id: str | None = None) -> AgentS
 
 class TestSecurityReviewerSafeArtifacts:
     def setup_method(self):
-        self.mock_client = MockLLMClient().with_fixture_response(_safe_fixture())
+        self.mock_client = MockLLMClient().with_fixture_response(safe_fixture())
         self.agent = SecurityReviewerAgent(
             llm_client=self.mock_client,
             model_config=_make_mock_config(),
@@ -112,7 +80,7 @@ class TestSecurityReviewerSafeArtifacts:
 
 class TestSecurityReviewerHighRiskKeywords:
     def setup_method(self):
-        self.mock_client = MockLLMClient().with_fixture_response(_high_risk_fixture())
+        self.mock_client = MockLLMClient().with_fixture_response(high_risk_fixture())
         self.agent = SecurityReviewerAgent(
             llm_client=self.mock_client,
             model_config=_make_mock_config(),
@@ -141,7 +109,7 @@ class TestSecurityReviewerHighRiskKeywords:
 
 class TestSecurityReviewerAgentTrace:
     def setup_method(self):
-        self.mock_client = MockLLMClient().with_fixture_response(_caution_fixture())
+        self.mock_client = MockLLMClient().with_fixture_response(caution_fixture())
         self.agent = SecurityReviewerAgent(
             llm_client=self.mock_client,
             model_config=_make_mock_config(),
@@ -183,7 +151,7 @@ class TestSecurityReviewerLLMWiring:
     with GLM-bound model_config and correct trace_id."""
 
     def setup_method(self):
-        self.mock_client = MockLLMClient().with_fixture_response(_safe_fixture())
+        self.mock_client = MockLLMClient().with_fixture_response(safe_fixture())
         self.agent = SecurityReviewerAgent(
             llm_client=self.mock_client,
             model_config=_make_mock_config(),

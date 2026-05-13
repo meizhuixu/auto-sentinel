@@ -9,6 +9,8 @@ from autosentinel.models import AgentState
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.mock_client import MockLLMClient
 
+from tests.unit._llm_fixtures import infra_sre_fixture
+
 
 def _make_state(error_category: str, trace_id: str | None = None) -> AgentState:
     state = AgentState(
@@ -85,7 +87,7 @@ class TestInfraSREAgentLLMWiring:
     """T027: assert InfraSREAgent invokes LLMClient.complete() with correct kwargs."""
 
     def setup_method(self):
-        self.mock_client = MockLLMClient()
+        self.mock_client = MockLLMClient().with_fixture_response(infra_sre_fixture())
         self.mock_config = AgentModelConfig(
             model="mock-infra-sre",
             temperature=0.0,

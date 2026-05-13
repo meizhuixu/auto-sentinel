@@ -253,6 +253,7 @@ class AgentState(TypedDict):
     # ── Sprint 5 (new) ──────────────────────────────────────────────────
     trace_id: NotRequired[str]                  # 32-char lowercase hex; set at FastAPI ingest
     cost_accumulated_usd: NotRequired[float]    # mirror of CostGuardState for in-state visibility
+    security_classifier_model: NotRequired[str] # GLM model identity used by SecurityReviewer; NotRequired for backward compat with Sprint 4 state literals
 ```
 
 **Why `NotRequired`**: existing tests construct `AgentState` literals without
@@ -267,6 +268,10 @@ LangGraph reads `state.get("trace_id", "")` defensively in the dispatch path.
 - `cost_accumulated_usd`: snapshot of `CostGuard.total_spent_usd` after each
   agent's run; used by the eventual `cost_exhausted_node` to write the abort
   reason into `state` for the user-facing report.
+- `security_classifier_model`: model name (e.g. `'glm-4.7'`) of the LLM that
+  produced the security verdict; recorded for trace correlation and benchmark
+  eval. Mirrors the `model_routing.yaml` value at the time of the run.
+  Written by `SecurityReviewerAgent.run()` after a successful `complete()` call.
 
 **Why `float`, not `Decimal`**: LangGraph's TypedDict serialisation through
 PostgresSaver round-trips JSON; `Decimal` requires a custom serialiser.

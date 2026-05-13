@@ -9,6 +9,8 @@ from autosentinel.models import AgentState
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.mock_client import MockLLMClient
 
+from tests.unit._llm_fixtures import code_fixer_fixture
+
 
 def _make_state(error_category: str, trace_id: str | None = None) -> AgentState:
     state = AgentState(
@@ -85,7 +87,7 @@ class TestCodeFixerAgentLLMWiring:
     """T026: assert CodeFixerAgent invokes LLMClient.complete() for both CODE and SECURITY shapes."""
 
     def setup_method(self):
-        self.mock_client = MockLLMClient()
+        self.mock_client = MockLLMClient().with_fixture_response(code_fixer_fixture())
         self.mock_config = AgentModelConfig(
             model="mock-code-fixer",
             temperature=0.0,

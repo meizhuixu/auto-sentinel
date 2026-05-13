@@ -72,3 +72,4 @@ class AgentState(TypedDict):
     # needs a custom serialiser. CostGuardState.total_spent_usd remains
     # Decimal as the source of truth; this is a mirror for in-state visibility.
     cost_accumulated_usd: NotRequired[float]
+    security_classifier_model: NotRequired[str]
