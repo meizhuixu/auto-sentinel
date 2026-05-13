@@ -1,6 +1,4 @@
-"""Tests for SecurityReviewerAgent — keyword detection on fix_artifact."""
-
-import inspect
+"""Tests for SecurityReviewerAgent — LLM verdict + deny-list override."""
 
 import pytest
 
@@ -12,7 +10,6 @@ from autosentinel.llm.mock_client import MockLLMClient
 
 from tests.unit._llm_fixtures import (
     safe_fixture,
-    high_risk_fixture,
     caution_fixture,
 )
 
@@ -62,48 +59,64 @@ class TestSecurityReviewerSafeArtifacts:
         )
 
     def test_clean_script_returns_safe(self):
-        result = self.agent.run(_make_state('print("Restarting connection pool...")'))
+        result = self.agent.run(_make_state('print("Restarting connection pool...")', trace_id=_TEST_TRACE_ID))
         assert result["security_verdict"] == "SAFE"
 
     def test_none_fix_artifact_returns_safe(self):
-        result = self.agent.run(_make_state(None))
+        result = self.agent.run(_make_state(None, trace_id=_TEST_TRACE_ID))
         assert result["security_verdict"] == "SAFE"
 
     def test_empty_fix_artifact_returns_safe(self):
-        result = self.agent.run(_make_state(""))
+        result = self.agent.run(_make_state("", trace_id=_TEST_TRACE_ID))
         assert result["security_verdict"] == "SAFE"
 
     def test_gc_script_returns_safe(self):
-        result = self.agent.run(_make_state('print("Triggering garbage collection...")'))
+        result = self.agent.run(_make_state('print("Triggering garbage collection...")', trace_id=_TEST_TRACE_ID))
         assert result["security_verdict"] == "SAFE"
 
 
-class TestSecurityReviewerHighRiskKeywords:
+class TestSecurityReviewerDenyListOverride:
+    """T034: deny-list keywords force HIGH_RISK even when LLM returns SAFE.
+
+    Defense-in-depth: prompt-injection-resistant; LLM verdict can be
+    overridden by hard-coded keyword match on the fix_artifact.
+    """
+
     def setup_method(self):
-        self.mock_client = MockLLMClient().with_fixture_response(high_risk_fixture())
+        # LLM returns SAFE — but artifact contains HIGH_RISK keyword,
+        # so the agent MUST upgrade the verdict to HIGH_RISK.
+        self.mock_client = MockLLMClient().with_fixture_response(safe_fixture())
         self.agent = SecurityReviewerAgent(
             llm_client=self.mock_client,
             model_config=_make_mock_config(),
         )
 
     @pytest.mark.parametrize("keyword", _HIGH_RISK_KEYWORDS)
-    def test_each_keyword_triggers_high_risk(self, keyword):
-        result = self.agent.run(_make_state(f'print("doing {keyword} now")'))
+    def test_keyword_override_forces_high_risk(self, keyword):
+        result = self.agent.run(
+            _make_state(f'print("doing {keyword} now")', trace_id=_TEST_TRACE_ID)
+        )
         assert result["security_verdict"] == "HIGH_RISK", (
-            f"Expected HIGH_RISK for keyword '{keyword}'"
+            f"Expected deny-list override for keyword '{keyword}' (LLM said SAFE)"
         )
 
-    def test_drop_table_users_high_risk(self):
-        result = self.agent.run(_make_state("DROP TABLE users"))
+    def test_drop_table_users_overrides_to_high_risk(self):
+        result = self.agent.run(
+            _make_state("DROP TABLE users", trace_id=_TEST_TRACE_ID)
+        )
         assert result["security_verdict"] == "HIGH_RISK"
 
-    def test_rm_rf_slash_high_risk(self):
-        result = self.agent.run(_make_state("rm -rf /"))
+    def test_rm_rf_slash_overrides_to_high_risk(self):
+        result = self.agent.run(
+            _make_state("rm -rf /", trace_id=_TEST_TRACE_ID)
+        )
         assert result["security_verdict"] == "HIGH_RISK"
 
-    def test_keyword_case_sensitive(self):
-        # Keywords are checked as-is (case-sensitive per spec)
-        result = self.agent.run(_make_state("drop table users"))
+    def test_lowercase_keyword_does_not_override(self):
+        # 'drop table users' (lowercase) not in deny-list → LLM verdict SAFE wins
+        result = self.agent.run(
+            _make_state("drop table users", trace_id=_TEST_TRACE_ID)
+        )
         assert result["security_verdict"] == "SAFE"
 
 
@@ -116,17 +129,12 @@ class TestSecurityReviewerAgentTrace:
         )
 
     def test_appends_to_agent_trace(self):
-        result = self.agent.run(_make_state("clean script"))
+        result = self.agent.run(_make_state("clean script", trace_id=_TEST_TRACE_ID))
         assert result["agent_trace"] == ["SecurityReviewerAgent"]
 
     def test_returns_only_expected_fields(self):
-        result = self.agent.run(_make_state("clean script"))
-        assert set(result.keys()) == {"security_verdict", "agent_trace"}
-
-    def test_todo_comment_present(self):
-        import autosentinel.agents.security_reviewer as mod
-        src = inspect.getsource(mod)
-        assert "TODO(W2)" in src
+        result = self.agent.run(_make_state("clean script", trace_id=_TEST_TRACE_ID))
+        assert set(result.keys()) == {"security_verdict", "security_classifier_model", "agent_trace"}
 
     def test_reads_fix_artifact_not_fix_script(self):
         # fix_script is None, fix_artifact has a HIGH_RISK keyword
@@ -142,6 +150,7 @@ class TestSecurityReviewerAgentTrace:
             security_verdict=None, routing_decision=None,
             agent_trace=[], approval_required=False,
         )
+        state["trace_id"] = _TEST_TRACE_ID
         result = self.agent.run(state)
         assert result["security_verdict"] == "HIGH_RISK"
 
