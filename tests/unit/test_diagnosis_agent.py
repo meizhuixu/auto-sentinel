@@ -1,6 +1,9 @@
-"""Tests for DiagnosisAgent — keyword routing to CODE/INFRA/CONFIG/SECURITY."""
+"""Tests for DiagnosisAgent — invariants + LLM wiring.
 
-import pytest
+Functional routing tests (keyword → category) were removed when DiagnosisAgent
+moved from keyword stub to real LLM (Sprint 5 PR-2 3b T031); routing correctness
+is now validated by the 50-scenario benchmark in PR-5, not unit tests.
+"""
 
 from autosentinel.agents.diagnosis import DiagnosisAgent
 from autosentinel.models import AgentState
@@ -10,7 +13,10 @@ from autosentinel.llm.mock_client import MockLLMClient
 from tests.unit._llm_fixtures import diagnosis_fixture
 
 
-def _make_state(error_type: str, message: str, trace_id: str | None = None) -> AgentState:
+_TEST_TRACE_ID = "0" * 32
+
+
+def _make_state(error_type: str = "RuntimeError", message: str = "test") -> AgentState:
     state = AgentState(
         log_path="dummy.json",
         error_log={
@@ -35,94 +41,46 @@ def _make_state(error_type: str, message: str, trace_id: str | None = None) -> A
         agent_trace=[],
         approval_required=False,
     )
-    if trace_id is not None:
-        state["trace_id"] = trace_id
+    state["trace_id"] = _TEST_TRACE_ID
     return state
 
 
-class TestDiagnosisAgentRouting:
+def _make_mock_config() -> AgentModelConfig:
+    return AgentModelConfig(
+        model="mock-diagnosis",
+        temperature=0.0,
+        max_tokens=1024,
+        endpoint_alias="mock",
+    )
+
+
+class TestDiagnosisAgentInvariants:
+    """Agent-interface invariants (independent of LLM verdict content)."""
+
     def setup_method(self):
-        self.mock_client = MockLLMClient()
-        self.mock_config = AgentModelConfig(
-            model="mock-diagnosis",
-            temperature=0.0,
-            max_tokens=1024,
-            endpoint_alias="mock",
-        )
+        self.mock_client = MockLLMClient().with_fixture_response(diagnosis_fixture())
         self.agent = DiagnosisAgent(
             llm_client=self.mock_client,
-            model_config=self.mock_config,
+            model_config=_make_mock_config(),
         )
 
-    def test_connectivity_maps_to_infra(self):
-        state = _make_state("ConnectionTimeout", "connection refused")
-        result = self.agent.run(state)
-        assert result["error_category"] == "INFRA"
-
-    def test_network_maps_to_infra(self):
-        state = _make_state("NetworkError", "unreachable host")
-        result = self.agent.run(state)
-        assert result["error_category"] == "INFRA"
-
-    def test_oom_maps_to_infra(self):
-        state = _make_state("OOMKilled", "memory limit exceeded")
-        result = self.agent.run(state)
-        assert result["error_category"] == "INFRA"
-
-    def test_cpu_maps_to_infra(self):
-        state = _make_state("ResourceError", "cpu throttling detected")
-        result = self.agent.run(state)
-        assert result["error_category"] == "INFRA"
-
-    def test_config_maps_to_config(self):
-        state = _make_state("ConfigurationError", "environment variable not set")
-        result = self.agent.run(state)
-        assert result["error_category"] == "CONFIG"
-
-    def test_secret_maps_to_config(self):
-        state = _make_state("StartupError", "secret JWT_KEY is missing")
-        result = self.agent.run(state)
-        assert result["error_category"] == "CONFIG"
-
-    def test_security_maps_to_security(self):
-        state = _make_state("SecurityException", "sql injection attempt detected")
-        result = self.agent.run(state)
-        assert result["error_category"] == "SECURITY"
-
-    def test_auth_maps_to_security(self):
-        state = _make_state("AuthError", "authentication failed")
-        result = self.agent.run(state)
-        assert result["error_category"] == "SECURITY"
-
-    def test_application_logic_maps_to_code(self):
-        state = _make_state("UnhandledError", "unexpected None in user context")
-        result = self.agent.run(state)
-        assert result["error_category"] == "CODE"
-
-    def test_unknown_fallback_maps_to_code(self):
-        state = _make_state("WeirdException", "something went wrong")
-        result = self.agent.run(state)
-        assert result["error_category"] == "CODE"
-
     def test_appends_to_agent_trace(self):
-        state = _make_state("UnhandledError", "test")
-        result = self.agent.run(state)
+        result = self.agent.run(_make_state())
         assert result["agent_trace"] == ["DiagnosisAgent"]
 
-    def test_does_not_set_other_fields(self):
-        state = _make_state("UnhandledError", "test")
-        result = self.agent.run(state)
+    def test_returns_only_expected_fields(self):
+        result = self.agent.run(_make_state())
         assert set(result.keys()) == {"error_category", "agent_trace"}
 
-    def test_todo_comment_present(self):
-        import inspect
-        import autosentinel.agents.diagnosis as mod
-        src = inspect.getsource(mod)
-        assert "TODO(W2)" in src
+    def test_sets_error_category_to_string(self):
+        result = self.agent.run(_make_state())
+        assert isinstance(result["error_category"], str)
+        assert result["error_category"] in {"CODE", "INFRA", "CONFIG", "SECURITY"}
 
 
 class TestDiagnosisAgentLLMWiring:
-    """T025: assert DiagnosisAgent invokes LLMClient.complete() with correct kwargs."""
+    """T025/T031: assert DiagnosisAgent invokes LLMClient.complete() with
+    correct kwargs (agent_name, model, trace_id)."""
 
     def setup_method(self):
         self.mock_client = MockLLMClient().with_fixture_response(diagnosis_fixture())
@@ -138,11 +96,11 @@ class TestDiagnosisAgentLLMWiring:
         )
 
     def test_complete_called_once_with_correct_agent_name_and_trace_id(self):
-        state = _make_state("UnhandledError", "test", trace_id="a" * 32)
+        state = _make_state()
         self.agent.run(state)
         assert self.mock_client.call_count == 1
         req = self.mock_client.last_request
         assert req is not None
         assert req.agent_name == "diagnosis"
         assert req.model == "mock-diagnosis"
-        assert req.trace_id == "a" * 32
+        assert req.trace_id == _TEST_TRACE_ID

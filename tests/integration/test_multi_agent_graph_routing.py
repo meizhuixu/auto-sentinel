@@ -16,6 +16,13 @@ from autosentinel.multi_agent_graph import build_multi_agent_graph
 from tests.conftest import _setup_docker_success
 
 
+_PR3_XFAIL_REASON = (
+    "LLM-determined routing; placeholder always returns CODE. "
+    "Xpasses in PR-3 when ArkLLMClient/GlmLLMClient ship — at that time "
+    "remove this marker. Tracked in 项目1_AutoSentinel.md known tech debt."
+)
+
+
 def _write_log(tmp_path: Path, error_type: str, message: str, name: str) -> Path:
     log_file = tmp_path / name
     log_file.write_text(json.dumps({
@@ -62,6 +69,7 @@ class TestCategoryRouting:
         assert "CodeFixerAgent" in result["agent_trace"]
         assert "InfraSREAgent" not in result["agent_trace"]
 
+    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
     def test_infra_category_routes_to_infra_sre(self, graph, cfg, tmp_path):
         log = _write_log(tmp_path, "ConnectionTimeout", "connection refused to db", "infra.json")
         with patch("autosentinel.agents.verifier.docker") as md:
@@ -71,6 +79,7 @@ class TestCategoryRouting:
         assert "InfraSREAgent" in result["agent_trace"]
         assert "CodeFixerAgent" not in result["agent_trace"]
 
+    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
     def test_config_category_routes_to_infra_sre(self, graph, cfg, tmp_path):
         log = _write_log(tmp_path, "ConfigurationError", "environment variable JWT_SECRET not set", "config.json")
         with patch("autosentinel.agents.verifier.docker") as md:
@@ -81,6 +90,7 @@ class TestCategoryRouting:
         assert result["routing_decision"] is not None
         assert "InfraSRE" in result["routing_decision"]
 
+    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
     def test_security_category_routes_to_code_fixer(self, graph, cfg, tmp_path):
         log = _write_log(tmp_path, "SecurityException", "sql injection attempt detected", "sec.json")
         with patch("autosentinel.agents.verifier.docker") as md:
@@ -99,6 +109,7 @@ class TestRoutingDecisionRecorded:
         assert result["routing_decision"] is not None
         assert len(result["routing_decision"]) > 0
 
+    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
     def test_routing_decision_contains_category(self, graph, cfg, tmp_path):
         log = _write_log(tmp_path, "ConnectionTimeout", "timeout", "rd2.json")
         with patch("autosentinel.agents.verifier.docker") as md:
