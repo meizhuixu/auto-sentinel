@@ -1,6 +1,6 @@
 """SecurityReviewerAgent — LLM-backed verdict + deterministic deny-list override.
 
-Sprint 5: real LLM call (GLM-4.7 via factory).
+Sprint 5: real LLM call routed by config/model_routing.yaml (reasoning model for security classification).
 Deny-list override (Defense-in-Depth): even if the LLM returns SAFE/CAUTION,
 any artifact containing a HIGH_RISK keyword is forced to HIGH_RISK. The
 keyword list is hard-coded (not learned) — prompt-injection-resistant.
