@@ -1,21 +1,36 @@
-"""Tests for SupervisorAgent — routing table and routing_decision format."""
+"""Tests for SupervisorAgent — T039 LLM-backed routing.
+
+Three test groups:
+- TestSupervisorRouting: invariants on run() output shape (2 active) + 5
+  direct get_specialist_key() asserts. 8 historical category-dispatch tests
+  remain in the file marked @pytest.mark.skip — they exercised the Sprint 4
+  keyword router which T039 retired.
+- TestHeldOutRouting: 20-incident held-out set under fixture-mocked LLM
+  (per-iteration with_fixture_response). T040 re-runs the same set against
+  the real LLM outside CI for the ≥ 70 % stability check.
+"""
 
 from decimal import Decimal
 
 import pytest
 
 from autosentinel.agents.supervisor import SupervisorAgent
-from autosentinel.models import AgentState
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.mock_client import MockLLMClient
 from autosentinel.llm.protocol import LLMResponse
+from autosentinel.models import AgentState
+
+from tests.unit._llm_fixtures import supervisor_fixture
 
 
 _TEST_TRACE_ID = "0" * 32
+_DEPRECATED_BY_T039 = (
+    "deprecated by T039: supervisor no longer dispatches on error_category"
+)
 
 
 def _make_state(error_category: str) -> AgentState:
-    return AgentState(
+    state = AgentState(
         log_path="dummy.json",
         error_log=None,
         parse_error=None,
@@ -30,14 +45,20 @@ def _make_state(error_category: str) -> AgentState:
         fix_artifact=None,
         security_verdict=None,
         routing_decision=None,
+        specialist=None,
         agent_trace=[],
         approval_required=False,
     )
+    state["trace_id"] = _TEST_TRACE_ID
+    return state
 
 
 class TestSupervisorRouting:
     def setup_method(self):
         self.mock_client = MockLLMClient()
+        self.mock_client.with_fixture_response(
+            supervisor_fixture(specialist="code_fixer", rationale="test routing")
+        )
         self.mock_config = AgentModelConfig(
             model="mock-supervisor",
             temperature=0.0,
@@ -49,34 +70,42 @@ class TestSupervisorRouting:
             model_config=self.mock_config,
         )
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_code_routes_to_code_fixer(self):
         result = self.agent.run(_make_state("CODE"))
         assert "code_fixer" in result["routing_decision"].lower() or "CodeFixer" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_security_routes_to_code_fixer(self):
         result = self.agent.run(_make_state("SECURITY"))
         assert "CodeFixer" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_infra_routes_to_infra_sre(self):
         result = self.agent.run(_make_state("INFRA"))
         assert "InfraSRE" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_config_routes_to_infra_sre(self):
         result = self.agent.run(_make_state("CONFIG"))
         assert "InfraSRE" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_unknown_fallback_routes_to_code_fixer(self):
         result = self.agent.run(_make_state("UNKNOWN"))
         assert "CodeFixer" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_none_category_fallback_routes_to_code_fixer(self):
         result = self.agent.run(_make_state(None))
         assert "CodeFixer" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_routing_decision_contains_category(self):
         result = self.agent.run(_make_state("INFRA"))
         assert "INFRA" in result["routing_decision"]
 
+    @pytest.mark.skip(reason=_DEPRECATED_BY_T039)
     def test_routing_decision_format(self):
         result = self.agent.run(_make_state("CODE"))
         assert "→" in result["routing_decision"] or "->" in result["routing_decision"]
@@ -87,7 +116,7 @@ class TestSupervisorRouting:
 
     def test_returns_only_routing_fields(self):
         result = self.agent.run(_make_state("CODE"))
-        assert set(result.keys()) == {"routing_decision", "agent_trace"}
+        assert set(result.keys()) == {"specialist", "routing_decision", "agent_trace"}
 
     def test_get_specialist_key_code(self):
         assert self.agent.get_specialist_key("CODE") == "code_fixer"

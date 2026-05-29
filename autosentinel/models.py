@@ -1,7 +1,7 @@
 """Shared TypedDict models for the diagnostic pipeline."""
 
 import operator
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 from typing_extensions import NotRequired, TypedDict
 
 
@@ -58,7 +58,8 @@ class AgentState(TypedDict):
     error_category: Optional[str]                         # CODE | INFRA | CONFIG | SECURITY
     fix_artifact: Optional[str]                           # produced by specialist agent
     security_verdict: Optional[str]                       # SAFE | CAUTION | HIGH_RISK
-    routing_decision: Optional[str]                       # human-readable routing log
+    routing_decision: Optional[str]                       # LLM rationale (free text) from Supervisor
+    specialist: Optional[Literal["code_fixer", "infra_sre"]]  # graph router short-key (T039)
     agent_trace: Annotated[list[str], operator.add]       # retained for Sprint 5 fan-out
     approval_required: bool
     # ── Sprint 5 (new) ──────────────────────────────────────────────────

@@ -156,6 +156,7 @@ def _run_v2_detail(scenario: dict, log_path: Path) -> dict:
             report_text=None, report_path=None,
             error_category=None, fix_artifact=None,
             security_verdict=None, routing_decision=None,
+            specialist=None,
             agent_trace=[], approval_required=False,
         )
         first_result = graph.invoke(initial_state, config)
