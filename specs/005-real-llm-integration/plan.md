@@ -244,6 +244,13 @@ per-agent fields are too many for env vars to remain readable).
 `pydantic-settings`; on startup, missing keys / unregistered models / unset
 env vars cause **fail-fast** startup.
 
+> **As-built note (PR-3)**: the snippet below uses the readable generic model
+> names for clarity. The production `config/model_routing.yaml` now carries the
+> real Volcano Ark **endpoint ids** actually provisioned in the console
+> (e.g. `ep-20260508052205-6x8hm` for `doubao-1.5-lite-32k`,
+> `ep-20260508052420-fwq5q` for `doubao-seed-2.0-pro`), with the generic names
+> preserved as inline comments. This snippet remains illustrative.
+
 ```yaml
 agents:
   diagnosis:
