@@ -55,7 +55,10 @@ def _route_after_parse(state: AgentState) -> str:
 
 
 def _route_to_specialist(state: AgentState) -> str:
-    return _supervisor_agent.get_specialist_key(state.get("error_category"))
+    return (
+        state.get("specialist")
+        or _supervisor_agent.get_specialist_key(state.get("error_category"))
+    )
 
 
 def dispatch(state: AgentState) -> AgentState:

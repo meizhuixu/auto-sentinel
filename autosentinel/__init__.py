@@ -40,6 +40,7 @@ def run_pipeline(log_path: str | Path) -> Path:
             fix_artifact=None,
             security_verdict=None,
             routing_decision=None,
+            specialist=None,
             agent_trace=[],
             approval_required=False,
         )

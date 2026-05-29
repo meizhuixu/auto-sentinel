@@ -1,0 +1,216 @@
+# Held-out routing eval set for SupervisorAgent (PR-3, T038)
+# Surface text intentionally avoids label keywords. LLM must reason about root cause.
+schema_version: 1
+total: 20
+distribution: {CODE: 5, INFRA: 5, SECURITY: 5, CONFIG: 5}
+
+incidents:
+  - id: r01
+    expected_category: CODE
+    error_log: |
+      2026-05-28T14:32:11.892Z [ERROR] checkout-service[pid:1247]
+        File "/app/services/cart.py", line 87, in apply_discount
+          total = order.items[0].price * (1 - discount.rate)
+        AttributeError: 'NoneType' object has no attribute 'rate'
+    notes: "discount 未加载,代码未处理 None 分支。"
+
+  - id: r02
+    expected_category: CODE
+    error_log: |
+      2026-05-28T09:14:22Z payment-worker[7821]: Traceback (most recent call last):
+        File "/srv/payment/batch.py", line 142, in process_batch
+          last_record = records[len(records)]
+      IndexError: list index out of range
+    notes: "Off-by-one,应当 len(records)-1。"
+
+  - id: r03
+    expected_category: CODE
+    error_log: |
+      2026-05-27T22:08:51 order_id=ORD-8821 amount_due=240.00 tax=19.20
+      2026-05-27T22:08:51 [error] order_id=ORD-8821
+        TypeError: unsupported operand type(s) for +: 'Decimal' and 'str'
+        at /srv/billing/reconcile.py:203 in compute_total
+    notes: "tax 未 cast,Decimal + str 报错。"
+
+  - id: r04
+    expected_category: CODE
+    error_log: |
+      panic: concurrent map writes
+      goroutine 1247 [running]:
+        app/internal/cache.(*Store).Set(0xc0001a8000, ...)
+          /app/internal/cache/store.go:58 +0x12c
+      goroutine 1248 [running]:
+        app/internal/cache.(*Store).Set(0xc0001a8000, ...)
+          /app/internal/cache/store.go:58 +0x12c
+    notes: "Go map 非并发安全,代码缺 sync.Mutex。"
+
+  - id: r05
+    expected_category: CODE
+    error_log: |
+      2026-05-26T11:04:18Z api-gateway: request_id=req_88ad21
+        path=/validate-email duration_ms=30142 status=504
+      2026-05-26T11:04:18Z api-gateway: REGEX_TIMEOUT in input_validator.py:34
+        pattern=^([a-zA-Z0-9]+)+@\w+\.\w+$ input_len=147
+    notes: "Borderline: surface 是 timeout,根因 ReDoS regex —— code fix。"
+
+  - id: r06
+    expected_category: INFRA
+    error_log: |
+      2026-05-28T03:21:44Z node=ip-10-0-2-87 systemd[1]:
+        postgres.service: Failed with result 'exit-code'.
+      2026-05-28T03:21:44Z node=ip-10-0-2-87 postgres[2891]:
+        PANIC: could not write to file "pg_wal/xlogtemp.2891":
+        No space left on device
+      2026-05-28T03:21:44Z df: /var 98% (47G/48G)
+    notes: "磁盘满,扩容/清盘。"
+
+  - id: r07
+    expected_category: INFRA
+    error_log: |
+      [2026-05-27 19:44:02] kernel: Out of memory: Killed process 9821
+        (python3) total-vm:8421044kB
+      [2026-05-27 19:44:02] kubelet: Container "ml-inference" in pod
+        "ml-inference-7c4f9-x82k1" was killed (OOMKilled)
+      [2026-05-27 19:44:02] kubelet: container restart count: 14
+    notes: "OOMKill,扩 memory limit。"
+
+  - id: r08
+    expected_category: INFRA
+    error_log: |
+      2026-05-28T12:08:33Z service=order-svc level=error
+        msg="upstream connection failed"
+        upstream=payment.internal.svc.cluster.local:8443
+        error="dial tcp: lookup payment.internal.svc.cluster.local on
+        10.96.0.10:53: read udp 10.244.1.15:38274->10.96.0.10:53: i/o timeout"
+      2026-05-28T12:08:33Z (retried 3x, all failed)
+    notes: "CoreDNS 响应超时。"
+
+  - id: r09
+    expected_category: INFRA
+    error_log: |
+      2026-05-28T14:01:55Z app=api pod=api-deploy-cb9f4-zk71d
+        curl: (28) Connection timed out after 30001 milliseconds
+        target: redis-master.cache.svc.cluster.local:6379
+      2026-05-28T14:01:55Z (DNS resolves fine to 10.244.3.21)
+      2026-05-28T14:01:55Z (host route reachable from node,
+        but not from pod)
+    notes: "K8s NetworkPolicy 拦截 pod 流量。"
+
+  - id: r10
+    expected_category: INFRA
+    error_log: |
+      2026-05-25T08:12 grafana-alert: db-primary-1 iowait > 80% for 12min
+      2026-05-25T08:12 postgres slow_query:
+        SELECT * FROM events WHERE created_at > $1 took 28341ms
+      2026-05-25T08:12 ebs-cloudwatch:
+        VolumeQueueLength avg=137 (baseline=4)
+    notes: "Borderline: surface 慢查询,根因 EBS volume 排队。"
+
+  - id: r11
+    expected_category: SECURITY
+    error_log: |
+      2026-05-28T10:14:22Z service=user-api INFO request_id=r_77az8
+        external_api_call={"url":"https://3rd.example.com/sync",
+        "headers":{"Authorization":"Bearer sk_live_9X2kP8mQ3vR1tL4nW7yE5sZ"}}
+      2026-05-28T10:14:22Z (full URL + token written to stdout,
+        ingested by Datadog log pipeline)
+    notes: "Prod token 明文写日志,凭证泄露。"
+
+  - id: r12
+    expected_category: SECURITY
+    error_log: |
+      2026-05-27T16:42:11Z db_query_log:
+        SELECT * FROM users WHERE email = 'alice@example.com'
+        OR '1'='1' --';
+        source: api/login.py:78
+        param `email` derived from request.form
+        (no prepared statement detected in call stack)
+    notes: "SQLi,字符串拼接。"
+
+  - id: r13
+    expected_category: SECURITY
+    error_log: |
+      2026-05-26T22:18:03Z static-server access_log:
+        GET /files?name=..%2F..%2F..%2Fetc%2Fpasswd HTTP/1.1
+        resolved_path=/etc/passwd
+        status=200 bytes_sent=2841
+    notes: "Path traversal,文件名未过滤。"
+
+  - id: r14
+    expected_category: SECURITY
+    error_log: |
+      2026-05-28T08:55:14Z webhook-relay service log:
+        outbound_request_to=http://169.254.169.254/latest/meta-data/
+        iam/security-credentials/
+        source=user_webhook_url
+        response_size=1247B (forwarded back to user)
+    notes: "SSRF 拿 AWS IMDS IAM credential。"
+
+  - id: r15
+    expected_category: SECURITY
+    error_log: |
+      2026-05-25T11:32 audit: privileged_action=delete_all_users
+        actor=svc_user role=admin
+      2026-05-25T11:32 token_inspect:
+        header={"alg":"none","typ":"JWT"}
+        payload={"sub":"svc_user","role":"admin","iat":1716620000}
+      2026-05-25T11:32 (token verification: PASSED —
+        verify() called with no key requirement)
+    notes: "Borderline: JWT alg:none 攻击,任何人能伪造 admin。"
+
+  - id: r16
+    expected_category: CONFIG
+    error_log: |
+      2026-05-28T07:14:02Z service=notifier startup_error
+        pydantic.ValidationError: 1 validation error for Settings
+        smtp_password
+          field required (type=value_error.missing)
+        Env vars present: SMTP_HOST, SMTP_PORT, SMTP_USER
+        (SMTP_PASSWORD missing)
+    notes: "Env var 漏配。"
+
+  - id: r17
+    expected_category: CONFIG
+    error_log: |
+      2026-05-27T13:08:55Z app=checkout error="upstream timeout"
+        upstream=stripe-api configured_timeout_ms=300
+        observed_p50_latency_ms=480
+        config_source=config/services.yaml line 17:
+        stripe.timeout_ms: 300
+    notes: "Timeout 配比 upstream 正常 latency 还短。"
+
+  - id: r18
+    expected_category: CONFIG
+    error_log: |
+      2026-05-26T09:00:21Z service=billing-worker
+        ConnectionError: could not connect to
+        redis://cache-prod-old.internal:6379
+        (cache-prod-old.internal resolves NXDOMAIN)
+        config_source=helm/values-prod.yaml: redis.url
+        (note: cache-prod-new.internal is current host since
+        2026-04-12 migration)
+    notes: "Helm values 指向退役 host。"
+
+  - id: r19
+    expected_category: CONFIG
+    error_log: |
+      2026-05-28T11:22:18Z analytics_dashboard: ZeroDivisionError
+        File "/app/dashboards/funnel.py", line 88, in compute_conversion
+          rate = conversions / sessions
+        ZeroDivisionError: division by zero
+        context: feature_flag NEW_FUNNEL_PIPELINE=true
+        but UPSTREAM_SESSION_TRACKER=false
+        (flag combination not valid: sessions table empty
+        without tracker)
+    notes: "Feature flag 配错组合,代码无 bug。"
+
+  - id: r20
+    expected_category: CONFIG
+    error_log: |
+      2026-05-27T04:00 ops-alert: /var/log usage 94% on api-server-3
+      2026-05-27T04:00 file: /var/log/app.log size=47GB
+        (12hr growth from 8GB)
+      2026-05-27T04:00 sample lines: DEBUG sql_query=...
+        DEBUG cache_hit=... DEBUG ...
+      2026-05-27T04:00 LOG_LEVEL env var=DEBUG (expected: INFO for prod)
+    notes: "Borderline: surface 磁盘满,根因 LOG_LEVEL 配错。"

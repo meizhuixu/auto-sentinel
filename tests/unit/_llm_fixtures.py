@@ -28,6 +28,23 @@ def diagnosis_fixture(category: str = "CODE") -> LLMResponse:
     )
 
 
+def supervisor_fixture(
+    specialist: str = "code_fixer",
+    rationale: str = "mock routing decision",
+) -> LLMResponse:
+    import json as _json
+
+    return LLMResponse(
+        content=_json.dumps({"specialist": specialist, "rationale": rationale}),
+        model="mock-supervisor",
+        prompt_tokens=70,
+        completion_tokens=15,
+        cost_usd=Decimal("0.0002"),
+        latency_ms=300,
+        trace_id=_DEFAULT_TRACE_ID,
+    )
+
+
 def code_fixer_fixture() -> LLMResponse:
     return LLMResponse(
         content='print("mock code fix")',
