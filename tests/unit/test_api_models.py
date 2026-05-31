@@ -63,10 +63,17 @@ def test_alert_payload_extra_fields_ignored():
 
 def test_alert_job_response_fields():
     from autosentinel.api.models import AlertJobResponse
-    r = AlertJobResponse(job_id="abc-123", status="accepted", message="Alert accepted for processing")
+    r = AlertJobResponse(
+        job_id="abc-123",
+        status="accepted",
+        message="Alert accepted for processing",
+        trace_id="abc-123",
+    )
     assert r.job_id == "abc-123"
     assert r.status == "accepted"
     assert r.message == "Alert accepted for processing"
+    # T045: trace_id is surfaced and equals job_id (same incident id value).
+    assert r.trace_id == "abc-123"
 
 
 def test_alert_job_response_missing_job_id_raises():

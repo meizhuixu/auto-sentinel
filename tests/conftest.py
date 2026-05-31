@@ -156,7 +156,7 @@ def mock_pipeline(tmp_path):
     report = tmp_path / "sentinel-report.md"
     report.write_text("# Sentinel Report")
 
-    def _fake_pipeline(log_path):
+    def _fake_pipeline(log_path, *, trace_id=None):
         return report
 
     with patch("autosentinel.api.queue.run_pipeline", side_effect=_fake_pipeline):

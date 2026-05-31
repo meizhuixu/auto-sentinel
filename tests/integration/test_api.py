@@ -84,7 +84,7 @@ def test_background_worker_handles_pipeline_error(tmp_path, monkeypatch):
     from autosentinel.api.main import create_app
     from starlette.testclient import TestClient
 
-    def _raise(log_path):
+    def _raise(log_path, *, trace_id=None):
         raise RuntimeError("pipeline exploded")
 
     with patch("autosentinel.api.queue.run_pipeline", side_effect=_raise):
@@ -102,7 +102,7 @@ def test_multiple_alerts_all_processed(client, tmp_path):
         for i in range(10)
     ]
 
-    def _fake(log_path):
+    def _fake(log_path, *, trace_id=None):
         r = tmp_path / f"{Path(log_path).stem}-report.md"
         r.write_text("# Report")
         reports.append(r)

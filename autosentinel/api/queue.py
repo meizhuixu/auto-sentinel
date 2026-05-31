@@ -17,6 +17,10 @@ class AlertJob:
     log_path: Path
     service_name: str
     enqueued_at: str
+    # T046 (boundary 3): the ingest-stamped trace_id (== job_id), threaded
+    # unregenerated into run_pipeline → AgentState. Defaulted so Sprint-2/3
+    # AlertJob constructions stay valid.
+    trace_id: str = ""
 
 
 async def worker(queue: asyncio.Queue) -> None:
@@ -40,7 +44,9 @@ async def worker(queue: asyncio.Queue) -> None:
             },
         )
         try:
-            report_path = await asyncio.to_thread(run_pipeline, job.log_path)
+            report_path = await asyncio.to_thread(
+                run_pipeline, job.log_path, trace_id=job.trace_id or None
+            )
             duration_ms = int((time.monotonic() - start) * 1000)
             _logger.info(
                 "processing_completed",

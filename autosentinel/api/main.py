@@ -2,7 +2,7 @@
 
 import asyncio
 import json
-import uuid
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +37,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/v1/alerts", status_code=202, response_model=AlertJobResponse)
     async def ingest_alert(payload: AlertPayload, request: Request) -> AlertJobResponse:
-        job_id = str(uuid.uuid4())
+        # T045: one 32-char lowercase hex id serves as BOTH job_id and trace_id
+        # (decision: trace_id == job_id). token_hex(16) satisfies LLMRequest's
+        # ^[0-9a-f]{32}$ trace_id regex (uuid4's hyphenated 36-char form did not).
+        job_id = secrets.token_hex(16)
+        trace_id = job_id
         queue: asyncio.Queue = request.app.state.queue
 
         log_file = _INCOMING / f"{job_id}.json"
@@ -61,6 +65,7 @@ def create_app() -> FastAPI:
             log_path=log_file,
             service_name=payload.service_name,
             enqueued_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            trace_id=trace_id,
         )
         await queue.put(job)
 
@@ -81,6 +86,7 @@ def create_app() -> FastAPI:
             job_id=job_id,
             status="accepted",
             message="Alert accepted for processing",
+            trace_id=trace_id,
         )
 
     return app

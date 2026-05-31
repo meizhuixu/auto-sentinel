@@ -83,18 +83,32 @@ def test_trace_id_end_to_end_consistency(client, monkeypatch):
     )
 
 
-# ── (b) empty trace_id surfaces as unwrapped ValueError ────────────────────
+# ── (b) empty trace_id surfaces as unwrapped ValueError (T047, both clients) ─
 def test_llmtracer_rejects_missing_trace_id():
     from autosentinel.llm.ark_client import ArkLLMClient
+    from autosentinel.llm.glm_client import GlmLLMClient
     from autosentinel.llm.protocol import Message
 
-    client_ = ArkLLMClient(api_key="test-fake-ark-key")
+    ark = ArkLLMClient(api_key="test-fake-ark-key")
     with pytest.raises(ValueError, match="32 lowercase hex"):
-        client_.complete(
+        ark.complete(
             messages=[Message(role="user", content="hi")],
             model="doubao-1.5-lite-32k",
             trace_id="",
             agent_name="diagnosis",
+            max_tokens=128,
+            temperature=0.0,
+        )
+
+    # T047: GlmLLMClient surfaces the same unwrapped ValueError (it builds the
+    # LLMRequest before opening the tracer / issuing any SDK call).
+    glm = GlmLLMClient(api_key="test-fake-glm-key")
+    with pytest.raises(ValueError, match="32 lowercase hex"):
+        glm.complete(
+            messages=[Message(role="user", content="hi")],
+            model="glm-4.7",
+            trace_id="",
+            agent_name="security_reviewer",
             max_tokens=128,
             temperature=0.0,
         )

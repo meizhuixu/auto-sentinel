@@ -19,3 +19,7 @@ class AlertJobResponse(BaseModel):
     job_id: str
     status: str
     message: str
+    # Sprint 5 (T045): the incident id doubles as the trace_id (one 32-char
+    # lowercase hex value, == job_id), surfaced so callers can correlate the
+    # incident with its Langfuse trace.
+    trace_id: str
