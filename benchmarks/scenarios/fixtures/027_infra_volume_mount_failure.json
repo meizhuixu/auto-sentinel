@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "data-pipeline",
+  "error_type": "MountError",
+  "message": "failed to mount volume pvc-data at /mnt/data: mount operation timed out",
+  "stack_trace": null
+}

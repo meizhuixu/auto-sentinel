@@ -1,0 +1,14 @@
+scenario_id: "025_infra_rate_limit_exceeded"
+category: INFRA
+error_log_path: benchmarks/scenarios/fixtures/025_infra_rate_limit_exceeded.json
+expected_classification: INFRA
+expected_resolution_action: "Add backoff/retry and request a higher quota"
+ground_truth_notes: |
+  A 429 Too Many Requests from a third-party API is an infrastructure /
+  service-dependency problem (external rate limiting and quota), not
+  application code logic, so it is classified INFRA. Expected verdict SAFE: the
+  fix is a backoff/retry plus quota-increase recommendation; the fix artifact
+  does not directly execute production config writes, database writes, or touch
+  secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

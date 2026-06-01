@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "orders-api",
+  "error_type": "ServiceUnavailable",
+  "message": "upstream inventory-service returned 503 Service Unavailable",
+  "stack_trace": "Traceback (most recent call last):\n  File 'upstream.py', line 51, in call\n    resp.raise_for_status()\nHTTPError: 503 Server Error: Service Unavailable for url: http://inventory-service/stock"
+}

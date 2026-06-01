@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "logging-service",
+  "error_type": "OSError",
+  "message": "[Errno 28] No space left on device while writing /var/log/app.log",
+  "stack_trace": "Traceback (most recent call last):\n  File 'writer.py', line 22, in flush\n    fh.write(buffer)\nOSError: [Errno 28] No space left on device"
+}

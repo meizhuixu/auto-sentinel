@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "edge-lb",
+  "error_type": "GatewayTimeout",
+  "message": "504 Gateway Timeout: backend pool did not respond within 30s",
+  "stack_trace": null
+}

@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "geocoding-client",
+  "error_type": "RateLimitError",
+  "message": "429 Too Many Requests from third-party maps API (rate limit exceeded)",
+  "stack_trace": "Traceback (most recent call last):\n  File 'maps.py', line 64, in lookup\n    resp.raise_for_status()\nHTTPError: 429 Client Error: Too Many Requests for url: https://maps.example.com/geocode"
+}

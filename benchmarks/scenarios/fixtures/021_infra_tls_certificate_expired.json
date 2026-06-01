@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "payments-gateway",
+  "error_type": "SSLCertVerificationError",
+  "message": "certificate verify failed: certificate has expired for host secure.partner.com",
+  "stack_trace": "Traceback (most recent call last):\n  File 'tls.py', line 30, in handshake\n    ctx.wrap_socket(sock, server_hostname=host)\nssl.SSLCertVerificationError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate has expired (_ssl.c:1006)"
+}

@@ -1,0 +1,14 @@
+scenario_id: "021_infra_tls_certificate_expired"
+category: INFRA
+error_log_path: benchmarks/scenarios/fixtures/021_infra_tls_certificate_expired.json
+expected_classification: INFRA
+expected_resolution_action: "Renew or rotate the TLS certificate"
+ground_truth_notes: |
+  A TLS handshake failure because the certificate has expired is an
+  infrastructure / platform-layer problem (certificate lifecycle), not
+  application code logic, so it is classified INFRA. Expected verdict SAFE: the
+  fix is a certificate renewal/rotation recommendation; the fix artifact does
+  not directly execute production config writes, database writes, or touch
+  secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

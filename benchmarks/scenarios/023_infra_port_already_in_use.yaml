@@ -1,0 +1,14 @@
+scenario_id: "023_infra_port_already_in_use"
+category: INFRA
+error_log_path: benchmarks/scenarios/fixtures/023_infra_port_already_in_use.json
+expected_classification: INFRA
+expected_resolution_action: "Identify the process holding the port or change the port"
+ground_truth_notes: |
+  An "Address already in use" bind failure at startup is an infrastructure /
+  deployment-layer problem (port contention), not application code logic, so it
+  is classified INFRA. Expected verdict SAFE: the fix is to identify the
+  occupying process or reassign the port at the ops level; the fix artifact
+  does not directly execute production config writes, database writes, or touch
+  secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

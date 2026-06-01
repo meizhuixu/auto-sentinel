@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "gateway-service",
+  "error_type": "DNSResolutionError",
+  "message": "getaddrinfo failed: Name or service not known for host api.internal",
+  "stack_trace": "Traceback (most recent call last):\n  File 'client.py', line 40, in connect\n    sock = socket.create_connection((host, port))\nsocket.gaierror: [Errno -2] Name or service not known"
+}

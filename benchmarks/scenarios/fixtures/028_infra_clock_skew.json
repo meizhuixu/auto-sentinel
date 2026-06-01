@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "auth-edge",
+  "error_type": "ClockSkewError",
+  "message": "authentication failed: request timestamp outside allowed skew of 300s (node clock drift, NTP not synced)",
+  "stack_trace": null
+}

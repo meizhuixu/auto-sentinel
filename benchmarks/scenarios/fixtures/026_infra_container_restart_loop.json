@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "notification-worker",
+  "error_type": "CrashLoopBackOff",
+  "message": "back-off restarting failed container: notification-worker restarted 7 times in 5m",
+  "stack_trace": null
+}
