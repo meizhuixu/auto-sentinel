@@ -12,10 +12,14 @@ class DiagnosticError(Exception):
     """Raised when the pipeline exits via an error state."""
 
 
-def run_pipeline(log_path: str | Path) -> Path:
+def run_pipeline(log_path: str | Path, *, trace_id: str | None = None) -> Path:
     """Run the full diagnostic pipeline on a JSON error log.
 
     Set AUTOSENTINEL_MULTI_AGENT=1 to use the v2 multi-agent graph.
+
+    trace_id (T046, boundary 3): the ingest-stamped 32-char hex id, threaded
+    into AgentState["trace_id"] unregenerated. When None (e.g. CLI runs), the
+    multi-agent graph's `dispatch` node defensively seeds one.
     """
     path = Path(log_path)
     if not path.exists():
@@ -44,8 +48,12 @@ def run_pipeline(log_path: str | Path) -> Path:
             agent_trace=[],
             approval_required=False,
         )
+        if trace_id:
+            initial_state["trace_id"] = trace_id
         graph = build_multi_agent_graph()
-        cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}
+        # thread_id ties the LangGraph checkpoint to this incident; reuse the
+        # trace_id (== incident id) when present so a later /resume can target it.
+        cfg = {"configurable": {"thread_id": trace_id or str(uuid.uuid4())}}
         result = graph.invoke(initial_state, cfg)
     else:
         initial_state = DiagnosticState(

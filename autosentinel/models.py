@@ -74,3 +74,7 @@ class AgentState(TypedDict):
     # Decimal as the source of truth; this is a mirror for in-state visibility.
     cost_accumulated_usd: NotRequired[float]
     security_classifier_model: NotRequired[str]
+    # cost_exhausted: set True by the graph's _guarded wrapper when an LLM-call
+    # agent raises CostGuardError; the post-node conditional edges route to
+    # cost_exhausted_node (END) instead of the normal successor (T042/T043).
+    cost_exhausted: NotRequired[bool]
