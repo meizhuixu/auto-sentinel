@@ -63,8 +63,12 @@ def _mock_v2_side_effect(interrupted_id: str | None = None):
 # ---------------------------------------------------------------------------
 
 class TestLoadScenarios:
-    def test_loads_five_scenarios(self):
-        assert len(_load_scenarios()) == 5
+    def test_loads_one_scenario_per_yaml_file(self):
+        # The loader returns one BenchmarkScenario per yaml file; the set grows
+        # toward 50, so assert against the glob count, not a hard-coded number.
+        yaml_count = len(list(Path("benchmarks/scenarios").glob("*.yaml")))
+        assert yaml_count >= 5  # at least the migrated set is present
+        assert len(_load_scenarios()) == yaml_count
 
     def test_all_are_benchmark_scenario_instances(self):
         assert all(isinstance(s, BenchmarkScenario) for s in _load_scenarios())
@@ -185,7 +189,7 @@ class TestRunBenchmark:
         assert isinstance(self._run(tmp_path, monkeypatch), dict)
 
     def test_scenario_count_in_result(self, tmp_path, monkeypatch):
-        assert self._run(tmp_path, monkeypatch)["scenario_count"] == 5
+        assert self._run(tmp_path, monkeypatch)["scenario_count"] == len(_load_scenarios())
 
     def test_v1_resolution_rate_not_null(self, tmp_path, monkeypatch):
         assert self._run(tmp_path, monkeypatch)["v1_resolution_rate"] is not None
@@ -204,12 +208,12 @@ class TestRunBenchmark:
         report_path = tmp_path / "output" / "benchmark-report.json"
         assert report_path.exists()
         data = json.loads(report_path.read_text())
-        assert data["scenario_count"] == 5
+        assert data["scenario_count"] == len(_load_scenarios())
 
     def test_report_has_scenarios_array(self, tmp_path, monkeypatch):
         result = self._run(tmp_path, monkeypatch)
         assert "scenarios" in result
-        assert len(result["scenarios"]) == 5
+        assert len(result["scenarios"]) == len(_load_scenarios())
 
     def test_security_was_interrupted_true(self, tmp_path, monkeypatch):
         result = self._run(tmp_path, monkeypatch)

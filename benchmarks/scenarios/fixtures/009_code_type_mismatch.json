@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "billing-service",
+  "error_type": "TypeError",
+  "message": "unsupported operand type(s) for +: 'int' and 'str' while summing line items",
+  "stack_trace": "Traceback (most recent call last):\n  File 'billing.py', line 91, in total\n    amount = base + surcharge\nTypeError: unsupported operand type(s) for +: 'int' and 'str'"
+}

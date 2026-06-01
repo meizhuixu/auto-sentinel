@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "pagination-service",
+  "error_type": "IndexError",
+  "message": "list index out of range: loop iterated to len(items) inclusive (off-by-one)",
+  "stack_trace": "Traceback (most recent call last):\n  File 'paginate.py', line 64, in page\n    item = items[i]\nIndexError: list index out of range"
+}

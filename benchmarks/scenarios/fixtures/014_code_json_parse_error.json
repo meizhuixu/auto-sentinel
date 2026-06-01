@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "ingest-service",
+  "error_type": "JSONDecodeError",
+  "message": "Expecting ',' delimiter: line 1 column 18 (char 17) while parsing a malformed payload",
+  "stack_trace": "Traceback (most recent call last):\n  File 'ingest.py', line 49, in load\n    return json.loads(body)\njson.decoder.JSONDecodeError: Expecting ',' delimiter: line 1 column 18 (char 17)"
+}

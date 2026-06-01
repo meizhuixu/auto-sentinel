@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "upload-service",
+  "error_type": "UnicodeDecodeError",
+  "message": "'utf-8' codec can't decode byte 0xff in position 0: decoding bytes without an explicit encoding",
+  "stack_trace": "Traceback (most recent call last):\n  File 'upload.py', line 33, in read_text\n    return raw.decode('utf-8')\nUnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+}

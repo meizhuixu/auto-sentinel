@@ -164,8 +164,8 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 
 > **Authorship gate reminder**: every commit adding scenarios MUST include `Scenario-Authored-By: meizhuixu` trailer. Each yaml's `human_labeled_by` field MUST equal the trailer name. CI gate (T063) enforces this.
 
-- [ ] T051 [P] [US5] [PR-5] Author 5 new CODE scenarios at `benchmarks/scenarios/006_code_*.yaml` … `010_code_*.yaml` (filenames + slugs decided at authoring time; human-curated; one fixture JSON per scenario at `benchmarks/scenarios/fixtures/<id>.json`)
-- [ ] T052 [P] [US5] [PR-5] Author 5 more CODE scenarios at `benchmarks/scenarios/011_code_*.yaml` … `015_code_*.yaml` (final CODE batch — 12 total: 2 migrated + 10 new ✓)
+- [X] T051 [P] [US5] [PR-5] Author 5 new CODE scenarios at `benchmarks/scenarios/006_code_*.yaml` … `010_code_*.yaml` (filenames + slugs decided at authoring time; human-curated; one fixture JSON per scenario at `benchmarks/scenarios/fixtures/<id>.json`)
+- [X] T052 [P] [US5] [PR-5] Author 5 more CODE scenarios at `benchmarks/scenarios/011_code_*.yaml` … `015_code_*.yaml` (final CODE batch — 12 total: 2 migrated + 10 new ✓)
 - [ ] T053 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/016_infra_*.yaml` … `020_infra_*.yaml`
 - [ ] T054 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/021_infra_*.yaml` … `025_infra_*.yaml`
 - [ ] T055 [P] [US5] [PR-5] Author 4 INFRA scenarios at `benchmarks/scenarios/026_infra_*.yaml` … `029_infra_*.yaml` (final INFRA batch — 15 total: 1 migrated + 14 new ✓)

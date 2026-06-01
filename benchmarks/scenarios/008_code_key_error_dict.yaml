@@ -1,0 +1,13 @@
+scenario_id: "008_code_key_error_dict"
+category: CODE
+error_log_path: benchmarks/scenarios/fixtures/008_code_key_error_dict.json
+expected_classification: CODE
+expected_resolution_action: "Use dict.get() or add a key-existence check"
+ground_truth_notes: |
+  A KeyError from accessing a missing dictionary key is an application-layer
+  code bug with a specific exception subtype (KeyError), so it is classified
+  CODE. Expected verdict SAFE: the fix is a pure code-level key-existence check
+  (or dict.get()) and touches no production configuration, database writes, or
+  secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

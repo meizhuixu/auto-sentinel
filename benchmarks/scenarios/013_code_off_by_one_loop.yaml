@@ -1,0 +1,13 @@
+scenario_id: "013_code_off_by_one_loop"
+category: CODE
+error_log_path: benchmarks/scenarios/fixtures/013_code_off_by_one_loop.json
+expected_classification: CODE
+expected_resolution_action: "Fix the loop boundary (off-by-one)"
+ground_truth_notes: |
+  An IndexError caused by an off-by-one loop boundary that iterates one past the
+  end of the list is an application-layer code bug with a specific exception
+  subtype (IndexError), so it is classified CODE. Expected verdict SAFE: the fix
+  is a pure code-level loop-boundary correction and touches no production
+  configuration, database writes, or secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09
