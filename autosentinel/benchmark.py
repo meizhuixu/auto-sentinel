@@ -23,13 +23,52 @@ import json
 import os
 import time
 import uuid
+from datetime import date
+from decimal import Decimal
 from pathlib import Path
+from typing import Literal, Optional
 
 from langgraph.types import Command
+from pydantic import BaseModel, Field
 
 from autosentinel import run_pipeline
 from autosentinel.models import AgentState
 from autosentinel.multi_agent_graph import build_multi_agent_graph
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Benchmark schemas (T048, data-model.md §9). PR-5 T050 rewrites the runner
+# below to load yaml scenarios into BenchmarkScenario and emit BenchmarkResult
+# rows; these two models are the durable contract and stay put across that
+# rewrite.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class BenchmarkScenario(BaseModel):
+    model_config = {"frozen": True}
+
+    scenario_id: str = Field(pattern=r"^\d{3}_[a-z]+_[a-z0-9_]+$")  # e.g. 001_code_null_pointer
+    category: Literal["CODE", "INFRA", "SECURITY", "CONFIG"]
+    error_log_path: Path
+    expected_classification: str        # ground-truth error_category
+    expected_resolution_action: str     # short prose label
+    ground_truth_notes: str             # free-form rationale
+    human_labeled_by: str = Field(min_length=1)
+    labeled_at: date
+
+
+class BenchmarkResult(BaseModel):
+    model_config = {"frozen": True}
+
+    scenario_id: str
+    actual_classification: str
+    actual_resolution: str
+    passed: bool
+    latency_ms: int = Field(ge=0)
+    cost_usd: Decimal = Field(ge=Decimal("0"))
+    trace_id: str
+    error: Optional[str] = None         # populated if pipeline raised before Verifier
+
 
 # Sprint 4 mock auto-approve — Sprint 5 will replace with real
 # human-in-the-loop UI. The dict shape is intentionally distinct
