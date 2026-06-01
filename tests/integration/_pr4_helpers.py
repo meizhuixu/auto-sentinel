@@ -19,6 +19,7 @@ Two test-local client doubles live here:
 
 from __future__ import annotations
 
+import json
 import os
 from decimal import Decimal
 
@@ -85,15 +86,43 @@ def build_injected_agents(clients: dict[str, object]) -> dict[str, object]:
     }
 
 
-def build_fixture_clients(*, code_fixer_artifact: str = 'print("test fix")') -> dict[str, object]:
+def build_fixture_clients(
+    *,
+    diagnosis_category: str = "CODE",
+    supervisor_specialist: str = "code_fixer",
+    supervisor_rationale: str = "test",
+    code_fixer_artifact: str = 'print("test fix")',
+    security_verdict: str = "SAFE",
+) -> dict[str, object]:
     """Five MockLLMClients pre-loaded with canned per-agent responses.
 
-    `code_fixer_artifact` overrides the CodeFixer fix body — pass a deny-listed
-    string (e.g. "DROP TABLE users") to force a HIGH_RISK verdict via the
-    SecurityReviewer deny-list override.
+    All knobs default to the original CODE→code_fixer→SAFE canned values, so
+    existing callers (PR-4 tests passing only `code_fixer_artifact`) are
+    unaffected. The overrides let a test drive the graph deterministically:
+
+    - `diagnosis_category` — DiagnosisAgent's parsed error_category
+      (CODE | INFRA | CONFIG | SECURITY).
+    - `supervisor_specialist` / `supervisor_rationale` — the specialist the
+      SupervisorAgent routes to (code_fixer | infra_sre) and the free-text
+      rationale surfaced as state["routing_decision"].
+    - `code_fixer_artifact` — the CodeFixer fix body; pass a deny-listed
+      string (e.g. "DROP TABLE users") to force a HIGH_RISK verdict via the
+      SecurityReviewer deny-list override.
+    - `security_verdict` — the verdict the SecurityReviewer LLM returns
+      (SAFE | CAUTION | HIGH_RISK); the deny-list still trumps it when the
+      artifact contains a high-risk keyword.
     """
     contents = dict(_AGENT_CONTENT)
+    contents["diagnosis"] = json.dumps(
+        {"category": diagnosis_category, "reasoning": "test"}
+    )
+    contents["supervisor"] = json.dumps(
+        {"specialist": supervisor_specialist, "rationale": supervisor_rationale}
+    )
     contents["code_fixer"] = code_fixer_artifact
+    contents["security_reviewer"] = json.dumps(
+        {"verdict": security_verdict, "reasoning": "test"}
+    )
     return {
         name: MockLLMClient().with_fixture_response(
             _mk_response(content, ZERO_TRACE_ID, Decimal("0"))
