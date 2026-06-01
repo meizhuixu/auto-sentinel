@@ -1,21 +1,20 @@
-"""Sprint 4 smoke benchmark — runs 5 scenarios through v1 and v2 pipelines.
+"""Smoke benchmark — runs the migrated scenarios through v1 and v2 pipelines.
 
-SPRINT 4 SEMANTIC DECISION (2026-04-28):
-  HIGH_RISK + mock auto-approve + verifier success = "resolved".
-  Rationale: Sprint 4 is entirely mock-phase; LangGraph interrupt() is a
-  designed control flow (SC-003), not a failure condition. The complete
-  agent_trace (including SecurityReviewerAgent and VerifierAgent post-approval)
-  is recorded in benchmark-report.json for audit. Sprint 5 will re-evaluate
-  whether HIGH_RISK counts as "resolved" when real human approval UI is required
-  — this decision does not retroactively change Sprint 4 benchmark data.
+Scenarios are sourced from yaml files under `benchmarks/scenarios/` (loaded
+via the BenchmarkScenario schema below), NOT from an inline list — FR-516.
+T050 replaced the Sprint-4 inline `SCENARIOS: list[dict]` and the
+`SPRINT4_MOCK_APPROVAL` constant with this yaml-driven runner; the HIGH_RISK
+interrupt is now resumed with a plain approval token, since the real
+CostGuard path preserves partial state across the interrupt.
 
-Sprint 5 cleanup: remove `unittest.mock.patch` import and the
-`patch.object(CodeFixerAgent, ...)` block in `_run_v2_detail` once real LLM
-is wired in. With real LLM classification, SecurityReviewer should produce
-HIGH_RISK verdicts naturally for SQL-injection-class scenarios (s04),
-eliminating the need for benchmark-side keyword injection. The
-SPRINT4_MOCK_APPROVAL constant should also be replaced with a real
-approval payload structure once human-in-the-loop UI exists.
+SEMANTIC DECISION (carried over from Sprint 4): HIGH_RISK + approval +
+verifier success counts as "resolved". LangGraph interrupt() is a designed
+control flow (SC-003), not a failure; the full agent_trace (including
+SecurityReviewerAgent and VerifierAgent post-approval) is recorded for audit.
+
+This module is the CI-runnable smoke runner (writes output/benchmark-report.json
+in the Sprint-4 schema). The full 50-scenario runner with results.jsonl +
+summary.json is scripts/run_benchmark.py (T060).
 """
 from __future__ import annotations
 
@@ -28,6 +27,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal, Optional
 
+import yaml
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
@@ -70,90 +70,29 @@ class BenchmarkResult(BaseModel):
     error: Optional[str] = None         # populated if pipeline raised before Verifier
 
 
-# Sprint 4 mock auto-approve — Sprint 5 will replace with real
-# human-in-the-loop UI. The dict shape is intentionally distinct
-# from anything a real approver would send.
-SPRINT4_MOCK_APPROVAL = {
-    "approved_by": "sprint4_benchmark_mock",
-    "approved": True,
-    "_mock": True,
-}
+# ──────────────────────────────────────────────────────────────────────────
+# Scenario loading (FR-516: scenarios live in yaml under benchmarks/scenarios/,
+# not inline in this runner). Repo-anchored so the glob is stable regardless
+# of the process CWD.
+# ──────────────────────────────────────────────────────────────────────────
 
-SCENARIOS: list[dict] = [
-    {
-        "id": "s01",
-        "category": "CODE",
-        "log_file": "benchmark-code.json",
-        "log_content": {
-            "timestamp": "2026-04-28T00:00:00Z",
-            "service_name": "app-service",
-            "error_type": "UnhandledError",
-            "message": "unexpected None value in user context object",
-            "stack_trace": None,
-        },
-        "expected_verdict": "SAFE",
-    },
-    {
-        "id": "s02",
-        "category": "INFRA",
-        "log_file": "benchmark-infra.json",
-        "log_content": {
-            "timestamp": "2026-04-28T00:00:00Z",
-            "service_name": "payment-service",
-            "error_type": "ConnectionTimeout",
-            "message": "connection refused to database host db.internal:5432",
-            "stack_trace": None,
-        },
-        "expected_verdict": "SAFE",
-    },
-    {
-        "id": "s03",
-        "category": "CONFIG",
-        "log_file": "benchmark-config.json",
-        "log_content": {
-            "timestamp": "2026-04-28T00:00:00Z",
-            "service_name": "auth-service",
-            "error_type": "ConfigurationError",
-            "message": "required environment variable JWT_SECRET_KEY is not set",
-            "stack_trace": None,
-        },
-        "expected_verdict": "SAFE",
-    },
-    {
-        "id": "s04",
-        "category": "SECURITY",
-        "log_file": "benchmark-security.json",
-        "log_content": {
-            "timestamp": "2026-04-28T00:00:00Z",
-            "service_name": "data-service",
-            "error_type": "SecurityException",
-            "message": "sql injection attempt detected in query parameter",
-            "stack_trace": None,
-        },
-        "expected_verdict": "HIGH_RISK",
-    },
-    {
-        "id": "s05",
-        "category": "UNKNOWN",
-        "log_file": "benchmark-unknown.json",
-        "log_content": {
-            "timestamp": "2026-04-28T00:00:00Z",
-            "service_name": "misc-service",
-            "error_type": "WeirdException",
-            "message": "something unexpected happened during processing",
-            "stack_trace": None,
-        },
-        "expected_verdict": "SAFE",
-    },
-]
+_DEFAULT_SCENARIOS_DIR = (
+    Path(__file__).resolve().parent.parent / "benchmarks" / "scenarios"
+)
 
 
-def _write_scenario_logs(data_dir: Path) -> None:
-    data_dir.mkdir(parents=True, exist_ok=True)
-    for scenario in SCENARIOS:
-        log_path = data_dir / scenario["log_file"]
-        if not log_path.exists():
-            log_path.write_text(json.dumps(scenario["log_content"]), encoding="utf-8")
+def _load_scenarios(scenarios_dir: Path | None = None) -> list[BenchmarkScenario]:
+    """Load every `*.yaml` under the scenarios dir into a BenchmarkScenario.
+
+    Files are read in sorted order so the report is deterministic; a malformed
+    scenario surfaces as a pydantic ValidationError at load time.
+    """
+    directory = scenarios_dir or _DEFAULT_SCENARIOS_DIR
+    scenarios: list[BenchmarkScenario] = []
+    for path in sorted(directory.glob("*.yaml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        scenarios.append(BenchmarkScenario.model_validate(data))
+    return scenarios
 
 
 def _run_v1(log_path: Path) -> dict:
@@ -172,12 +111,14 @@ def _run_v1(log_path: Path) -> dict:
     return {"resolved": resolved, "duration_ms": int((time.monotonic() - start) * 1000)}
 
 
-def _run_v2_detail(scenario: dict, log_path: Path) -> dict:
+def _run_v2_detail(scenario: BenchmarkScenario, log_path: Path) -> dict:
     """Run through v2 graph directly; detect interrupt; return full detail dict.
 
-    For s04 (SECURITY), the SECURITY scenario produces a fix containing
-    HIGH_RISK keywords, triggering SecurityReviewerAgent's interrupt()
-    via security_gate. was_interrupted=True is hard evidence SC-003 fires.
+    A SECURITY-class fix artifact trips SecurityReviewerAgent's deny-list /
+    HIGH_RISK verdict, firing interrupt() via security_gate. was_interrupted=True
+    is hard evidence SC-003 fires; the run is then resumed with a plain approval
+    token (the real CostGuard path preserves partial state across the interrupt,
+    so the Sprint-4 mock-approval payload is no longer needed).
     """
     was_interrupted = False
     final_result: dict = {}
@@ -185,7 +126,7 @@ def _run_v2_detail(scenario: dict, log_path: Path) -> dict:
     start = time.monotonic()
     try:
         graph = build_multi_agent_graph()
-        thread_id = f"benchmark-{scenario['id']}-{uuid.uuid4()}"
+        thread_id = f"benchmark-{scenario.scenario_id}-{uuid.uuid4()}"
         config = {"configurable": {"thread_id": thread_id}}
         initial_state = AgentState(
             log_path=str(log_path),
@@ -201,8 +142,8 @@ def _run_v2_detail(scenario: dict, log_path: Path) -> dict:
         first_result = graph.invoke(initial_state, config)
         was_interrupted = "__interrupt__" in first_result
         if was_interrupted:
-            # Resume with mock approval; code_fixer_agent does not re-run on resume.
-            final_result = graph.invoke(Command(resume=SPRINT4_MOCK_APPROVAL), config)
+            # Resume past the HIGH_RISK gate; upstream nodes do not re-run.
+            final_result = graph.invoke(Command(resume="approved"), config)
         else:
             final_result = first_result
         resolved = final_result.get("report_text") is not None
@@ -219,24 +160,27 @@ def _run_v2_detail(scenario: dict, log_path: Path) -> dict:
     }
 
 
-def run_benchmark() -> dict:
-    """Run 5 smoke scenarios through v1 and v2 pipelines; write JSON report."""
-    data_dir = Path("data/benchmark")
-    _write_scenario_logs(data_dir)
+def run_benchmark(scenarios_dir: Path | None = None) -> dict:
+    """Run the migrated smoke scenarios through v1 and v2; write JSON report.
+
+    Scenarios are globbed from yaml (benchmarks/scenarios/) and reference their
+    own on-disk log fixtures via `error_log_path` — nothing is written here.
+    """
+    scenarios = _load_scenarios(scenarios_dir)
 
     scenario_details = []
     v1_results: list[dict] = []
     v2_results: list[dict] = []
 
-    for scenario in SCENARIOS:
-        log_path = data_dir / scenario["log_file"]
+    for scenario in scenarios:
+        log_path = scenario.error_log_path
         v1 = _run_v1(log_path)
         v2 = _run_v2_detail(scenario, log_path)
         v1_results.append(v1)
         v2_results.append(v2)
         scenario_details.append({
-            "id": scenario["id"],
-            "category": scenario["category"],
+            "id": scenario.scenario_id,
+            "category": scenario.category,
             "v1": {"resolved": v1["resolved"], "duration_ms": v1["duration_ms"]},
             "v2": {
                 "resolved": v2["resolved"],
@@ -248,15 +192,16 @@ def run_benchmark() -> dict:
             },
         })
 
+    count = len(scenarios)
     v1_resolved = sum(1 for r in v1_results if r["resolved"])
     v2_resolved = sum(1 for r in v2_results if r["resolved"])
-    v1_avg_ms = int(sum(r["duration_ms"] for r in v1_results) / len(v1_results))
-    v2_avg_ms = int(sum(r["duration_ms"] for r in v2_results) / len(v2_results))
+    v1_avg_ms = int(sum(r["duration_ms"] for r in v1_results) / count)
+    v2_avg_ms = int(sum(r["duration_ms"] for r in v2_results) / count)
 
     report = {
-        "scenario_count": len(SCENARIOS),
-        "v1_resolution_rate": round(v1_resolved / len(SCENARIOS), 2),
-        "v2_resolution_rate": round(v2_resolved / len(SCENARIOS), 2),
+        "scenario_count": count,
+        "v1_resolution_rate": round(v1_resolved / count, 2),
+        "v2_resolution_rate": round(v2_resolved / count, 2),
         "v1_avg_ms": v1_avg_ms,
         "v2_avg_ms": v2_avg_ms,
         "scenarios": scenario_details,
