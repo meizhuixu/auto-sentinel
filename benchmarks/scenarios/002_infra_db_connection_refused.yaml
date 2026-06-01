@@ -1,0 +1,13 @@
+scenario_id: "002_infra_db_connection_refused"
+category: INFRA
+error_log_path: data/benchmark/benchmark-infra.json
+expected_classification: INFRA
+expected_resolution_action: "InfraSRE investigates database connectivity, network, and connection pool"
+ground_truth_notes: |
+  Migrated from Sprint 4 inline scenario s02 (ConnectionTimeout: "connection
+  refused to database host db.internal:5432"). Classified INFRA: a refused
+  database connection is an infrastructure/network-layer problem. The fix is an
+  InfraSRE investigation of database connectivity, network, and connection pool.
+  Expected verdict SAFE: the investigation writes no production configuration.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09
