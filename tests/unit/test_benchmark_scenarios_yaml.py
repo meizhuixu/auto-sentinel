@@ -45,6 +45,25 @@ _NEW_CODE_IDS = [
     "015_code_unicode_decode_error",
 ]
 
+# New INFRA scenarios authored in T053 (016-020) + T054 (021-025) +
+# T055 (026-029). Each references its own fixture under fixtures/.
+_NEW_INFRA_IDS = [
+    "016_infra_db_connection_pool_exhausted",
+    "017_infra_dns_resolution_failure",
+    "018_infra_disk_space_full",
+    "019_infra_memory_oom_killed",
+    "020_infra_service_unavailable_503",
+    "021_infra_tls_certificate_expired",
+    "022_infra_load_balancer_timeout",
+    "023_infra_port_already_in_use",
+    "024_infra_network_partition",
+    "025_infra_rate_limit_exceeded",
+    "026_infra_container_restart_loop",
+    "027_infra_volume_mount_failure",
+    "028_infra_clock_skew",
+    "029_infra_file_descriptor_limit",
+]
+
 
 def _load_yaml(scenario_id: str) -> tuple[str, BenchmarkScenario]:
     yaml_path = _SCENARIOS_DIR / f"{scenario_id}.yaml"
@@ -106,3 +125,35 @@ def test_code_total_is_twelve():
     """2 migrated (001, 005) + 10 new (006-015) = 12 CODE scenarios."""
     code = [s for s in _load_scenarios() if s.category == "CODE"]
     assert len(code) == 12
+
+
+# --- T053/T054/T055 new INFRA scenarios (016-029) ---
+
+@pytest.mark.parametrize("scenario_id", _NEW_INFRA_IDS)
+def test_new_infra_yaml_parses_and_is_infra(scenario_id):
+    _, scenario = _load_yaml(scenario_id)
+    assert scenario.scenario_id == scenario_id
+    assert scenario.category == "INFRA"
+    assert scenario.expected_classification == "INFRA"
+    assert scenario.expected_resolution_action
+    assert scenario.ground_truth_notes
+    assert scenario.human_labeled_by == "meizhuixu"
+    assert scenario.labeled_at == date(2026, 5, 9)
+
+
+@pytest.mark.parametrize("scenario_id", _NEW_INFRA_IDS)
+def test_new_infra_fixture_exists_and_is_valid_ascii_json(scenario_id):
+    _, scenario = _load_yaml(scenario_id)
+    expected = _FIXTURES_DIR / f"{scenario_id}.json"
+    assert scenario.error_log_path == expected
+    assert scenario.error_log_path.exists(), f"missing fixture: {expected}"
+    raw = scenario.error_log_path.read_text(encoding="utf-8")
+    assert raw.isascii(), f"{expected} contains non-ASCII characters"
+    data = json.loads(raw)  # must be valid JSON
+    assert isinstance(data, dict)
+
+
+def test_infra_total_is_fifteen():
+    """1 migrated (002) + 14 new (016-029) = 15 INFRA scenarios."""
+    infra = [s for s in _load_scenarios() if s.category == "INFRA"]
+    assert len(infra) == 15
