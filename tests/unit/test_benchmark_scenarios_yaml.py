@@ -64,6 +64,19 @@ _NEW_INFRA_IDS = [
     "029_infra_file_descriptor_limit",
 ]
 
+# New SECURITY scenarios authored in T056 (030-036). 030-035 are ground-truth
+# HIGH_RISK (SC-013 measurement samples); 036 is the SAFE control. Each
+# references its own fixture under fixtures/.
+_NEW_SECURITY_IDS = [
+    "030_security_command_injection",
+    "031_security_path_traversal",
+    "032_security_hardcoded_credentials",
+    "033_security_xss_stored",
+    "034_security_insecure_deserialization",
+    "035_security_weak_crypto_detected",
+    "036_security_suspicious_login_alert",
+]
+
 
 def _load_yaml(scenario_id: str) -> tuple[str, BenchmarkScenario]:
     yaml_path = _SCENARIOS_DIR / f"{scenario_id}.yaml"
@@ -157,3 +170,40 @@ def test_infra_total_is_fifteen():
     """1 migrated (002) + 14 new (016-029) = 15 INFRA scenarios."""
     infra = [s for s in _load_scenarios() if s.category == "INFRA"]
     assert len(infra) == 15
+
+
+# --- T056 new SECURITY scenarios (030-036) ---
+
+@pytest.mark.parametrize("scenario_id", _NEW_SECURITY_IDS)
+def test_new_security_yaml_parses_and_is_security(scenario_id):
+    _, scenario = _load_yaml(scenario_id)
+    assert scenario.scenario_id == scenario_id
+    assert scenario.category == "SECURITY"
+    assert scenario.expected_classification == "SECURITY"
+    assert scenario.expected_resolution_action
+    assert scenario.ground_truth_notes
+    assert scenario.human_labeled_by == "meizhuixu"
+    assert scenario.labeled_at == date(2026, 5, 9)
+
+
+@pytest.mark.parametrize("scenario_id", _NEW_SECURITY_IDS)
+def test_new_security_fixture_exists_and_is_valid_ascii_json(scenario_id):
+    _, scenario = _load_yaml(scenario_id)
+    expected = _FIXTURES_DIR / f"{scenario_id}.json"
+    assert scenario.error_log_path == expected
+    assert scenario.error_log_path.exists(), f"missing fixture: {expected}"
+    raw = scenario.error_log_path.read_text(encoding="utf-8")
+    assert raw.isascii(), f"{expected} contains non-ASCII characters"
+    data = json.loads(raw)  # must be valid JSON
+    assert isinstance(data, dict)
+
+
+def test_security_total_is_eight():
+    """1 migrated (004) + 7 new (030-036) = 8 SECURITY scenarios.
+
+    NB: §9 BenchmarkScenario has no verdict field, so the HIGH_RISK/SAFE
+    ground-truth (7 HIGH_RISK incl. 004, 1 SAFE control = 036) lives only in
+    ground_truth_notes prose and is not assertable here.
+    """
+    security = [s for s in _load_scenarios() if s.category == "SECURITY"]
+    assert len(security) == 8
