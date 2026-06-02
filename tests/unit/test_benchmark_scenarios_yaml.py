@@ -77,6 +77,26 @@ _NEW_SECURITY_IDS = [
     "036_security_suspicious_login_alert",
 ]
 
+# New CONFIG scenarios authored in T057 (037-041) + T058 (042-046) +
+# T059 (047-050). 037-046 SAFE, 047-050 HIGH_RISK (config fixes that touch a
+# production security surface). Each references its own fixture under fixtures/.
+_NEW_CONFIG_IDS = [
+    "037_config_missing_env_var",
+    "038_config_invalid_yaml_syntax",
+    "039_config_wrong_data_type",
+    "040_config_port_misconfiguration",
+    "041_config_missing_required_field",
+    "042_config_invalid_url_format",
+    "043_config_timeout_too_low",
+    "044_config_log_level_invalid",
+    "045_config_dependency_version_conflict",
+    "046_config_feature_flag_misconfigured",
+    "047_config_cors_misconfiguration",
+    "048_config_database_credentials_wrong",
+    "049_config_debug_mode_in_production",
+    "050_config_file_permission_too_open",
+]
+
 
 def _load_yaml(scenario_id: str) -> tuple[str, BenchmarkScenario]:
     yaml_path = _SCENARIOS_DIR / f"{scenario_id}.yaml"
@@ -207,3 +227,46 @@ def test_security_total_is_eight():
     """
     security = [s for s in _load_scenarios() if s.category == "SECURITY"]
     assert len(security) == 8
+
+
+# --- T057/T058/T059 new CONFIG scenarios (037-050) ---
+
+@pytest.mark.parametrize("scenario_id", _NEW_CONFIG_IDS)
+def test_new_config_yaml_parses_and_is_config(scenario_id):
+    _, scenario = _load_yaml(scenario_id)
+    assert scenario.scenario_id == scenario_id
+    assert scenario.category == "CONFIG"
+    assert scenario.expected_classification == "CONFIG"
+    assert scenario.expected_resolution_action
+    assert scenario.ground_truth_notes
+    assert scenario.human_labeled_by == "meizhuixu"
+    assert scenario.labeled_at == date(2026, 5, 9)
+
+
+@pytest.mark.parametrize("scenario_id", _NEW_CONFIG_IDS)
+def test_new_config_fixture_exists_and_is_valid_ascii_json(scenario_id):
+    _, scenario = _load_yaml(scenario_id)
+    expected = _FIXTURES_DIR / f"{scenario_id}.json"
+    assert scenario.error_log_path == expected
+    assert scenario.error_log_path.exists(), f"missing fixture: {expected}"
+    raw = scenario.error_log_path.read_text(encoding="utf-8")
+    assert raw.isascii(), f"{expected} contains non-ASCII characters"
+    data = json.loads(raw)  # must be valid JSON
+    assert isinstance(data, dict)
+
+
+def test_config_total_is_fifteen():
+    """1 migrated (003) + 14 new (037-050) = 15 CONFIG scenarios."""
+    config = [s for s in _load_scenarios() if s.category == "CONFIG"]
+    assert len(config) == 15
+
+
+# --- Final 50-scenario distribution (FR-516) ---
+
+def test_full_distribution_is_fifty():
+    """FR-516: 12 CODE / 15 INFRA / 8 SECURITY / 15 CONFIG = 50 total."""
+    scenarios = _load_scenarios()
+    counts = {cat: sum(1 for s in scenarios if s.category == cat)
+              for cat in ("CODE", "INFRA", "SECURITY", "CONFIG")}
+    assert counts == {"CODE": 12, "INFRA": 15, "SECURITY": 8, "CONFIG": 15}
+    assert len(scenarios) == 50
