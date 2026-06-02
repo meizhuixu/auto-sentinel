@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "web-frontend",
+  "error_type": "ConfigError",
+  "message": "DEBUG=True detected in the production environment, exposing stack traces and internal details to end users",
+  "stack_trace": null
+}

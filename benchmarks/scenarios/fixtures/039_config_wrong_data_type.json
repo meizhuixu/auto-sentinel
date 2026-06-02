@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "retry-worker",
+  "error_type": "ConfigTypeError",
+  "message": "config key 'max_retries' expected int but got str 'five'",
+  "stack_trace": null
+}

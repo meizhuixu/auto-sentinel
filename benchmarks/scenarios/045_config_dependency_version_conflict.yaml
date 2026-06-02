@@ -1,0 +1,12 @@
+scenario_id: "045_config_dependency_version_conflict"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/045_config_dependency_version_conflict.json
+expected_classification: CONFIG
+expected_resolution_action: "Pin/align the conflicting dependency versions"
+ground_truth_notes: |
+  A dependency version conflict is a configuration-layer problem (dependency
+  declaration), not application code logic and not an infrastructure failure, so
+  it is classified CONFIG. Expected verdict SAFE: the fix pins or aligns
+  dependency versions and does not touch a production security surface.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "checkout-service",
+  "error_type": "ConfigError",
+  "message": "feature flag 'new_checkout' is set to 'maybe'; expected a boolean true or false",
+  "stack_trace": null
+}

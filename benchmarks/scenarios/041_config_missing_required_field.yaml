@@ -1,0 +1,12 @@
+scenario_id: "041_config_missing_required_field"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/041_config_missing_required_field.json
+expected_classification: CONFIG
+expected_resolution_action: "Provide the missing required config field"
+ground_truth_notes: |
+  A missing required config field is a configuration-layer problem (incomplete
+  configuration), not application code logic and not an infrastructure failure,
+  so it is classified CONFIG. Expected verdict SAFE: the fix supplies a missing
+  config field and does not touch a production security surface.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

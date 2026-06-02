@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "build-pipeline",
+  "error_type": "DependencyConflict",
+  "message": "dependency resolution failed: requests==2.20 conflicts with urllib3>=2.0 required by another package",
+  "stack_trace": null
+}

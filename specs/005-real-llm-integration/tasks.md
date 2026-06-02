@@ -170,9 +170,9 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 - [X] T054 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/021_infra_*.yaml` … `025_infra_*.yaml`
 - [X] T055 [P] [US5] [PR-5] Author 4 INFRA scenarios at `benchmarks/scenarios/026_infra_*.yaml` … `029_infra_*.yaml` (final INFRA batch — 15 total: 1 migrated + 14 new ✓)
 - [X] T056 [P] [US5] [PR-5] Author 7 SECURITY scenarios at `benchmarks/scenarios/030_security_*.yaml` … `036_security_*.yaml` (8 total: 1 migrated + 7 new ✓; required for SC-013 false-negative measurement)
-- [ ] T057 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/037_config_*.yaml` … `041_config_*.yaml`
-- [ ] T058 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/042_config_*.yaml` … `046_config_*.yaml`
-- [ ] T059 [P] [US5] [PR-5] Author 4 CONFIG scenarios at `benchmarks/scenarios/047_config_*.yaml` … `050_config_*.yaml` (final CONFIG batch — 15 total: 1 migrated + 14 new ✓; total 50 ✓)
+- [X] T057 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/037_config_*.yaml` … `041_config_*.yaml`
+- [X] T058 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/042_config_*.yaml` … `046_config_*.yaml`
+- [X] T059 [P] [US5] [PR-5] Author 4 CONFIG scenarios at `benchmarks/scenarios/047_config_*.yaml` … `050_config_*.yaml` (final CONFIG batch — 15 total: 1 migrated + 14 new ✓; total 50 ✓)
 
 ### Runner + smoke + authorship gate
 
