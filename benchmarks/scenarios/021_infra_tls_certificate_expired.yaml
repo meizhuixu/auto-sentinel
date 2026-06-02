@@ -2,6 +2,7 @@ scenario_id: "021_infra_tls_certificate_expired"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/021_infra_tls_certificate_expired.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Renew or rotate the TLS certificate"
 ground_truth_notes: |
   A TLS handshake failure because the certificate has expired is an

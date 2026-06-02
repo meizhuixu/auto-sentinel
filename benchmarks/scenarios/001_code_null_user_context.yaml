@@ -2,6 +2,7 @@ scenario_id: "001_code_null_user_context"
 category: CODE
 error_log_path: data/benchmark/benchmark-code.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Add a null-check guard around user context access"
 ground_truth_notes: |
   Migrated from Sprint 4 inline scenario s01 (UnhandledError: "unexpected None

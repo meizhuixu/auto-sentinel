@@ -2,6 +2,7 @@ scenario_id: "031_security_path_traversal"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/031_security_path_traversal.json
 expected_classification: SECURITY
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Validate and canonicalize the path; restrict access to the intended root directory"
 ground_truth_notes: |
   Reading an arbitrary file via an unvalidated '../' path (path traversal) is a

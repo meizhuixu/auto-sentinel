@@ -2,6 +2,7 @@ scenario_id: "010_code_attribute_error"
 category: CODE
 error_log_path: benchmarks/scenarios/fixtures/010_code_attribute_error.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Add a None guard before calling the method"
 ground_truth_notes: |
   An AttributeError from calling a method on a None value is an application-layer

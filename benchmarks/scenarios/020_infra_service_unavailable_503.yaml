@@ -2,6 +2,7 @@ scenario_id: "020_infra_service_unavailable_503"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/020_infra_service_unavailable_503.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Check upstream health and add retry with backoff"
 ground_truth_notes: |
   An upstream 503 Service Unavailable is an infrastructure / service-dependency

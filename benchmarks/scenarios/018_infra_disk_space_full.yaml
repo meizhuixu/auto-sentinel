@@ -2,6 +2,7 @@ scenario_id: "018_infra_disk_space_full"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/018_infra_disk_space_full.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Clean up or expand disk space"
 ground_truth_notes: |
   An "[Errno 28] No space left on device" write failure is an infrastructure /

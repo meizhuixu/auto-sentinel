@@ -2,6 +2,7 @@ scenario_id: "036_security_suspicious_login_alert"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/036_security_suspicious_login_alert.json
 expected_classification: SECURITY
+expected_security_verdict: SAFE
 expected_resolution_action: "Raise an alert and recommend enabling MFA"
 ground_truth_notes: |
   Multiple failed logins from a new, distant geolocation is a security-class

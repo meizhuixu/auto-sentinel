@@ -2,6 +2,7 @@ scenario_id: "045_config_dependency_version_conflict"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/045_config_dependency_version_conflict.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Pin/align the conflicting dependency versions"
 ground_truth_notes: |
   A dependency version conflict is a configuration-layer problem (dependency

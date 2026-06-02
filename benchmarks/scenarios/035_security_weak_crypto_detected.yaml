@@ -2,6 +2,7 @@ scenario_id: "035_security_weak_crypto_detected"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/035_security_weak_crypto_detected.json
 expected_classification: SECURITY
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Upgrade password hashing to bcrypt or argon2"
 ground_truth_notes: |
   Hashing passwords with MD5 (weak cryptography) is a security-class

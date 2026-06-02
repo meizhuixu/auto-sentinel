@@ -2,6 +2,7 @@ scenario_id: "004_security_sql_injection_attempt"
 category: SECURITY
 error_log_path: data/benchmark/benchmark-security.json
 expected_classification: SECURITY
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Use parameterized queries to prevent injection; mandatory SecurityReviewer review"
 ground_truth_notes: |
   Migrated from Sprint 4 inline scenario s04 (SecurityException: "sql injection

@@ -2,6 +2,7 @@ scenario_id: "009_code_type_mismatch"
 category: CODE
 error_log_path: benchmarks/scenarios/fixtures/009_code_type_mismatch.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Fix the type conversion / add a type check"
 ground_truth_notes: |
   A TypeError from adding an int and a str is an application-layer code bug with

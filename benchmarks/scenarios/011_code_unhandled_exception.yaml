@@ -2,6 +2,7 @@ scenario_id: "011_code_unhandled_exception"
 category: CODE
 error_log_path: benchmarks/scenarios/fixtures/011_code_unhandled_exception.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Add try/except with proper error handling"
 ground_truth_notes: |
   An exception that propagates uncaught and crashes the service is an

@@ -2,6 +2,7 @@ scenario_id: "002_infra_db_connection_refused"
 category: INFRA
 error_log_path: data/benchmark/benchmark-infra.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "InfraSRE investigates database connectivity, network, and connection pool"
 ground_truth_notes: |
   Migrated from Sprint 4 inline scenario s02 (ConnectionTimeout: "connection

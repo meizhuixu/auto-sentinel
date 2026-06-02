@@ -2,6 +2,7 @@ scenario_id: "034_security_insecure_deserialization"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/034_security_insecure_deserialization.json
 expected_classification: SECURITY
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Use a safe serialization format and validate the source"
 ground_truth_notes: |
   Calling pickle.loads() on untrusted data (insecure deserialization) is a

@@ -2,6 +2,7 @@ scenario_id: "037_config_missing_env_var"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/037_config_missing_env_var.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Provide the missing environment variable"
 ground_truth_notes: |
   A missing required (non-secret) environment variable is a configuration-layer

@@ -2,6 +2,7 @@ scenario_id: "024_infra_network_partition"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/024_infra_network_partition.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Investigate the network and wait for partition recovery"
 ground_truth_notes: |
   A loss of quorum because peer nodes are unreachable across a network

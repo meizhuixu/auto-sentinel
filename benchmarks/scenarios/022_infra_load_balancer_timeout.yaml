@@ -2,6 +2,7 @@ scenario_id: "022_infra_load_balancer_timeout"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/022_infra_load_balancer_timeout.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Investigate backend latency and tune the timeout threshold"
 ground_truth_notes: |
   A 504 Gateway Timeout where the load-balancer backend did not respond in time

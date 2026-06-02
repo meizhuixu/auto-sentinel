@@ -2,6 +2,7 @@ scenario_id: "043_config_timeout_too_low"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/043_config_timeout_too_low.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Increase the timeout threshold"
 ground_truth_notes: |
   A timeout threshold set too low (causing spurious failures) is a

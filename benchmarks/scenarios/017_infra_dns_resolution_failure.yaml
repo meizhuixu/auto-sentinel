@@ -2,6 +2,7 @@ scenario_id: "017_infra_dns_resolution_failure"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/017_infra_dns_resolution_failure.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Investigate DNS configuration and the resolver"
 ground_truth_notes: |
   A DNS resolution failure (getaddrinfo could not resolve the host) is a

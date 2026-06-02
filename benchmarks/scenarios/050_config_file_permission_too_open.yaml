@@ -2,6 +2,7 @@ scenario_id: "050_config_file_permission_too_open"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/050_config_file_permission_too_open.json
 expected_classification: CONFIG
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Tighten the config file permissions"
 ground_truth_notes: |
   A world-readable config file holding credentials is a configuration-layer

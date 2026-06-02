@@ -2,6 +2,7 @@ scenario_id: "029_infra_file_descriptor_limit"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/029_infra_file_descriptor_limit.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Raise the ulimit and investigate file-descriptor leaks"
 ground_truth_notes: |
   An "[Errno 24] Too many open files" (EMFILE) failure from an exhausted file

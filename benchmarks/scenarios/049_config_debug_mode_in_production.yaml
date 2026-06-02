@@ -2,6 +2,7 @@ scenario_id: "049_config_debug_mode_in_production"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/049_config_debug_mode_in_production.json
 expected_classification: CONFIG
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Disable debug mode in production"
 ground_truth_notes: |
   Debug mode enabled in production (DEBUG=True) is a configuration-layer problem

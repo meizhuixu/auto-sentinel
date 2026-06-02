@@ -2,6 +2,7 @@ scenario_id: "046_config_feature_flag_misconfigured"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/046_config_feature_flag_misconfigured.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Correct the feature flag value"
 ground_truth_notes: |
   A feature flag set to a non-boolean value is a configuration-layer problem

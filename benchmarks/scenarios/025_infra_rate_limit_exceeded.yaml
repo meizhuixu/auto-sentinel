@@ -2,6 +2,7 @@ scenario_id: "025_infra_rate_limit_exceeded"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/025_infra_rate_limit_exceeded.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Add backoff/retry and request a higher quota"
 ground_truth_notes: |
   A 429 Too Many Requests from a third-party API is an infrastructure /

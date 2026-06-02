@@ -2,6 +2,7 @@ scenario_id: "041_config_missing_required_field"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/041_config_missing_required_field.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Provide the missing required config field"
 ground_truth_notes: |
   A missing required config field is a configuration-layer problem (incomplete

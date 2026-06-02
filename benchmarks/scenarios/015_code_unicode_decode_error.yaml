@@ -2,6 +2,7 @@ scenario_id: "015_code_unicode_decode_error"
 category: CODE
 error_log_path: benchmarks/scenarios/fixtures/015_code_unicode_decode_error.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Specify/handle the byte encoding explicitly"
 ground_truth_notes: |
   A UnicodeDecodeError from decoding bytes without an explicit, correct encoding

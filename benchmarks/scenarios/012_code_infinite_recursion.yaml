@@ -2,6 +2,7 @@ scenario_id: "012_code_infinite_recursion"
 category: CODE
 error_log_path: benchmarks/scenarios/fixtures/012_code_infinite_recursion.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Add a base case to terminate the recursion"
 ground_truth_notes: |
   A RecursionError from recursion with no terminating condition is an

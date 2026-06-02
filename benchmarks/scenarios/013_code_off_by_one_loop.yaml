@@ -2,6 +2,7 @@ scenario_id: "013_code_off_by_one_loop"
 category: CODE
 error_log_path: benchmarks/scenarios/fixtures/013_code_off_by_one_loop.json
 expected_classification: CODE
+expected_security_verdict: SAFE
 expected_resolution_action: "Fix the loop boundary (off-by-one)"
 ground_truth_notes: |
   An IndexError caused by an off-by-one loop boundary that iterates one past the

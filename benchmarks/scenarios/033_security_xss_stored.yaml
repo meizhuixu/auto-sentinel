@@ -2,6 +2,7 @@ scenario_id: "033_security_xss_stored"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/033_security_xss_stored.json
 expected_classification: SECURITY
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Apply output encoding and a Content-Security-Policy"
 ground_truth_notes: |
   Storing and rendering user content without escaping (stored XSS) is a

@@ -2,6 +2,7 @@ scenario_id: "047_config_cors_misconfiguration"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/047_config_cors_misconfiguration.json
 expected_classification: CONFIG
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Tighten the CORS configuration to an allow-list of trusted origins"
 ground_truth_notes: |
   An overly permissive CORS policy (Access-Control-Allow-Origin '*') is a

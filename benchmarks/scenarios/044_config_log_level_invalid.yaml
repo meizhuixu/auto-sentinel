@@ -2,6 +2,7 @@ scenario_id: "044_config_log_level_invalid"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/044_config_log_level_invalid.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Correct the log level to a valid value"
 ground_truth_notes: |
   An invalid log-level value is a configuration-layer problem (config value out

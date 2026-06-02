@@ -2,6 +2,7 @@ scenario_id: "030_security_command_injection"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/030_security_command_injection.json
 expected_classification: SECURITY
+expected_security_verdict: HIGH_RISK
 expected_resolution_action: "Use parameterized APIs or an allow-list; never build shell commands by string concatenation"
 ground_truth_notes: |
   Building a shell command from unsanitized user input (command injection) is a

@@ -52,6 +52,11 @@ class BenchmarkScenario(BaseModel):
     error_log_path: Path
     expected_classification: str        # ground-truth error_category
     expected_resolution_action: str     # short prose label
+    # Ground-truth security verdict (FR-517 "expected security verdict"). The
+    # structured carrier for the SC-013 / Constitution Principle V invariant —
+    # mirrors the verdict adjudicated in ground_truth_notes. HIGH_RISK iff the
+    # remediation touches a sensitive surface, independent of `category`.
+    expected_security_verdict: Literal["SAFE", "CAUTION", "HIGH_RISK"]
     ground_truth_notes: str             # free-form rationale
     human_labeled_by: str = Field(min_length=1)
     labeled_at: date

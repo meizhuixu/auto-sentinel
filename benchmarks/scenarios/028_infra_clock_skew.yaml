@@ -2,6 +2,7 @@ scenario_id: "028_infra_clock_skew"
 category: INFRA
 error_log_path: benchmarks/scenarios/fixtures/028_infra_clock_skew.json
 expected_classification: INFRA
+expected_security_verdict: SAFE
 expected_resolution_action: "Synchronize the clock via NTP"
 ground_truth_notes: |
   An authentication failure caused by node clock drift (request timestamp

@@ -2,6 +2,7 @@ scenario_id: "038_config_invalid_yaml_syntax"
 category: CONFIG
 error_log_path: benchmarks/scenarios/fixtures/038_config_invalid_yaml_syntax.json
 expected_classification: CONFIG
+expected_security_verdict: SAFE
 expected_resolution_action: "Fix the YAML syntax error"
 ground_truth_notes: |
   A YAML syntax error in a config file is a configuration-layer problem (config
