@@ -57,7 +57,7 @@ sequenceDiagram
 
     LG->>Sec: run(state)
     Sec->>Cli: complete(..., trace_id, agent_name="security_reviewer")
-    Cli->>T: __enter__(trace_id=..., component="security_reviewer", model="glm-4.7")
+    Cli->>T: __enter__(trace_id=..., component="security_reviewer", model="ep-20260508052924-6zchc")
     Cli->>T: __exit__ (ships span 3)
 
     LG->>Ver: run(state)

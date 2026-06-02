@@ -4,10 +4,19 @@
 
 ```bash
 docker compose -f infra/docker-compose.checkpointer.yml up -d
-export ARK_API_KEY=...                      # Volcano-Engine Ark
-export GLM_API_KEY=...                      # Zhipu BigModel
+export ARK_API_KEY=...                      # Volcano-Engine Ark — all 3 endpoints (Doubao + GLM-4.7)
 export AUTOSENTINEL_BUDGET_LIMIT_USD=20.6   # default; override per-run if desired
 uv sync
+```
+
+> GLM-4.7 is proxied through the Volcano Ark gateway and uses the same
+> `ARK_API_KEY` — there is no separate `GLM_API_KEY`.
+
+Before any real benchmark run, smoke-test all three Ark access points
+(spends a few cents):
+
+```bash
+uv run python scripts/check_endpoints.py
 ```
 
 ## 2. End-to-end test against one incident
@@ -52,7 +61,7 @@ benchmarks/scenarios/*.yaml      ← add new scenarios here (one file per scenar
 
 | Symptom | First thing to check |
 |---|---|
-| `CostGuardError` raised | Verify `ARK_API_KEY` / `GLM_API_KEY` are set; check `AUTOSENTINEL_BUDGET_LIMIT_USD`. |
+| `CostGuardError` raised | Verify `ARK_API_KEY` is set (covers all 3 endpoints); check `AUTOSENTINEL_BUDGET_LIMIT_USD`. |
 | Pipeline stuck on HIGH_RISK interrupt | `POST /incidents/{id}/resume` with `{"decision":"approve","reviewer_notes":"..."}`. |
 | `trace_id` missing in Langfuse | Inspect `state["trace_id"]`; it should be a 32-char hex string. Empty/malformed surfaces as `ValueError` from LLMTracer. |
 | AST boundary check fails | `grep -rn "import openai\|from openai" autosentinel/ \| grep -v "autosentinel/llm/"` — anything found is the bug. |

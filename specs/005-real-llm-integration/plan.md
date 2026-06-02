@@ -26,7 +26,7 @@ the LLMTracer (which is itself sync).
 
 **Language/Version**: Python 3.12
 **Primary Dependencies**: `langgraph==1.1.9`, `langgraph-checkpoint-postgres`, `psycopg[binary]>=3.1` (sync driver), `openai>=1.40` (only inside `autosentinel/llm/`), `httpx`, `tenacity`, `pydantic>=2`, `pydantic-settings`, `pyyaml`
-**External services**: Volcano-Engine Ark (`doubao-1.5-lite-32k`, `doubao-seed-2.0-pro`) and Zhipu BigModel (`glm-4.7`); project-4 `LLMTracer` → Langfuse
+**External services**: Volcano-Engine Ark only — all three access points (`doubao-1.5-lite-32k`, `doubao-seed-2.0-pro`, and `glm-4.7`) are provisioned under the Ark gateway and share one `ARK_API_KEY`; GLM-4.7 is proxied through Ark rather than the first-party Zhipu gateway. project-4 `LLMTracer` → Langfuse
 **Storage**: PostgreSQL 16 in dedicated container `auto-sentinel-checkpointer` (port `5434`); benchmark scenarios as yaml files under `benchmarks/scenarios/`; existing `data/benchmark/*.json` log fixtures retained and referenced (not copied)
 **Testing**: `pytest`, `pytest-cov`, dependency-injected `MockLLMClient` (no `patch.object`)
 **Target Platform**: macOS/Linux developer machine + CI (CI runs smoke benchmark with mock client; full 50-scenario run is manual)
@@ -77,7 +77,7 @@ autosentinel/
 │   ├── __init__.py
 │   ├── protocol.py                       ← LLMClient Protocol, Message, LLMRequest, LLMResponse
 │   ├── ark_client.py                     ← ArkLLMClient (OpenAI SDK + Ark base_url)
-│   ├── glm_client.py                     ← GlmLLMClient (OpenAI SDK + Zhipu base_url)
+│   ├── glm_client.py                     ← GlmLLMClient (OpenAI SDK + Volcano Ark base_url; GLM-4.7 proxied through Ark)
 │   ├── mock_client.py                    ← MockLLMClient (DI for tests + smoke benchmark)
 │   ├── factory.py                        ← build_client_for_agent() reads model_routing.yaml
 │   ├── cost_guard.py                     ← CostGuard singleton + threading.Lock + CostGuardError
@@ -151,7 +151,7 @@ fixed; alternatives evaluated are recorded in `research.md`.
 |---|---|---|
 | `protocol.py` | `LLMClient(Protocol)` | Provider-agnostic surface; defines `complete(...)` |
 | `ark_client.py` | `ArkLLMClient(LLMClient)` | OpenAI SDK pointed at `https://ark.cn-beijing.volces.com/api/v3` (doubao series) |
-| `glm_client.py` | `GlmLLMClient(LLMClient)` | OpenAI SDK pointed at `https://open.bigmodel.cn/api/paas/v4` (glm-4.7) |
+| `glm_client.py` | `GlmLLMClient(LLMClient)` | OpenAI SDK pointed at `https://ark.cn-beijing.volces.com/api/v3` (GLM-4.7 via the Volcano Ark proxy; kept as a distinct client only for GLM's own price table) |
 | `mock_client.py` | `MockLLMClient(LLMClient)` | Test double; `with_fixture_response(resp)` / `with_error(exc)` / `call_count` |
 | `factory.py` | function | `build_client_for_agent(agent_name) -> LLMClient` reads `config/model_routing.yaml` and returns the bound client + agent-specific config |
 
@@ -244,12 +244,18 @@ per-agent fields are too many for env vars to remain readable).
 `pydantic-settings`; on startup, missing keys / unregistered models / unset
 env vars cause **fail-fast** startup.
 
-> **As-built note (PR-3)**: the snippet below uses the readable generic model
-> names for clarity. The production `config/model_routing.yaml` now carries the
-> real Volcano Ark **endpoint ids** actually provisioned in the console
-> (e.g. `ep-20260508052205-6x8hm` for `doubao-1.5-lite-32k`,
-> `ep-20260508052420-fwq5q` for `doubao-seed-2.0-pro`), with the generic names
-> preserved as inline comments. This snippet remains illustrative.
+> **As-built note (PR-3, updated)**: the snippet below uses the readable
+> generic model names for clarity. The production `config/model_routing.yaml`
+> now carries the real Volcano Ark **endpoint ids** actually provisioned in the
+> console (`ep-20260508052205-6x8hm` for `doubao-1.5-lite-32k`,
+> `ep-20260508052420-fwq5q` for `doubao-seed-2.0-pro`,
+> `ep-20260508052924-6zchc` for `glm-4.7`), with the generic names preserved as
+> inline comments. **All three access points live under Volcano Ark** — GLM-4.7
+> is proxied through the Ark gateway (`base_url`
+> `https://ark.cn-beijing.volces.com/api/v3`) and authenticates with the same
+> `ARK_API_KEY`, not the first-party Zhipu gateway. The `glm` endpoint alias is
+> retained (not folded into `ark`) only so the factory keeps dispatching GLM-4.7
+> to `GlmLLMClient` and its own price table. This snippet remains illustrative.
 
 ```yaml
 agents:
@@ -281,8 +287,8 @@ endpoints:
     api_key_env: ARK_API_KEY
     models: [doubao-1.5-lite-32k, doubao-seed-2.0-pro]
   glm:
-    base_url: https://open.bigmodel.cn/api/paas/v4
-    api_key_env: GLM_API_KEY
+    base_url: https://ark.cn-beijing.volces.com/api/v3  # GLM-4.7 proxied through Ark
+    api_key_env: ARK_API_KEY                             # same key as the Doubao endpoints
     models: [glm-4.7]
 ```
 

@@ -9,8 +9,16 @@ Questions left at the end of `spec.md`.
 ## Decision 1 — OpenAI SDK + Volcano-Engine Ark base_url (vs. Volcano native SDK)
 
 **Decision**: Use the official `openai` Python SDK with `base_url` pointed at
-`https://ark.cn-beijing.volces.com/api/v3` (and at `https://open.bigmodel.cn/api/paas/v4`
-for GLM). Do not use Volcano's native `volcengine-python-sdk-ark-runtime` package.
+`https://ark.cn-beijing.volces.com/api/v3`. All three access points — both
+Doubao models and GLM-4.7 — are provisioned under the Volcano Ark gateway and
+share one `ARK_API_KEY`; GLM-4.7 is proxied through Ark rather than the
+first-party Zhipu gateway (`https://open.bigmodel.cn/api/paas/v4`). Do not use
+Volcano's native `volcengine-python-sdk-ark-runtime` package.
+
+> **Update**: GLM-4.7 originally used the first-party Zhipu gateway. Once all
+> three access points were consolidated under Volcano Ark, GLM moved to the Ark
+> gateway + `ARK_API_KEY`. The OpenAI-SDK-against-one-base_url rationale below is
+> now even cleaner — there is a single gateway host, not two.
 
 **Rationale**: Both Volcano-Engine Ark and Zhipu BigModel implement the OpenAI
 Chat Completions wire format, which means a single `openai.OpenAI` client class
@@ -37,9 +45,11 @@ in `ArkLLMClient` only.
 
 ## Decision 2 — GLM-4.7 for SecurityReviewer (vs. DeepSeek-R1)
 
-**Decision**: SecurityReviewer uses Zhipu **GLM-4.7** (a reasoning model). All
+**Decision**: SecurityReviewer uses **GLM-4.7** (a reasoning model), served
+through the Volcano Ark proxy (Ark endpoint id `ep-20260508052924-6zchc`). All
 other LLM-backed agents use Volcano **doubao-seed-2.0-pro** (general) or
-**doubao-1.5-lite-32k** (Supervisor — fast routing).
+**doubao-1.5-lite-32k** (Supervisor — fast routing). The model choice (GLM-4.7
+for its reasoning quality) is independent of the gateway it is reached through.
 
 **Rationale**: SecurityReviewer is the agent where a false-negative is most
 costly — SC-013 demands `false_negative_count == 0` on the SECURITY subset.
@@ -47,8 +57,8 @@ A reasoning model is the right tool: it spends test-time compute on the
 classification rather than emitting a single-pass verdict. DeepSeek-R1 was the
 obvious peer, but Volcano-Engine Ark publicly announced upcoming deprecation /
 limited availability for R1; pinning Sprint 5 to a model that's about to be
-EOL'd is unstable. GLM-4.7 is currently available at first-party Zhipu
-endpoint, comparable reasoning quality to R1 on classification tasks.
+EOL'd is unstable. GLM-4.7 is available through the Volcano Ark proxy, with
+comparable reasoning quality to R1 on classification tasks.
 
 **Alternatives Considered**:
 - DeepSeek-R1 on Volcano: pending deprecation; rejected.
@@ -311,8 +321,11 @@ research file (this section), satisfying FR-517's audit requirement.
   "if SC-008 fails, revisit Decision 2 (drop to a non-reasoning model on
   SecurityReviewer + add a deterministic post-filter) before relaxing the
   threshold."
-- **CostGuard accuracy**: Ark and Zhipu return token usage in the response;
-  we trust those numbers. If a future SDK quirk under-reports, CostGuard could
+- **CostGuard accuracy**: the Ark gateway returns token usage in the response
+  for all three access points (Doubao + GLM-4.7); we trust those numbers. The
+  per-model rate table lives in the client layer (`ark_client.py` /
+  `glm_client.py`) keyed by the Ark endpoint id the factory passes. If a future
+  SDK quirk under-reports, CostGuard could
   silently undershoot the budget. Mitigation: `tests/integration/test_cost_guard_pipeline.py`
   asserts `summary.json.total_cost_usd` matches the sum of per-call costs in
   `results.jsonl`, catching drift.

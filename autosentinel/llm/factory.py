@@ -9,7 +9,9 @@ build_client_for_agent() dispatches on each agent's resolved endpoint_alias
 to the concrete provider client that lives under autosentinel/llm/ — the
 single layer Constitution VII.1 permits to import a provider SDK:
     "ark" → ArkLLMClient   (Volcano-Engine Ark, doubao series)
-    "glm" → GlmLLMClient   (Zhipu BigModel, glm-4.7)
+    "glm" → GlmLLMClient   (GLM-4.7 via the Volcano Ark proxy — same gateway
+                            and ARK_API_KEY as "ark"; a distinct alias only so
+                            GLM keeps its own price table)
 Selection stays fully declarative (Constitution VII.4): the alias, base_url,
 and api_key env-var name are all sourced from config/model_routing.yaml; no
 model string literal appears here. Agent modules never import openai — they

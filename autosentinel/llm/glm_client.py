@@ -1,12 +1,21 @@
-"""Concrete LLMClient pointed at Zhipu BigModel (glm-4.7).
+"""Concrete LLMClient for GLM-4.7, served through the Volcano Ark proxy.
 
 Constitution VII.1: this is one of TWO files allowed to `import openai`
 (the other is ark_client.py). The allowlist is hard-coded in
 tests/unit/test_llm_provider_isolation.py.
 
-Same shape as ArkLLMClient — only the base_url, model price table, and
-the module-level patch target for LLMTracer differ. SecurityReviewer
-(GLM-4.7) is the primary caller in PR-2.
+GLM-4.7 no longer routes through the first-party Zhipu gateway
+(open.bigmodel.cn). All three access points are provisioned under Volcano
+Ark, so this client points at the Ark gateway and authenticates with the
+same ARK_API_KEY as the Doubao endpoints. The base_url and api_key are still
+injected by factory.build_client_for_agent() from config/model_routing.yaml
+(Constitution VII.4) — this class hard-codes neither.
+
+Same shape as ArkLLMClient — only the model price table and the module-level
+patch target for LLMTracer differ. The `glm` endpoint alias is kept distinct
+from `ark` purely so the factory routes GLM-4.7 here (for its own pricing),
+not because the physical gateway differs. SecurityReviewer (GLM-4.7) is the
+primary caller.
 """
 
 from __future__ import annotations
@@ -29,21 +38,28 @@ except ImportError:
     LLMTracer = None  # type: ignore[assignment,misc]
 
 
-# GLM per-model pricing (USD per 1M tokens). Placeholder figures; exact
-# values not test-critical.
+# GLM-4.7 pricing (USD per 1M tokens), as billed by the Volcano Ark proxy.
+# The factory passes the Ark endpoint id as `model`, so the table is keyed by
+# the endpoint id; the friendly "glm-4.7" alias is retained for unit tests
+# that exercise the client with the readable name.
+#
+# NOTE: these figures are PLACEHOLDERS carried over from the Zhipu first-party
+# rate and have NOT been reconciled against the Volcano Ark GLM-4.7 billing
+# page. Confirm the Ark proxy rate in the console and update if it differs.
 _GLM_PRICING_USD_PER_M: dict[str, dict[str, float]] = {
+    "ep-20260508052924-6zchc": {"input": 5.00, "output": 15.00},  # GLM-4.7 (Ark)
     "glm-4.7": {"input": 5.00, "output": 15.00},
 }
 
 
 class GlmLLMClient:
-    """OpenAI-SDK-backed client for the Zhipu BigModel endpoint."""
+    """OpenAI-SDK-backed client for GLM-4.7 on the Volcano Ark gateway."""
 
     def __init__(
         self,
         *,
         api_key: str,
-        base_url: str = "https://open.bigmodel.cn/api/paas/v4",
+        base_url: str = "https://ark.cn-beijing.volces.com/api/v3",
         http_client: Optional[httpx.Client] = None,
     ) -> None:
         self._sdk = openai.OpenAI(
