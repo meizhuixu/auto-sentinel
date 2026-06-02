@@ -30,6 +30,7 @@ import tenacity
 
 from autosentinel.llm.cost_guard import get_cost_guard
 from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
+from autosentinel.llm.pricing import CNY_PER_USD
 from autosentinel.llm.protocol import LLMRequest, LLMResponse, Message
 
 try:
@@ -38,17 +39,19 @@ except ImportError:
     LLMTracer = None  # type: ignore[assignment,misc]
 
 
-# GLM-4.7 pricing (USD per 1M tokens), as billed by the Volcano Ark proxy.
+# GLM-4.7 pricing in **CNY per 1M tokens**, as billed by the Volcano Ark proxy.
 # The factory passes the Ark endpoint id as `model`, so the table is keyed by
-# the endpoint id; the friendly "glm-4.7" alias is retained for unit tests
-# that exercise the client with the readable name.
+# the endpoint id; the friendly "glm-4.7" alias is retained for unit tests.
+# CNY→USD happens via the single CNY_PER_USD source (see pricing.py) at compute
+# time — never store USD rates here.
 #
-# NOTE: these figures are PLACEHOLDERS carried over from the Zhipu first-party
-# rate and have NOT been reconciled against the Volcano Ark GLM-4.7 billing
-# page. Confirm the Ark proxy rate in the console and update if it differs.
-_GLM_PRICING_USD_PER_M: dict[str, dict[str, float]] = {
-    "ep-20260508052924-6zchc": {"input": 5.00, "output": 15.00},  # GLM-4.7 (Ark)
-    "glm-4.7": {"input": 5.00, "output": 15.00},
+# Tier: ¥2 in / ¥8 out is the **input ≤ 32k tokens, output ≤ 200 tokens**
+# segment. Longer inputs or outputs fall into higher-priced segments — if the
+# SecurityReviewer prompt/response ever exceeds those limits, this rate is wrong
+# and must be re-tiered against the console pricing page.
+_GLM_PRICING_CNY_PER_M: dict[str, dict[str, float]] = {
+    "ep-20260508052924-6zchc": {"input": 2.00, "output": 8.00},  # GLM-4.7 (Ark)
+    "glm-4.7": {"input": 2.00, "output": 8.00},
 }
 
 
@@ -164,7 +167,7 @@ class GlmLLMClient:
     def _compute_cost(
         model: str, prompt_tokens: int, completion_tokens: int
     ) -> tuple[float, float]:
-        prices = _GLM_PRICING_USD_PER_M.get(model, {"input": 0.0, "output": 0.0})
-        input_usd = (prompt_tokens / 1_000_000) * prices["input"]
-        output_usd = (completion_tokens / 1_000_000) * prices["output"]
+        prices = _GLM_PRICING_CNY_PER_M.get(model, {"input": 0.0, "output": 0.0})
+        input_usd = (prompt_tokens / 1_000_000) * prices["input"] / CNY_PER_USD
+        output_usd = (completion_tokens / 1_000_000) * prices["output"] / CNY_PER_USD
         return input_usd, output_usd

@@ -31,6 +31,7 @@ import tenacity
 
 from autosentinel.llm.cost_guard import get_cost_guard
 from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
+from autosentinel.llm.pricing import CNY_PER_USD
 from autosentinel.llm.protocol import LLMRequest, LLMResponse, Message
 
 # Module-level patch target for unit tests. Wrapping in try/except lets the
@@ -43,12 +44,26 @@ except ImportError:
     LLMTracer = None  # type: ignore[assignment,misc]
 
 
-# Ark per-model pricing (USD per 1M tokens). Placeholder figures pending the
-# real vendor pricing page; CostGuard sees the Decimal sum computed from
-# these. Exact values not test-critical (tests assert cost_usd ≥ 0 only).
-_ARK_PRICING_USD_PER_M: dict[str, dict[str, float]] = {
+# Ark per-model pricing in **CNY per 1M tokens**, as billed by the Volcano Ark
+# console. The factory passes the Ark endpoint id as `model`, so the table is
+# keyed by endpoint id; the friendly names are retained as aliases for unit
+# tests and readability. CNY→USD happens via the single CNY_PER_USD source
+# (see pricing.py) at compute time — never store USD rates here.
+#
+# Doubao-1.5-lite-32k (Supervisor/Verifier): ¥0.3 in / ¥0.6 out — flat tier.
+# Doubao-Seed-2.0-pro (Diagnosis/CodeFixer/InfraSRE): ¥2.88 in / ¥14.4 out.
+#   This is the 9折 (10%-off) *regular* inference tier, NOT the low-latency
+#   "Fast" tier (¥9.6/¥48). List price for this tier is ¥3.2/¥16.
+#   TODO(verify-doubao-discount): the ¥2.88/¥14.4 rate is a discount off the
+#   ¥3.2/¥16 list; the Volcano console documents its deeper discounts as
+#   limited-time promotions (首月/春节限时), and we could NOT confirm whether
+#   this 9折 is permanent. Re-confirm in the console; if the promo lapses,
+#   revert to the ¥3.2/¥16 list price.
+_ARK_PRICING_CNY_PER_M: dict[str, dict[str, float]] = {
+    "ep-20260508052205-6x8hm": {"input": 0.30, "output": 0.60},  # doubao-1.5-lite-32k
     "doubao-1.5-lite-32k": {"input": 0.30, "output": 0.60},
-    "doubao-seed-2.0-pro": {"input": 2.00, "output": 8.00},
+    "ep-20260508052420-fwq5q": {"input": 2.88, "output": 14.40},  # doubao-seed-2.0-pro
+    "doubao-seed-2.0-pro": {"input": 2.88, "output": 14.40},
 }
 
 
@@ -177,7 +192,7 @@ class ArkLLMClient:
     def _compute_cost(
         model: str, prompt_tokens: int, completion_tokens: int
     ) -> tuple[float, float]:
-        prices = _ARK_PRICING_USD_PER_M.get(model, {"input": 0.0, "output": 0.0})
-        input_usd = (prompt_tokens / 1_000_000) * prices["input"]
-        output_usd = (completion_tokens / 1_000_000) * prices["output"]
+        prices = _ARK_PRICING_CNY_PER_M.get(model, {"input": 0.0, "output": 0.0})
+        input_usd = (prompt_tokens / 1_000_000) * prices["input"] / CNY_PER_USD
+        output_usd = (completion_tokens / 1_000_000) * prices["output"] / CNY_PER_USD
         return input_usd, output_usd
