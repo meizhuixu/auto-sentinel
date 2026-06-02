@@ -5,7 +5,7 @@
 ```bash
 docker compose -f infra/docker-compose.checkpointer.yml up -d
 export ARK_API_KEY=...                      # Volcano-Engine Ark — all 3 endpoints (Doubao + GLM-4.7)
-export AUTOSENTINEL_BUDGET_LIMIT_USD=20.6   # default; override per-run if desired
+export AUTOSENTINEL_BUDGET_LIMIT_CNY=150    # CNY budget; default; override per-run if desired
 uv sync
 ```
 
@@ -43,7 +43,7 @@ pytest tests/benchmark_smoke/ -v
 ```bash
 python scripts/run_benchmark.py \
   --scenarios benchmarks/scenarios/ \
-  --budget 20.6
+  --budget 150   # CNY
 # Results land at benchmarks/results/{YYYYMMDD-HHMMSS-githash}/{results.jsonl,summary.json}
 ```
 
@@ -51,7 +51,7 @@ python scripts/run_benchmark.py \
 
 ```text
 autosentinel/llm/                ← provider SDK ONLY allowed here (Constitution VII.1)
-autosentinel/models.py           ← AgentState (Sprint 5 added: trace_id, cost_accumulated_usd)
+autosentinel/models.py           ← AgentState (Sprint 5 added: trace_id, cost_accumulated)
 config/model_routing.yaml        ← per-agent model + endpoint config
 benchmarks/scenarios/*.yaml      ← add new scenarios here (one file per scenario)
 .specify/memory/constitution.md  ← Principle VII is the Sprint 5 red line
@@ -61,7 +61,7 @@ benchmarks/scenarios/*.yaml      ← add new scenarios here (one file per scenar
 
 | Symptom | First thing to check |
 |---|---|
-| `CostGuardError` raised | Verify `ARK_API_KEY` is set (covers all 3 endpoints); check `AUTOSENTINEL_BUDGET_LIMIT_USD`. |
+| `CostGuardError` raised | Verify `ARK_API_KEY` is set (covers all 3 endpoints); check `AUTOSENTINEL_BUDGET_LIMIT_CNY`. |
 | Pipeline stuck on HIGH_RISK interrupt | `POST /incidents/{id}/resume` with `{"decision":"approve","reviewer_notes":"..."}`. |
 | `trace_id` missing in Langfuse | Inspect `state["trace_id"]`; it should be a 32-char hex string. Empty/malformed surfaces as `ValueError` from LLMTracer. |
 | AST boundary check fails | `grep -rn "import openai\|from openai" autosentinel/ \| grep -v "autosentinel/llm/"` — anything found is the bug. |

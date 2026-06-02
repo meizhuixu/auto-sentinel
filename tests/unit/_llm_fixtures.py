@@ -22,7 +22,7 @@ def diagnosis_fixture(category: str = "CODE") -> LLMResponse:
         model="mock-diagnosis",
         prompt_tokens=80,
         completion_tokens=20,
-        cost_usd=Decimal("0.0003"),
+        cost=Decimal("0.0003"),
         latency_ms=400,
         trace_id=_DEFAULT_TRACE_ID,
     )
@@ -39,7 +39,7 @@ def supervisor_fixture(
         model="mock-supervisor",
         prompt_tokens=70,
         completion_tokens=15,
-        cost_usd=Decimal("0.0002"),
+        cost=Decimal("0.0002"),
         latency_ms=300,
         trace_id=_DEFAULT_TRACE_ID,
     )
@@ -51,7 +51,7 @@ def code_fixer_fixture() -> LLMResponse:
         model="mock-code-fixer",
         prompt_tokens=90,
         completion_tokens=25,
-        cost_usd=Decimal("0.0004"),
+        cost=Decimal("0.0004"),
         latency_ms=500,
         trace_id=_DEFAULT_TRACE_ID,
     )
@@ -63,7 +63,7 @@ def infra_sre_fixture() -> LLMResponse:
         model="mock-infra-sre",
         prompt_tokens=90,
         completion_tokens=25,
-        cost_usd=Decimal("0.0004"),
+        cost=Decimal("0.0004"),
         latency_ms=500,
         trace_id=_DEFAULT_TRACE_ID,
     )
@@ -75,7 +75,7 @@ def safe_fixture() -> LLMResponse:
         model="glm-4.7",
         prompt_tokens=100,
         completion_tokens=30,
-        cost_usd=Decimal("0.0005"),
+        cost=Decimal("0.0005"),
         latency_ms=500,
         trace_id=_DEFAULT_TRACE_ID,
     )
@@ -87,7 +87,7 @@ def high_risk_fixture() -> LLMResponse:
         model="glm-4.7",
         prompt_tokens=120,
         completion_tokens=40,
-        cost_usd=Decimal("0.0008"),
+        cost=Decimal("0.0008"),
         latency_ms=850,
         trace_id=_DEFAULT_TRACE_ID,
     )
@@ -99,7 +99,7 @@ def caution_fixture() -> LLMResponse:
         model="glm-4.7",
         prompt_tokens=110,
         completion_tokens=35,
-        cost_usd=Decimal("0.0006"),
+        cost=Decimal("0.0006"),
         latency_ms=700,
         trace_id=_DEFAULT_TRACE_ID,
     )

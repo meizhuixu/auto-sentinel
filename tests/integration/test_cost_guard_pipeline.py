@@ -8,7 +8,7 @@ specialist's complete() raises CostGuardError. The graph must route to
   (a) CostGuardError is intercepted (not raised out of graph.invoke)
   (b) the Verifier never runs (no execution_result)
   (c) state["agent_trace"][-1] == "cost_guard_triggered"
-  (d) state["cost_accumulated_usd"] mirrors the CostGuard Decimal snapshot
+  (d) state["cost_accumulated"] mirrors the CostGuard Decimal snapshot
   (e) the float mirror equals the Decimal source of truth (drift check)
 
 Hermetic: injects a test-local cost-accumulating mock; never touches the
@@ -76,11 +76,11 @@ def _initial_state(log_file: Path) -> dict:
         "agent_trace": [],
         "approval_required": False,
         "trace_id": ZERO_TRACE_ID,
-        "cost_accumulated_usd": 0.0,
+        "cost_accumulated": 0.0,
     }
 
 
-def _accumulating_clients(cost_usd: Decimal) -> dict[str, object]:
+def _accumulating_clients(cost: Decimal) -> dict[str, object]:
     contents = {
         "diagnosis": '{"category": "CODE", "reasoning": "x"}',
         "supervisor": '{"specialist": "code_fixer", "rationale": "x"}',
@@ -89,7 +89,7 @@ def _accumulating_clients(cost_usd: Decimal) -> dict[str, object]:
         "security_reviewer": '{"verdict": "SAFE", "reasoning": "x"}',
     }
     return {
-        name: CostAccumulatingMock(content=content, cost_usd=cost_usd)
+        name: CostAccumulatingMock(content=content, cost=cost)
         for name, content in contents.items()
     }
 
@@ -117,7 +117,7 @@ def test_cost_guard_aborts_pipeline_before_verifier(tmp_path, monkeypatch):
     assert "VerifierAgent" not in result["agent_trace"]
 
     # Trip happened on the 3rd accumulate (0.0005 * 3 = 0.0015 > 0.001).
-    guard_total = get_cost_guard().state.total_spent_usd
+    guard_total = get_cost_guard().state.total_spent
     assert guard_total == Decimal("0.0015")
     # (d) state mirror matches the Decimal snapshot; (e) no float/Decimal drift
-    assert result["cost_accumulated_usd"] == pytest.approx(float(guard_total))
+    assert result["cost_accumulated"] == pytest.approx(float(guard_total))

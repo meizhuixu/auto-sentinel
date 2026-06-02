@@ -98,9 +98,9 @@ def cost_exhausted_node(state: AgentState) -> AgentState:
     AgentState field and stamps the trace so the report and tests can see the
     pipeline aborted on budget rather than completing.
     """
-    total = float(get_cost_guard().state.total_spent_usd)
+    total = float(get_cost_guard().state.total_spent)
     return {
-        "cost_accumulated_usd": total,
+        "cost_accumulated": total,
         "agent_trace": ["cost_guard_triggered"],
     }
 

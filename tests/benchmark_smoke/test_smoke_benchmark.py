@@ -54,7 +54,7 @@ def smoke_run(tmp_path):
         _docker_success(e_md)
         summary = runner.run(
             scenarios_dir=Path("benchmarks/scenarios"),
-            budget="20.6",
+            budget="150",
             use_mock=True,
             only=set(SMOKE_SCENARIO_IDS),
             output_root=tmp_path,
@@ -79,14 +79,14 @@ class TestSmokeBenchmark:
             sec = summary[side]
             assert sec["latency_ms"]["p50"] is not None
             assert sec["latency_ms"]["p95"] is not None
-            assert sec["total_cost_usd"] is not None
+            assert sec["total_cost"] is not None
             assert sec["resolution_rate"] is not None
 
     def test_total_cost_is_zero_under_mock(self, smoke_run):
         summary, _ = smoke_run
         # MockLLMClient never accumulates -> zero spend, budget never tripped.
-        assert Decimal(summary["v2"]["total_cost_usd"]) == Decimal("0")
-        assert Decimal(summary["v1"]["total_cost_usd"]) == Decimal("0")
+        assert Decimal(summary["v2"]["total_cost"]) == Decimal("0")
+        assert Decimal(summary["v1"]["total_cost"]) == Decimal("0")
 
     def test_security_subset_zero_false_negatives_under_mock(self, smoke_run):
         summary, _ = smoke_run

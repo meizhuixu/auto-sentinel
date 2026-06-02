@@ -30,7 +30,6 @@ import tenacity
 
 from autosentinel.llm.cost_guard import get_cost_guard
 from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
-from autosentinel.llm.pricing import CNY_PER_USD
 from autosentinel.llm.protocol import LLMRequest, LLMResponse, Message
 
 try:
@@ -39,11 +38,10 @@ except ImportError:
     LLMTracer = None  # type: ignore[assignment,misc]
 
 
-# GLM-4.7 pricing in **CNY per 1M tokens**, as billed by the Volcano Ark proxy.
-# The factory passes the Ark endpoint id as `model`, so the table is keyed by
-# the endpoint id; the friendly "glm-4.7" alias is retained for unit tests.
-# CNY→USD happens via the single CNY_PER_USD source (see pricing.py) at compute
-# time — never store USD rates here.
+# GLM-4.7 pricing in **CNY per 1M tokens** — the native billing currency.
+# No exchange-rate conversion: cost is recorded in CNY. The factory passes the
+# Ark endpoint id as `model`, so the table is keyed by the endpoint id; the
+# friendly "glm-4.7" alias is retained for unit tests.
 #
 # Tier: ¥2 in / ¥8 out is the **input ≤ 32k tokens, output ≤ 200 tokens**
 # segment. Longer inputs or outputs fall into higher-priced segments — if the
@@ -123,27 +121,31 @@ class GlmLLMClient:
             prompt_tokens = sdk_response.usage.prompt_tokens
             completion_tokens = sdk_response.usage.completion_tokens
 
-            input_usd, output_usd = self._compute_cost(
+            input_cost, output_cost = self._compute_cost(
                 model, prompt_tokens, completion_tokens
             )
 
+            # Costs are CNY (Ark's billing currency); tracer call is currency-neutral.
             if hasattr(tracer, "set_tokens"):
                 tracer.set_tokens(prompt=prompt_tokens, completion=completion_tokens)
             if hasattr(tracer, "set_cost_breakdown"):
-                tracer.set_cost_breakdown(input_usd=input_usd, output_usd=output_usd)
+                tracer.set_cost_breakdown(
+                    input_cost=input_cost, output_cost=output_cost, currency="CNY"
+                )
 
-        cost_usd = Decimal(str(input_usd + output_usd))
+        cost = Decimal(str(input_cost + output_cost))
         response = LLMResponse(
             content=content,
             model=model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            cost_usd=cost_usd,
+            cost=cost,
+            currency="CNY",
             latency_ms=latency_ms,
             trace_id=trace_id,
         )
 
-        get_cost_guard().accumulate(cost_usd)
+        get_cost_guard().accumulate(cost, "CNY")
 
         return response
 
@@ -168,6 +170,6 @@ class GlmLLMClient:
         model: str, prompt_tokens: int, completion_tokens: int
     ) -> tuple[float, float]:
         prices = _GLM_PRICING_CNY_PER_M.get(model, {"input": 0.0, "output": 0.0})
-        input_usd = (prompt_tokens / 1_000_000) * prices["input"] / CNY_PER_USD
-        output_usd = (completion_tokens / 1_000_000) * prices["output"] / CNY_PER_USD
-        return input_usd, output_usd
+        input_cost = (prompt_tokens / 1_000_000) * prices["input"]
+        output_cost = (completion_tokens / 1_000_000) * prices["output"]
+        return input_cost, output_cost

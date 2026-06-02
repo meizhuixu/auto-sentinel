@@ -52,13 +52,15 @@ provider portability.
    inside that context.
 3. On success: call `tracer.set_tokens(prompt=..., completion=...)` with the
    provider's `usage` numbers.
-4. Compute `input_cost_usd` and `output_cost_usd` from a per-model price
-   table inside the concrete client, call
-   `tracer.set_cost_breakdown(input_usd=..., output_usd=...)`.
-5. Return an `LLMResponse` (frozen) with `cost_usd = Decimal(input + output)`,
-   `latency_ms` measured around the SDK call, `trace_id` copied from input.
+4. Compute `input_cost` and `output_cost` from a per-model price
+   table inside the concrete client — in the model's **native billing
+   currency** (CNY for Volcano Ark; no conversion) — and call
+   `tracer.set_cost_breakdown(input_cost=..., output_cost=..., currency="CNY")`.
+5. Return an `LLMResponse` (frozen) with `cost = Decimal(input + output)`,
+   `currency="CNY"`, `latency_ms` measured around the SDK call, `trace_id`
+   copied from input.
 6. **After the response is returned**, call
-   `cost_guard.accumulate(LLMResponse.cost_usd)`. This is where
+   `cost_guard.accumulate(LLMResponse.cost)`. This is where
    `CostGuardError` may be raised. The response has already been delivered to
    the caller — meaning the caller sees the *successful* result of the call
    that tripped the guard, but the **next** call from anywhere in the process

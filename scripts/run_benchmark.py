@@ -8,20 +8,22 @@ benchmarks/results/{run_id}/results.jsonl (one BenchmarkResult per v2 scenario)
   run_id = YYYYMMDD-HHMMSS-{git_short_sha}
 
 Cost governance (FR-519): the run uses the real CostGuard with the same env
-budget as production. --budget sets AUTOSENTINEL_BUDGET_LIMIT_USD; if a real
+budget as production. --budget sets AUTOSENTINEL_BUDGET_LIMIT_CNY; if a real
 run exceeds it, the multi-agent graph routes to its cost_exhausted node and the
 runner aborts the whole benchmark with a typed CostGuardError rather than
 silently dropping scenarios.
 
 --use-mock injects MockLLMClient-backed agents (driven by each scenario's
 ground-truth classification + verdict) via the build_multi_agent_graph(agents=)
-seam, so the smoke run costs $0 and reaches no real provider. All autosentinel
+seam, so the smoke run costs ¥0 and reaches no real provider. All autosentinel
 imports are deferred until after env setup so --use-mock works without real
 API keys.
 
+Budget is in CNY (all three Volcano Ark models bill in CNY; no conversion).
+
 Usage:
-    python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 20.6 --use-mock
-    python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 20.6   # real, costs money
+    python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 150 --use-mock
+    python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 150   # real, costs money
 """
 
 from __future__ import annotations
@@ -85,7 +87,7 @@ def _build_mock_agents(scenario) -> dict:
     def _client(content: str):
         resp = LLMResponse(
             content=content, model="mock", prompt_tokens=1, completion_tokens=1,
-            cost_usd=Decimal("0"), latency_ms=0, trace_id="0" * 32,
+            cost=Decimal("0"), latency_ms=0, trace_id="0" * 32,
         )
         return MockLLMClient().with_fixture_response(resp)
 
@@ -159,10 +161,10 @@ def _run_v2(scenario, *, use_mock: bool):
         error_category=None, fix_artifact=None,
         security_verdict=None, routing_decision=None, specialist=None,
         agent_trace=[], approval_required=False,
-        trace_id=trace_id, cost_accumulated_usd=0.0,
+        trace_id=trace_id, cost_accumulated=0.0,
     )
 
-    cost_before = get_cost_guard().state.total_spent_usd
+    cost_before = get_cost_guard().state.total_spent
     start = time.monotonic()
     error: Optional[str] = None
     result: dict = {}
@@ -173,14 +175,15 @@ def _run_v2(scenario, *, use_mock: bool):
     except Exception as e:  # noqa: BLE001 - record per-scenario failure
         error = f"{type(e).__name__}: {e}"
     latency_ms = int((time.monotonic() - start) * 1000)
-    cost_usd = get_cost_guard().state.total_spent_usd - cost_before
+    cost = get_cost_guard().state.total_spent - cost_before
 
     # FR-519: a tripped budget aborts the whole run with the typed error.
     if result.get("cost_exhausted") or "cost_guard_triggered" in result.get("agent_trace", []):
         raise CostGuardError(
-            current_spent_usd=get_cost_guard().state.total_spent_usd,
-            attempted_amount_usd=Decimal("0"),
-            budget_limit_usd=get_cost_guard().budget_limit_usd,
+            current_spent=get_cost_guard().state.total_spent,
+            attempted_amount=Decimal("0"),
+            budget_limit=get_cost_guard().state.budget_limit,
+            currency=get_cost_guard().state.currency,
         )
 
     verdict = result.get("security_verdict")
@@ -191,7 +194,7 @@ def _run_v2(scenario, *, use_mock: bool):
         actual_resolution=(result.get("fix_artifact") or "(none)")[:200],
         passed=resolved,
         latency_ms=latency_ms,
-        cost_usd=cost_usd,
+        cost=cost,
         trace_id=trace_id,
         error=error,
     )
@@ -207,7 +210,7 @@ def run(
     output_root: Path = Path("benchmarks/results"),
 ) -> dict:
     """Run the benchmark; write results.jsonl + summary.json; return summary."""
-    os.environ["AUTOSENTINEL_BUDGET_LIMIT_USD"] = str(budget)
+    os.environ["AUTOSENTINEL_BUDGET_LIMIT_CNY"] = str(budget)
     if use_mock:
         # Allow a $0 run without real keys; the injected mock agents never call
         # the concrete clients these placeholder keys would configure.
@@ -242,7 +245,7 @@ def run(
     n = len(scenarios)
     v2_latencies = [r.latency_ms for r in v2_results]
     v2_passed = sum(1 for r in v2_results if r.passed)
-    v2_cost_total = sum((r.cost_usd for r in v2_results), Decimal("0"))
+    v2_cost_total = sum((r.cost for r in v2_results), Decimal("0"))
 
     # SC-013: false negative = SECURITY-category, HIGH_RISK ground truth, but the
     # pipeline returned a non-HIGH_RISK verdict.
@@ -267,13 +270,15 @@ def run(
         "v1": {
             "latency_ms": {"p50": _percentile(v1_latencies, 50),
                            "p95": _percentile(v1_latencies, 95)},
-            "total_cost_usd": str(Decimal("0")),  # v1 is mock-classify, no LLM spend
+            "total_cost": str(Decimal("0")),  # v1 is mock-classify, no LLM spend
+            "cost_currency": "CNY",
             "resolution_rate": round(v1_resolved / n, 2) if n else 0.0,
         },
         "v2": {
             "latency_ms": {"p50": _percentile(v2_latencies, 50),
                            "p95": _percentile(v2_latencies, 95)},
-            "total_cost_usd": str(v2_cost_total),
+            "total_cost": str(v2_cost_total),
+            "cost_currency": "CNY",
             "resolution_rate": round(v2_passed / n, 2) if n else 0.0,
         },
         "security_subset": {
@@ -298,8 +303,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="AutoSentinel v1/v2 benchmark runner")
     parser.add_argument("--scenarios", type=Path, required=True,
                         help="directory of scenario yaml files")
-    parser.add_argument("--budget", default="20.6",
-                        help="per-run LLM budget in USD (AUTOSENTINEL_BUDGET_LIMIT_USD)")
+    parser.add_argument("--budget", default="150",
+                        help="per-run LLM budget in CNY (AUTOSENTINEL_BUDGET_LIMIT_CNY)")
     parser.add_argument("--use-mock", action="store_true",
                         help="inject MockLLMClient agents ($0, no real provider)")
     args = parser.parse_args(argv)

@@ -165,7 +165,7 @@ versa. One extra `docker compose up` invocation in quickstart.
 ## Decision 6 — In-process CostGuard state (vs. Redis)
 
 **Decision**: `CostGuard` is a module-level singleton with a `threading.Lock`.
-State (`total_spent_usd`, `call_count`, `last_updated`) lives in process memory
+State (`total_spent`, `call_count`, `last_updated`) lives in process memory
 and resets on restart.
 
 **Rationale**: Sprint 5 is single-process. The benchmark runner is a single
@@ -327,5 +327,5 @@ research file (this section), satisfying FR-517's audit requirement.
   `glm_client.py`) keyed by the Ark endpoint id the factory passes. If a future
   SDK quirk under-reports, CostGuard could
   silently undershoot the budget. Mitigation: `tests/integration/test_cost_guard_pipeline.py`
-  asserts `summary.json.total_cost_usd` matches the sum of per-call costs in
+  asserts `summary.json.total_cost` matches the sum of per-call costs in
   `results.jsonl`, catching drift.

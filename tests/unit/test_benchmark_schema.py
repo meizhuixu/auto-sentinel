@@ -39,7 +39,7 @@ def _valid_result(**overrides) -> BenchmarkResult:
         actual_resolution="added null check",
         passed=True,
         latency_ms=1234,
-        cost_usd=Decimal("0.0001"),
+        cost=Decimal("0.0001"),
         trace_id="0" * 32,
     )
     kwargs.update(overrides)
@@ -145,14 +145,14 @@ class TestBenchmarkResult:
     def test_latency_ms_accepts_zero(self):
         assert _valid_result(latency_ms=0).latency_ms == 0
 
-    def test_cost_usd_rejects_negative(self):
+    def test_cost_rejects_negative(self):
         with pytest.raises(ValidationError):
-            _valid_result(cost_usd=Decimal("-0.01"))
+            _valid_result(cost=Decimal("-0.01"))
 
-    def test_cost_usd_is_decimal_with_preserved_precision(self):
-        r = _valid_result(cost_usd=Decimal("0.000000123456"))
-        assert isinstance(r.cost_usd, Decimal)
-        assert r.cost_usd == Decimal("0.000000123456")
+    def test_cost_is_decimal_with_preserved_precision(self):
+        r = _valid_result(cost=Decimal("0.000000123456"))
+        assert isinstance(r.cost, Decimal)
+        assert r.cost == Decimal("0.000000123456")
 
     def test_error_field_optional_and_settable_at_construction(self):
         r = _valid_result(error="pipeline raised before Verifier")

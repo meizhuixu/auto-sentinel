@@ -15,8 +15,8 @@ Behavioural contract (contracts/llm-client.md §"Side-effects"):
   2. Open LLMTracer(trace_id, project='auto-sentinel', component=agent_name, model).
   3. Call SDK inside the tracer span with tenacity retry (3 attempts).
   4. set_tokens / set_cost_breakdown on the tracer.
-  5. Build LLMResponse with Decimal cost_usd.
-  6. POST-response: cost_guard.accumulate(cost_usd) — may raise CostGuardError.
+  5. Build LLMResponse with Decimal cost.
+  6. POST-response: cost_guard.accumulate(cost) — may raise CostGuardError.
 """
 
 from __future__ import annotations
@@ -31,7 +31,6 @@ import tenacity
 
 from autosentinel.llm.cost_guard import get_cost_guard
 from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
-from autosentinel.llm.pricing import CNY_PER_USD
 from autosentinel.llm.protocol import LLMRequest, LLMResponse, Message
 
 # Module-level patch target for unit tests. Wrapping in try/except lets the
@@ -44,26 +43,22 @@ except ImportError:
     LLMTracer = None  # type: ignore[assignment,misc]
 
 
-# Ark per-model pricing in **CNY per 1M tokens**, as billed by the Volcano Ark
-# console. The factory passes the Ark endpoint id as `model`, so the table is
-# keyed by endpoint id; the friendly names are retained as aliases for unit
-# tests and readability. CNY→USD happens via the single CNY_PER_USD source
-# (see pricing.py) at compute time — never store USD rates here.
+# Ark per-model pricing in **CNY per 1M tokens** — the native billing currency.
+# No exchange-rate conversion happens anywhere: cost is recorded in CNY and the
+# CostGuard runs a CNY budget. The factory passes the Ark endpoint id as
+# `model`, so the table is keyed by endpoint id; friendly names are retained as
+# aliases for unit tests and readability.
 #
 # Doubao-1.5-lite-32k (Supervisor/Verifier): ¥0.3 in / ¥0.6 out — flat tier.
-# Doubao-Seed-2.0-pro (Diagnosis/CodeFixer/InfraSRE): ¥2.88 in / ¥14.4 out.
-#   This is the 9折 (10%-off) *regular* inference tier, NOT the low-latency
-#   "Fast" tier (¥9.6/¥48). List price for this tier is ¥3.2/¥16.
-#   TODO(verify-doubao-discount): the ¥2.88/¥14.4 rate is a discount off the
-#   ¥3.2/¥16 list; the Volcano console documents its deeper discounts as
-#   limited-time promotions (首月/春节限时), and we could NOT confirm whether
-#   this 9折 is permanent. Re-confirm in the console; if the promo lapses,
-#   revert to the ¥3.2/¥16 list price.
+# Doubao-Seed-2.0-pro (Diagnosis/CodeFixer/InfraSRE): ¥3.2 in / ¥16 out — the
+#   list price of the regular inference tier (NOT the low-latency "Fast" tier
+#   at ¥9.6/¥48). Using list price avoids depending on a possibly-limited-time
+#   discount.
 _ARK_PRICING_CNY_PER_M: dict[str, dict[str, float]] = {
     "ep-20260508052205-6x8hm": {"input": 0.30, "output": 0.60},  # doubao-1.5-lite-32k
     "doubao-1.5-lite-32k": {"input": 0.30, "output": 0.60},
-    "ep-20260508052420-fwq5q": {"input": 2.88, "output": 14.40},  # doubao-seed-2.0-pro
-    "doubao-seed-2.0-pro": {"input": 2.88, "output": 14.40},
+    "ep-20260508052420-fwq5q": {"input": 3.20, "output": 16.00},  # doubao-seed-2.0-pro
+    "doubao-seed-2.0-pro": {"input": 3.20, "output": 16.00},
 }
 
 
@@ -144,31 +139,35 @@ class ArkLLMClient:
             prompt_tokens = sdk_response.usage.prompt_tokens
             completion_tokens = sdk_response.usage.completion_tokens
 
-            input_usd, output_usd = self._compute_cost(
+            input_cost, output_cost = self._compute_cost(
                 model, prompt_tokens, completion_tokens
             )
 
             # Tracer enrichment — absorbed by MagicMock in tests; no-op when
-            # the dashboard isn't installed (tracer is None).
+            # the dashboard isn't installed (tracer is None). Costs are CNY
+            # (Ark's billing currency); the tracer call is currency-neutral.
             if tracer is not None and hasattr(tracer, "set_tokens"):
                 tracer.set_tokens(prompt=prompt_tokens, completion=completion_tokens)
             if tracer is not None and hasattr(tracer, "set_cost_breakdown"):
-                tracer.set_cost_breakdown(input_usd=input_usd, output_usd=output_usd)
+                tracer.set_cost_breakdown(
+                    input_cost=input_cost, output_cost=output_cost, currency="CNY"
+                )
 
-        cost_usd = Decimal(str(input_usd + output_usd))
+        cost = Decimal(str(input_cost + output_cost))
         response = LLMResponse(
             content=content,
             model=model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            cost_usd=cost_usd,
+            cost=cost,
+            currency="CNY",
             latency_ms=latency_ms,
             trace_id=trace_id,
         )
 
         # Post-response accumulation. CostGuardError may be raised here;
         # the caller has the LLMResponse in hand by design (contract Step 6).
-        get_cost_guard().accumulate(cost_usd)
+        get_cost_guard().accumulate(cost, "CNY")
 
         return response
 
@@ -193,6 +192,6 @@ class ArkLLMClient:
         model: str, prompt_tokens: int, completion_tokens: int
     ) -> tuple[float, float]:
         prices = _ARK_PRICING_CNY_PER_M.get(model, {"input": 0.0, "output": 0.0})
-        input_usd = (prompt_tokens / 1_000_000) * prices["input"] / CNY_PER_USD
-        output_usd = (completion_tokens / 1_000_000) * prices["output"] / CNY_PER_USD
-        return input_usd, output_usd
+        input_cost = (prompt_tokens / 1_000_000) * prices["input"]
+        output_cost = (completion_tokens / 1_000_000) * prices["output"]
+        return input_cost, output_cost

@@ -54,7 +54,7 @@ def _seed_high_risk_checkpoint(incident_id: str, log: Path) -> None:
         "agent_trace": [],
         "approval_required": False,
         "trace_id": incident_id,  # trace_id == incident_id == thread_id
-        "cost_accumulated_usd": 0.0,
+        "cost_accumulated": 0.0,
     }
     cfg = {"configurable": {"thread_id": incident_id}}
     with PostgresSaver.from_conn_string(CHECKPOINTER_DSN) as checkpointer:

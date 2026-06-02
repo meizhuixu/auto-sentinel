@@ -9,7 +9,8 @@ Replace the deterministic Sprint 4 mocks on five of the six agents (Diagnosis,
 Supervisor, CodeFixer, InfraSRE, SecurityReviewer) with real LLM-backed reasoning
 behind a single provider-agnostic abstraction at `autosentinel/llm/`. The Verifier
 remains deterministic by design (path (a) decision in spec). Cost is governed by
-a singleton `CostGuard` with a hard `$20.6` per-run ceiling (≈ ¥150 at 7.3 ¥/USD);
+a singleton `CostGuard` with a hard `¥150` per-run ceiling (native CNY — all
+three Volcano Ark models bill in CNY, so there is no exchange-rate conversion);
 trace propagation flows from the FastAPI ingest endpoint through `AgentState`
 into the existing project-4 `LLMTracer` (sync context manager). Cross-process
 interrupt durability is delivered by swapping `MemorySaver` for `PostgresSaver`
@@ -32,7 +33,7 @@ the LLMTracer (which is itself sync).
 **Target Platform**: macOS/Linux developer machine + CI (CI runs smoke benchmark with mock client; full 50-scenario run is manual)
 **Project Type**: Multi-agent LangGraph pipeline + FastAPI ingest
 **Performance Goals**: end-to-end p95 latency ≤ 90 s on 50-scenario run; resolution rate ≥ 70 %; SECURITY-subset false-negative count = 0 (SC-013, non-negotiable)
-**Constraints**: per-run LLM budget hard-capped at $20.6 USD (CostGuard); provider SDK imports confined to `autosentinel/llm/` (Constitution VII.1, AST-enforced); no hard-coded model names or endpoint URLs in agent code (VII.4); `trace_id` mandatory on every LLM call (VII.3)
+**Constraints**: per-run LLM budget hard-capped at ¥150 CNY (CostGuard; native currency, no conversion); provider SDK imports confined to `autosentinel/llm/` (Constitution VII.1, AST-enforced); no hard-coded model names or endpoint URLs in agent code (VII.4); `trace_id` mandatory on every LLM call (VII.3)
 **Scale/Scope**: 5 LLM-backed agents + 1 deterministic Verifier; 50 benchmark scenarios distributed 12 CODE / 15 INFRA / 8 SECURITY / 15 CONFIG; single-process pipeline today (Redis/cross-process state out of scope per FR-513)
 
 ## Constitution Check
@@ -130,7 +131,7 @@ tests/
 │   └── test_multi_agent_graph.py         ← UPDATE: SC-015 non-regression
 ├── benchmark_smoke/                      ← NEW: CI smoke subset, MockLLMClient, 5 scenarios
 │   └── test_smoke_benchmark.py
-└── conftest.py                           ← UPDATE: AgentState gains trace_id + cost_accumulated_usd; CostGuard reset_for_test fixture
+└── conftest.py                           ← UPDATE: AgentState gains trace_id + cost_accumulated; CostGuard reset_for_test fixture
 
 .github/
 └── pull_request_template.md              ← UPDATE: scenario-authored-by checkbox
@@ -194,12 +195,12 @@ in the same PR that wires real LLMs.
 
 | Aspect | Decision |
 |---|---|
-| Trigger point | **After** `complete()` returns: accumulate using actual `LLMResponse.cost_usd` (Ark + GLM both return token usage; we trust the provider over a pre-call estimate). |
-| Threshold semantics | `if current_total + new_call.cost_usd > BUDGET_LIMIT_USD: raise CostGuardError` — strict `>`, no buffer. The successful response is still returned to the caller; the **next** outbound call is what trips the guard. |
-| Budget value | `BUDGET_LIMIT_USD = 20.6` (≈ ¥150 @ 7.3 ¥/USD), sourced from env var `AUTOSENTINEL_BUDGET_LIMIT_USD` with this as default. |
+| Trigger point | **After** `complete()` returns: accumulate using actual `LLMResponse.cost` (Ark + GLM both return token usage; we trust the provider over a pre-call estimate). |
+| Threshold semantics | `if current_total + new_call.cost > BUDGET_LIMIT_CNY: raise CostGuardError` — strict `>`, no buffer. The successful response is still returned to the caller; the **next** outbound call is what trips the guard. |
+| Budget value | `¥150` (native CNY — the MD original figure, no longer a USD conversion), sourced from env var `AUTOSENTINEL_BUDGET_LIMIT_CNY` with `"150"` as default. The CostGuard is CNY-denominated; `accumulate()` is same-currency only. |
 | Granularity | Global (single accumulator). **No per-agent quota** — over-engineered for a 5-LLM-agent pipeline. |
 | Persistence | **In-process only.** Restarts clear the counter. Documented as deliberate trade-off: Sprint 5 is single-process; Redis/Postgres CostGuard state would be over-engineering. Benchmark runner is a single-process batch — no cross-process budget view needed. |
-| Error path | `CostGuardError` raised from inside agent `run()` → LangGraph routes to `cost_exhausted_node` → END. `state.cost_accumulated_usd` and any partial `fix_artifact` are persisted; `agent_trace` appends `"cost_guard_triggered"`. **The user's partial fix is NOT lost mid-pipeline.** |
+| Error path | `CostGuardError` raised from inside agent `run()` → LangGraph routes to `cost_exhausted_node` → END. `state.cost_accumulated` and any partial `fix_artifact` are persisted; `agent_trace` appends `"cost_guard_triggered"`. **The user's partial fix is NOT lost mid-pipeline.** |
 | Test reset | `reset_for_test()` is callable **only** when `os.environ.get("PYTEST_CURRENT_TEST")` is set; otherwise raises `RuntimeError`. |
 
 ### Block 3 — Trace Propagation
@@ -319,10 +320,10 @@ files under `autosentinel/agents/` for the substrings `doubao-`, `glm-`,
 | Migration of existing 5 | files `001_*.yaml` … `005_*.yaml` are direct migrations of `autosentinel/benchmark.py` `SCENARIOS[0..4]`. yaml `error_log_path` field references existing `data/benchmark/benchmark-{code,config,infra,security,unknown}.json` fixtures — content is **not** copied. |
 | Inline SCENARIOS removal | Same PR that introduces yamls deletes the inline `SCENARIOS: list[dict]` from `autosentinel/benchmark.py` — fulfils FR-516 "MUST live in a structured data file, not inline in benchmark runner code". |
 | Schema | `BenchmarkScenario` Pydantic v2 model (see `data-model.md`). |
-| Runner | `scripts/run_benchmark.py --scenarios <dir> --budget <usd> --use-mock`. |
+| Runner | `scripts/run_benchmark.py --scenarios <dir> --budget <cny> --use-mock`. |
 | CI smoke vs full | **CI runs smoke only** — `pytest tests/benchmark_smoke/` runs the 5 migrated scenarios (`001_*` through `005_*`, which after s05 reclassification cover all 4 categories: 2 CODE + 1 INFRA + 1 CONFIG + 1 SECURITY) using `MockLLMClient`, costs $0. Full 50-scenario run is manual: `python scripts/run_benchmark.py …`, costs ~$4-7 per run. Single source of truth for smoke composition is `contracts/benchmark-scenario.md`. |
 | Output | `benchmarks/results/{run_id}/results.jsonl` + `summary.json`; `run_id = YYYYMMDD-HHMMSS-{git_short_sha}`. |
-| Summary fields | per-category latency p50/p95, total cost USD, resolution rate, **SECURITY false-negative count** (SC-013 verification). |
+| Summary fields | per-category latency p50/p95, total cost CNY (with `cost_currency` tag), resolution rate, **SECURITY false-negative count** (SC-013 verification). |
 | Anti-AI-authoring gate (3-tier) | (1) PR template checkbox `[ ] All new benchmark scenarios were human-authored before commit`; (2) commit adding scenarios MUST include `Scenario-Authored-By: <human>` trailer in message; (3) `scripts/check_scenario_authorship.py` runs in CI on PR diffs touching `benchmarks/scenarios/*.yaml`, fails the build if the trailer is absent. |
 
 ## Implementation Phases
@@ -339,7 +340,7 @@ files under `autosentinel/agents/` for the substrings `doubao-`, `glm-`,
 
 - Update `DiagnosisAgent`, `CodeFixerAgent`, `InfraSREAgent`, `SecurityReviewerAgent` constructors to accept `llm_client: LLMClient`.
 - Replace `# TODO(W2)` mock bodies with real LLM calls via injected client.
-- Extend `AgentState` TypedDict in `autosentinel/models.py` (Sprint 5 section: `trace_id`, `cost_accumulated_usd`).
+- Extend `AgentState` TypedDict in `autosentinel/models.py` (Sprint 5 section: `trace_id`, `cost_accumulated`).
 - Remove `unittest.mock.patch.object(CodeFixerAgent, ...)` from `autosentinel/benchmark.py`.
 - Test-First: each `test_*_agent.py` updated to inject `MockLLMClient`.
 

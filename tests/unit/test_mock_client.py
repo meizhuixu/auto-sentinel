@@ -42,7 +42,7 @@ def _fixture_response() -> LLMResponse:
         model="doubao-seed-2.0-pro",
         prompt_tokens=10,
         completion_tokens=20,
-        cost_usd=Decimal("0.0005"),
+        cost=Decimal("0.0005"),
         latency_ms=12,
         trace_id=VALID_TRACE_ID,
     )

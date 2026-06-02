@@ -52,12 +52,12 @@ def _probe(agent_name: str, trace_id: str) -> tuple[bool, str]:
         max_tokens=PING_MAX_TOKENS,
         temperature=cfg.temperature,
     )
-    priced = resp.cost_usd > Decimal("0")
+    priced = resp.cost > Decimal("0")
     line = (
         f"  endpoint={cfg.model}  latency={resp.latency_ms}ms  "
         f"tokens={resp.prompt_tokens}+{resp.completion_tokens}  "
-        f"cost=${resp.cost_usd:.6f}"
-        f"{'' if priced else '   ⚠️  cost is $0 — price table miss!'}"
+        f"cost={resp.cost:.6f} {resp.currency}"
+        f"{'' if priced else '   ⚠️  cost is 0 — price table miss!'}"
     )
     return priced, line
 
