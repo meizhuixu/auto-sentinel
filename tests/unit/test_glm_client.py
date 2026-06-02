@@ -1,15 +1,14 @@
 """Contract tests for autosentinel/llm/glm_client.py — concrete OpenAI-SDK
-client pointed at Zhipu BigModel base_url
+client for GLM-4.7, now served through the Volcano Ark proxy gateway
 (contracts/llm-client.md §"Behavioural contract" + plan.md Block 1).
 
-Same shape as test_ark_client.py but the base_url is Zhipu's and the
-model is glm-4.7 (used by the SecurityReviewer).
-
-Today (T013 commit) tests error on collection because glm_client.py does
-not exist yet. T022 implements and turns GREEN.
+Same shape as test_ark_client.py. GLM-4.7 no longer routes through the
+first-party Zhipu gateway (open.bigmodel.cn); all three access points live
+under Volcano Ark, so the base_url is the Ark gateway and the model is the
+Ark endpoint id (ep-20260508052924-6zchc) used by the SecurityReviewer.
 
 3 cases against httpx.MockTransport:
-  1. Happy path → LLMResponse + LLMTracer opened with trace_id
+  1. Happy path → LLMResponse (with non-zero priced cost) + LLMTracer opened
   2. httpx.TimeoutException → 3 retries → LLMTimeoutError
   3. HTTP 5xx → LLMProviderError
 """
@@ -26,13 +25,16 @@ from autosentinel.llm.protocol import LLMResponse, Message
 
 
 VALID_TRACE_ID = "fedcba9876543210fedcba9876543210"
-GLM_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
+# GLM-4.7 is reached through the Volcano Ark gateway, not the Zhipu gateway.
+GLM_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
+# Volcano Ark endpoint id for the GLM-4.7 access point.
+GLM_ENDPOINT_ID = "ep-20260508052924-6zchc"
 
 
 def _complete_kwargs(**overrides) -> dict:
     base = {
         "messages": [Message(role="user", content="review this fix")],
-        "model": "glm-4.7",
+        "model": GLM_ENDPOINT_ID,
         "trace_id": VALID_TRACE_ID,
         "agent_name": "security_reviewer",
         "max_tokens": 2048,
@@ -53,10 +55,10 @@ def _make_client(transport: httpx.MockTransport) -> GlmLLMClient:
 @patch("autosentinel.llm.glm_client.LLMTracer")
 def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
     def handler(request: httpx.Request) -> httpx.Response:
-        # The OpenAI SDK targets Zhipu's /chat/completions endpoint; the
-        # request URL must contain the Zhipu host so the test also pins
-        # the base_url wiring.
-        assert request.url.host == "open.bigmodel.cn", (
+        # The OpenAI SDK targets the Volcano Ark /chat/completions endpoint;
+        # the request URL must contain the Ark host so the test also pins
+        # the base_url wiring (GLM is no longer on open.bigmodel.cn).
+        assert request.url.host == "ark.cn-beijing.volces.com", (
             f"GlmLLMClient sent request to wrong host: {request.url}"
         )
         return httpx.Response(
@@ -65,7 +67,7 @@ def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
                 "id": "chatcmpl-glm-1",
                 "object": "chat.completion",
                 "created": 1_700_000_000,
-                "model": "glm-4.7",
+                "model": GLM_ENDPOINT_ID,
                 "choices": [
                     {
                         "index": 0,
@@ -89,15 +91,18 @@ def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
     assert resp.prompt_tokens == 50
     assert resp.completion_tokens == 5
     assert resp.trace_id == VALID_TRACE_ID
-    assert resp.cost_usd >= Decimal("0")
-    assert resp.model == "glm-4.7"
+    # Pricing must resolve for the Ark endpoint id (the price table is keyed
+    # by the model string the factory passes — i.e. the endpoint id), so a
+    # priced GLM call yields a strictly positive cost, not the 0.0 fallback.
+    assert resp.cost_usd > Decimal("0")
+    assert resp.model == GLM_ENDPOINT_ID
 
     mock_tracer_cls.assert_called_once()
     call_kwargs = mock_tracer_cls.call_args.kwargs
     assert call_kwargs.get("trace_id") == VALID_TRACE_ID
     assert call_kwargs.get("project") == "auto-sentinel"
     assert call_kwargs.get("component") == "security_reviewer"
-    assert call_kwargs.get("model") == "glm-4.7"
+    assert call_kwargs.get("model") == GLM_ENDPOINT_ID
 
 
 @patch("autosentinel.llm.glm_client.LLMTracer")

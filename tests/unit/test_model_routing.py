@@ -70,6 +70,27 @@ def test_valid_config_backfills_endpoint_alias():
     assert cfg.agents["diagnosis"].endpoint_alias == "ark"
 
 
+def test_security_reviewer_routes_through_volcano_ark():
+    """All three access points are provisioned under Volcano Ark — GLM-4.7 no
+    longer uses the first-party Zhipu gateway. The production routing config
+    MUST resolve security_reviewer to the Ark base_url, reuse ARK_API_KEY
+    (no separate GLM_API_KEY), and address GLM by its Ark endpoint id."""
+    import yaml
+    from pathlib import Path
+
+    data = yaml.safe_load(Path("config/model_routing.yaml").read_text())
+    cfg = ModelRoutingConfig.model_validate(data)
+
+    sr = cfg.agents["security_reviewer"]
+    endpoint = cfg.endpoints[sr.endpoint_alias]
+
+    assert str(endpoint.base_url).rstrip("/") == (
+        "https://ark.cn-beijing.volces.com/api/v3"
+    )
+    assert endpoint.api_key_env == "ARK_API_KEY"
+    assert sr.model == "ep-20260508052924-6zchc"
+
+
 def test_missing_api_key_env_var_raises_configuration_error(monkeypatch, tmp_path):
     """When the configured api_key_env name is not set in os.environ, the
     factory must fail-fast with ConfigurationError at build time."""
