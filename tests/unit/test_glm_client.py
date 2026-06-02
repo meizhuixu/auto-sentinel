@@ -21,8 +21,13 @@ import pytest
 
 from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
 from autosentinel.llm.glm_client import GlmLLMClient
+from autosentinel.llm.pricing import CNY_PER_USD
 from autosentinel.llm.protocol import LLMResponse, Message
 
+
+# Real Volcano Ark unit price for GLM-4.7 (CNY per 1M tokens), input≤32k /
+# output≤200 tier: ¥2 / ¥8. The spec this test pins.
+GLM_CNY = {"input": 2.0, "output": 8.0}
 
 VALID_TRACE_ID = "fedcba9876543210fedcba9876543210"
 # GLM-4.7 is reached through the Volcano Ark gateway, not the Zhipu gateway.
@@ -92,8 +97,11 @@ def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
     assert resp.completion_tokens == 5
     assert resp.trace_id == VALID_TRACE_ID
     # Pricing must resolve for the Ark endpoint id (the price table is keyed
-    # by the model string the factory passes — i.e. the endpoint id), so a
-    # priced GLM call yields a strictly positive cost, not the 0.0 fallback.
+    # by the model string the factory passes — i.e. the endpoint id). Cost is
+    # the CNY rate (¥2/¥8) converted to USD via the single CNY_PER_USD source.
+    expected_usd = (50 / 1_000_000 * GLM_CNY["input"]
+                    + 5 / 1_000_000 * GLM_CNY["output"]) / CNY_PER_USD
+    assert float(resp.cost_usd) == pytest.approx(expected_usd)
     assert resp.cost_usd > Decimal("0")
     assert resp.model == GLM_ENDPOINT_ID
 
