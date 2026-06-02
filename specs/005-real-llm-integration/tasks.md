@@ -189,9 +189,9 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 
 ## Phase 8: Polish & Cross-Cutting Concerns (PR-5 tail — merged into the same PR per plan.md)
 
-- [ ] T065 [P] [PR-5] Run full test suite + verify 100 % branch coverage on `autosentinel/llm/`: `pytest tests/ --cov=autosentinel.llm --cov-fail-under=100`. Constitution III gate.
+- [X] T065 [P] [PR-5] Run full test suite + verify 100 % branch coverage on `autosentinel/llm/`: `pytest tests/ --cov=autosentinel.llm --cov-fail-under=100`. Constitution III gate.
 - [ ] T066 [PR-5] Run full 50-scenario benchmark **manually** (real LLM cost ~$4-7): `python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 20.6`. Open `benchmarks/results/{run_id}/summary.json`; assert `v2.latency_ms.p95 ≤ 90000` (SC-008), `v2.resolution_rate ≥ 0.70` (SC-009), `security_subset.v2_false_negative_count == 0` (SC-013, non-negotiable). Attach full summary.json to PR-5 description.
-- [ ] T067 [P] [PR-5] Re-run Sprint 4 acceptance scenarios SC-001..SC-005 for non-regression (SC-015): `pytest tests/integration/test_multi_agent_graph.py tests/test_benchmark.py` with `MockLLMClient` injected so no real cost incurred. All Sprint 4 SCs MUST still pass.
+- [X] T067 [P] [PR-5] Re-run Sprint 4 acceptance scenarios SC-001..SC-005 for non-regression (SC-015): `pytest tests/integration/test_multi_agent_graph.py tests/test_benchmark.py` with `MockLLMClient` injected so no real cost incurred. All Sprint 4 SCs MUST still pass.
 - [ ] T068 [PR-5] Run `quickstart.md` end-to-end against a clean checkout: `docker compose up`, `uvicorn autosentinel.api.main:app`, `curl /alerts`, verify `trace_id` lands in Langfuse UI as one parent trace with child spans per LLM-call agent.
 
 ---
