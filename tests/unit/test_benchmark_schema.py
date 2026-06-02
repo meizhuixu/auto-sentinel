@@ -24,6 +24,7 @@ def _valid_scenario(**overrides) -> BenchmarkScenario:
         expected_classification="CODE",
         expected_resolution_action="Add null-check guard",
         ground_truth_notes="defensive null-check at access point",
+        expected_security_verdict="SAFE",
         human_labeled_by="meizhuixu",
         labeled_at=date(2026, 5, 9),
     )
@@ -99,6 +100,29 @@ class TestBenchmarkScenario:
     def test_labeled_at_is_a_date(self):
         s = _valid_scenario(labeled_at=date(2026, 5, 8))
         assert s.labeled_at == date(2026, 5, 8)
+
+    @pytest.mark.parametrize("verdict", ["SAFE", "CAUTION", "HIGH_RISK"])
+    def test_expected_security_verdict_accepts_valid(self, verdict):
+        assert _valid_scenario(expected_security_verdict=verdict).expected_security_verdict == verdict
+
+    @pytest.mark.parametrize("bad_verdict", ["safe", "RISKY", "", "high_risk", "UNKNOWN"])
+    def test_expected_security_verdict_rejects_invalid(self, bad_verdict):
+        with pytest.raises(ValidationError):
+            _valid_scenario(expected_security_verdict=bad_verdict)
+
+    def test_expected_security_verdict_is_required(self):
+        kwargs = dict(
+            scenario_id="001_code_null_pointer",
+            category="CODE",
+            error_log_path=Path("data/benchmark/benchmark-code.json"),
+            expected_classification="CODE",
+            expected_resolution_action="Add null-check guard",
+            ground_truth_notes="defensive null-check at access point",
+            human_labeled_by="meizhuixu",
+            labeled_at=date(2026, 5, 9),
+        )  # no expected_security_verdict
+        with pytest.raises(ValidationError):
+            BenchmarkScenario(**kwargs)
 
 
 # --- BenchmarkResult ---

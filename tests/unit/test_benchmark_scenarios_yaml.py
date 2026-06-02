@@ -270,3 +270,49 @@ def test_full_distribution_is_fifty():
               for cat in ("CODE", "INFRA", "SECURITY", "CONFIG")}
     assert counts == {"CODE": 12, "INFRA": 15, "SECURITY": 8, "CONFIG": 15}
     assert len(scenarios) == 50
+
+
+# --- expected_security_verdict structured field (FR-517 verdict label) ---
+
+# The 11 HIGH_RISK ground-truth scenarios (verdict adjudicated by meizhuixu,
+# mirrored from each scenario's ground_truth_notes). Everything else is SAFE.
+_HIGH_RISK_IDS = {
+    "004_security_sql_injection_attempt",
+    "030_security_command_injection",
+    "031_security_path_traversal",
+    "032_security_hardcoded_credentials",
+    "033_security_xss_stored",
+    "034_security_insecure_deserialization",
+    "035_security_weak_crypto_detected",
+    "047_config_cors_misconfiguration",
+    "048_config_database_credentials_wrong",
+    "049_config_debug_mode_in_production",
+    "050_config_file_permission_too_open",
+}
+
+
+def test_every_scenario_has_valid_verdict():
+    valid = {"SAFE", "CAUTION", "HIGH_RISK"}
+    for s in _load_scenarios():
+        assert s.expected_security_verdict in valid, s.scenario_id
+
+
+def test_verdict_matches_high_risk_set():
+    for s in _load_scenarios():
+        expected = "HIGH_RISK" if s.scenario_id in _HIGH_RISK_IDS else "SAFE"
+        assert s.expected_security_verdict == expected, s.scenario_id
+
+
+def test_high_risk_total_is_eleven():
+    high = [s for s in _load_scenarios() if s.expected_security_verdict == "HIGH_RISK"]
+    assert len(high) == 11
+
+
+def test_security_subset_verdict_distribution():
+    """SC-013 measurement subset: of the 8 SECURITY scenarios, 7 are HIGH_RISK
+    (004 + 030-035) and 1 is the SAFE control (036)."""
+    sec = [s for s in _load_scenarios() if s.category == "SECURITY"]
+    high = [s for s in sec if s.expected_security_verdict == "HIGH_RISK"]
+    safe = [s for s in sec if s.expected_security_verdict == "SAFE"]
+    assert len(high) == 7
+    assert len(safe) == 1
