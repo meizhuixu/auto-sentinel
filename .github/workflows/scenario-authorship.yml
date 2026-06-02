@@ -1,12 +1,12 @@
 # Sprint 5 T064 — benchmark scenario authorship gate (FR-517, contracts Tier 3).
 #
-# NOTE: this is the repo's FIRST GitHub Actions workflow (see DEBT.md "CI gap").
-# Until a CI runner is connected, it does NOT actually execute on PRs — it is
-# committed as the wiring so the gate runs the moment Actions is enabled. The
-# broader ruff/mypy/pytest/import-boundary CI is the separate chore PR tracked
-# in DEBT.md.
+# Runs on the connected GitHub Actions runner. The broader ruff/mypy/pytest/
+# import-boundary CI is still a separate chore PR tracked in DEBT.md.
 #
 # The `paths:` filter makes this a fast no-op for PRs that touch no scenarios.
+# `fetch-depth: 0` plus passing the base commit SHA is required so
+# `git merge-base` resolves — the runner checkout has no local `main` branch,
+# only origin/* refs and the fetched base SHA.
 name: Scenario Authorship
 
 on:
@@ -25,4 +25,6 @@ jobs:
         with:
           python-version: "3.11"
       - name: Verify Scenario-Authored-By trailers
-        run: python scripts/check_scenario_authorship.py "${{ github.base_ref }}"
+        # Pass the base commit SHA (always fetched with depth 0 and resolvable),
+        # not the bare branch name which has no local ref on the runner.
+        run: python scripts/check_scenario_authorship.py "${{ github.event.pull_request.base.sha }}"

@@ -28,8 +28,35 @@ def _git(*args: str) -> str:
     return subprocess.check_output(["git", *args], text=True).strip()
 
 
+def _resolve_base(base_ref: str) -> str:
+    """Resolve a base ref to a name git can use in this checkout.
+
+    CI (actions/checkout) frequently has no local branch `main` — only
+    `origin/main`, or the workflow passes a base commit SHA. A bare `main`
+    then fails `git merge-base` with exit 128. Try the ref as given, then
+    `origin/<ref>`; a SHA verifies as-is on the first try.
+    """
+    candidates = [base_ref]
+    if "/" not in base_ref:
+        candidates.append(f"origin/{base_ref}")
+    for cand in candidates:
+        try:
+            subprocess.run(
+                ["git", "rev-parse", "--verify", "--quiet", f"{cand}^{{commit}}"],
+                check=True, capture_output=True,
+            )
+            return cand
+        except subprocess.CalledProcessError:
+            continue
+    raise SystemExit(
+        f"scenario-authorship: cannot resolve base ref {base_ref!r} "
+        f"(tried {candidates}). Ensure the base branch/SHA is fetched — the "
+        f"workflow uses actions/checkout with fetch-depth: 0."
+    )
+
+
 def _added_scenario_yamls(base_ref: str) -> list[str]:
-    merge_base = _git("merge-base", base_ref, "HEAD")
+    merge_base = _git("merge-base", _resolve_base(base_ref), "HEAD")
     out = _git("diff", "--name-only", "--diff-filter=A", f"{merge_base}...HEAD")
     paths = []
     for line in out.splitlines():
