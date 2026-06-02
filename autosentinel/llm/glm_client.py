@@ -43,13 +43,20 @@ except ImportError:
 # Ark endpoint id as `model`, so the table is keyed by the endpoint id; the
 # friendly "glm-4.7" alias is retained for unit tests.
 #
-# Tier: ¥2 in / ¥8 out is the **input ≤ 32k tokens, output ≤ 200 tokens**
-# segment. Longer inputs or outputs fall into higher-priced segments — if the
-# SecurityReviewer prompt/response ever exceeds those limits, this rate is wrong
-# and must be re-tiered against the console pricing page.
+# Volcano Ark GLM-4.7 has three segments:
+#   input ≤ 32k, output ≤ 200   → ¥2 / ¥8
+#   input ≤ 32k, output > 200    → ¥3 / ¥14   ← WE USE THIS (main tier)
+#   32k < input ≤ 200K           → ¥4 / ¥16
+# We fix the main tier (¥3/¥14): the real scenario is a <32k log input plus a
+# security-analysis output that always exceeds 200 tokens — the smoke test
+# (scripts/check_endpoints.py) empirically confirmed the SecurityReviewer emits
+# >200 output tokens, so the ¥2/¥8 (output≤200) tier never genuinely applies.
+# Runtime segmentation is NOT implemented — the rate is fixed at the main tier.
+# The rare >32k-input case is slightly under-priced (¥3 vs ¥4 input), negligible
+# at the ¥150 budget scale.
 _GLM_PRICING_CNY_PER_M: dict[str, dict[str, float]] = {
-    "ep-20260508052924-6zchc": {"input": 2.00, "output": 8.00},  # GLM-4.7 (Ark)
-    "glm-4.7": {"input": 2.00, "output": 8.00},
+    "ep-20260508052924-6zchc": {"input": 3.00, "output": 14.00},  # GLM-4.7 (Ark)
+    "glm-4.7": {"input": 3.00, "output": 14.00},
 }
 
 

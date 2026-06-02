@@ -24,9 +24,10 @@ from autosentinel.llm.glm_client import GlmLLMClient
 from autosentinel.llm.protocol import LLMResponse, Message
 
 
-# Real Volcano Ark unit price for GLM-4.7 (CNY per 1M tokens), input≤32k /
-# output≤200 tier: ¥2 / ¥8. Cost is recorded natively in CNY — no conversion.
-GLM_CNY = {"input": 2.0, "output": 8.0}
+# Real Volcano Ark unit price for GLM-4.7 (CNY per 1M tokens). We pin the
+# input≤32k / output>200 main tier (¥3/¥14) — the smoke test confirmed the
+# SecurityReviewer always emits >200 output tokens. Cost is native CNY.
+GLM_CNY = {"input": 3.0, "output": 14.0}
 
 VALID_TRACE_ID = "fedcba9876543210fedcba9876543210"
 # GLM-4.7 is reached through the Volcano Ark gateway, not the Zhipu gateway.
@@ -97,7 +98,7 @@ def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
     assert resp.trace_id == VALID_TRACE_ID
     # Pricing must resolve for the Ark endpoint id (the price table is keyed
     # by the model string the factory passes — i.e. the endpoint id). Cost is
-    # the native CNY amount (¥2/¥8 per 1M tokens) — no exchange conversion.
+    # the native CNY amount (¥3/¥14 per 1M tokens) — no exchange conversion.
     expected_cny = (50 / 1_000_000 * GLM_CNY["input"]
                     + 5 / 1_000_000 * GLM_CNY["output"])
     assert float(resp.cost) == pytest.approx(expected_cny)
