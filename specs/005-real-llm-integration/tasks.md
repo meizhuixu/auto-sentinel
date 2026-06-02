@@ -156,31 +156,32 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 
 ### Schema + migration
 
-- [ ] T048 [US5] [PR-5] Implement `BenchmarkScenario` and `BenchmarkResult` Pydantic v2 schemas at the top of `autosentinel/benchmark.py` per `data-model.md` §9 (frozen, `scenario_id` regex, all numeric fields ≥ 0, `cost_usd: Decimal`). Lands in the same file that T050 rewrites (no new file added; PR-5 reshapes `benchmark.py` to carry both schemas and the runner).
-- [ ] T049 [US5] [PR-5] Migrate Sprint 4 `SCENARIOS[0..4]` to per-file yamls per `contracts/benchmark-scenario.md` Migration map: `001_code_null_user_context.yaml` (s01), `002_infra_db_connection_refused.yaml` (s02), `003_config_jwt_secret_missing.yaml` (s03), `004_security_sql_injection_attempt.yaml` (s04), `005_code_weird_exception.yaml` (s05 reclassified). Each yaml references the existing `data/benchmark/benchmark-{code,infra,config,security,unknown}.json` fixture path. `005_code_weird_exception.yaml` includes an inline comment noting the historical "unknown" prefix on its fixture filename. Each yaml carries `human_labeled_by: meizhuixu`, `labeled_at: 2026-05-09`, and `ground_truth_notes`. Commit message includes `Scenario-Authored-By: meizhuixu` trailer.
-- [ ] T050 [US5] [PR-5] Delete inline `SCENARIOS: list[dict]` from `autosentinel/benchmark.py`; rewrite the runner body to glob `benchmarks/scenarios/*.yaml` via `BenchmarkScenario` loader. Drop `SPRINT4_MOCK_APPROVAL` constant (no longer needed once real CostGuard preserves partial state). FR-516 fulfilled.
+- [X] T048 [US5] [PR-5] Implement `BenchmarkScenario` and `BenchmarkResult` Pydantic v2 schemas at the top of `autosentinel/benchmark.py` per `data-model.md` §9 (frozen, `scenario_id` regex, all numeric fields ≥ 0, `cost_usd: Decimal`). Lands in the same file that T050 rewrites (no new file added; PR-5 reshapes `benchmark.py` to carry both schemas and the runner).
+  - **T048 amendment (PR-5 T060 design)**: added the `expected_security_verdict: Literal["SAFE","CAUTION","HIGH_RISK"]` field to `BenchmarkScenario` + `data-model.md` §9, and back-filled all 50 yamls. Not scope creep — §9 had omitted FR-517's "expected security verdict (where applicable)" label, so the runner had no structured source for `summary.json.security_subset.v2_false_negative_count` (SC-013 / Constitution Principle V). Pure additive completion; no existing field or adjudicated judgment changed.
+- [X] T049 [US5] [PR-5] Migrate Sprint 4 `SCENARIOS[0..4]` to per-file yamls per `contracts/benchmark-scenario.md` Migration map: `001_code_null_user_context.yaml` (s01), `002_infra_db_connection_refused.yaml` (s02), `003_config_jwt_secret_missing.yaml` (s03), `004_security_sql_injection_attempt.yaml` (s04), `005_code_weird_exception.yaml` (s05 reclassified). Each yaml references the existing `data/benchmark/benchmark-{code,infra,config,security,unknown}.json` fixture path. `005_code_weird_exception.yaml` includes an inline comment noting the historical "unknown" prefix on its fixture filename. Each yaml carries `human_labeled_by: meizhuixu`, `labeled_at: 2026-05-09`, and `ground_truth_notes`. Commit message includes `Scenario-Authored-By: meizhuixu` trailer.
+- [X] T050 [US5] [PR-5] Delete inline `SCENARIOS: list[dict]` from `autosentinel/benchmark.py`; rewrite the runner body to glob `benchmarks/scenarios/*.yaml` via `BenchmarkScenario` loader. Drop `SPRINT4_MOCK_APPROVAL` constant (no longer needed once real CostGuard preserves partial state). FR-516 fulfilled.
 
 ### New scenarios (45 total, batched ≤ 5 per task to stay within 2-3 hour budget per task)
 
 > **Authorship gate reminder**: every commit adding scenarios MUST include `Scenario-Authored-By: meizhuixu` trailer. Each yaml's `human_labeled_by` field MUST equal the trailer name. CI gate (T063) enforces this.
 
-- [ ] T051 [P] [US5] [PR-5] Author 5 new CODE scenarios at `benchmarks/scenarios/006_code_*.yaml` … `010_code_*.yaml` (filenames + slugs decided at authoring time; human-curated; one fixture JSON per scenario at `benchmarks/scenarios/fixtures/<id>.json`)
-- [ ] T052 [P] [US5] [PR-5] Author 5 more CODE scenarios at `benchmarks/scenarios/011_code_*.yaml` … `015_code_*.yaml` (final CODE batch — 12 total: 2 migrated + 10 new ✓)
-- [ ] T053 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/016_infra_*.yaml` … `020_infra_*.yaml`
-- [ ] T054 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/021_infra_*.yaml` … `025_infra_*.yaml`
-- [ ] T055 [P] [US5] [PR-5] Author 4 INFRA scenarios at `benchmarks/scenarios/026_infra_*.yaml` … `029_infra_*.yaml` (final INFRA batch — 15 total: 1 migrated + 14 new ✓)
-- [ ] T056 [P] [US5] [PR-5] Author 7 SECURITY scenarios at `benchmarks/scenarios/030_security_*.yaml` … `036_security_*.yaml` (8 total: 1 migrated + 7 new ✓; required for SC-013 false-negative measurement)
-- [ ] T057 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/037_config_*.yaml` … `041_config_*.yaml`
-- [ ] T058 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/042_config_*.yaml` … `046_config_*.yaml`
-- [ ] T059 [P] [US5] [PR-5] Author 4 CONFIG scenarios at `benchmarks/scenarios/047_config_*.yaml` … `050_config_*.yaml` (final CONFIG batch — 15 total: 1 migrated + 14 new ✓; total 50 ✓)
+- [X] T051 [P] [US5] [PR-5] Author 5 new CODE scenarios at `benchmarks/scenarios/006_code_*.yaml` … `010_code_*.yaml` (filenames + slugs decided at authoring time; human-curated; one fixture JSON per scenario at `benchmarks/scenarios/fixtures/<id>.json`)
+- [X] T052 [P] [US5] [PR-5] Author 5 more CODE scenarios at `benchmarks/scenarios/011_code_*.yaml` … `015_code_*.yaml` (final CODE batch — 12 total: 2 migrated + 10 new ✓)
+- [X] T053 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/016_infra_*.yaml` … `020_infra_*.yaml`
+- [X] T054 [P] [US5] [PR-5] Author 5 INFRA scenarios at `benchmarks/scenarios/021_infra_*.yaml` … `025_infra_*.yaml`
+- [X] T055 [P] [US5] [PR-5] Author 4 INFRA scenarios at `benchmarks/scenarios/026_infra_*.yaml` … `029_infra_*.yaml` (final INFRA batch — 15 total: 1 migrated + 14 new ✓)
+- [X] T056 [P] [US5] [PR-5] Author 7 SECURITY scenarios at `benchmarks/scenarios/030_security_*.yaml` … `036_security_*.yaml` (8 total: 1 migrated + 7 new ✓; required for SC-013 false-negative measurement)
+- [X] T057 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/037_config_*.yaml` … `041_config_*.yaml`
+- [X] T058 [P] [US5] [PR-5] Author 5 CONFIG scenarios at `benchmarks/scenarios/042_config_*.yaml` … `046_config_*.yaml`
+- [X] T059 [P] [US5] [PR-5] Author 4 CONFIG scenarios at `benchmarks/scenarios/047_config_*.yaml` … `050_config_*.yaml` (final CONFIG batch — 15 total: 1 migrated + 14 new ✓; total 50 ✓)
 
 ### Runner + smoke + authorship gate
 
-- [ ] T060 [US5] [PR-5] Implement `scripts/run_benchmark.py`: argparse with `--scenarios <dir>`, `--budget <usd>`, `--use-mock`; reads all yamls; runs each through both v1 and v2 pipelines; writes `benchmarks/results/{YYYYMMDD-HHMMSS-{git_short_sha}}/results.jsonl` (one `BenchmarkResult` per line) + `summary.json` per `contracts/benchmark-scenario.md` "Output schema". `total_cost_usd` is JSON-serialised as `str(Decimal)`.
-- [ ] T061 [US5] [PR-5] Implement `tests/benchmark_smoke/test_smoke_benchmark.py`: hard-coded `SMOKE_SCENARIO_IDS = ["001_code_null_user_context", "002_infra_db_connection_refused", "003_config_jwt_secret_missing", "004_security_sql_injection_attempt", "005_code_weird_exception"]` (the 5 migrated scenarios, all categories covered after reclassification); uses `MockLLMClient` with deterministic per-scenario fixture responses; runs in CI; asserts `summary.json` schema compliance + budget never tripped at zero cost.
-- [ ] T062 [P] [US5] [PR-5] Add scenario-authorship checkbox section to `.github/pull_request_template.md` per `contracts/benchmark-scenario.md` "Tier 1 — PR template". (Verify file exists in repo first; create if absent.)
-- [ ] T063 [US5] [PR-5] Implement `scripts/check_scenario_authorship.py`: `git diff --name-only --diff-filter=A <merge_base>...HEAD`; for each new `benchmarks/scenarios/*.yaml`, run `git log --diff-filter=A -- <path>` and grep the resulting commit message for `Scenario-Authored-By:`; non-zero exit + clear error message naming offending file/commit on miss.
-- [ ] T064 [US5] [PR-5] Add `.github/workflows/scenario-authorship.yml` invoking `scripts/check_scenario_authorship.py` on PRs whose paths match `benchmarks/scenarios/**` (workflow `paths:` filter for fast no-op on unrelated PRs).
+- [X] T060 [US5] [PR-5] Implement `scripts/run_benchmark.py`: argparse with `--scenarios <dir>`, `--budget <usd>`, `--use-mock`; reads all yamls; runs each through both v1 and v2 pipelines; writes `benchmarks/results/{YYYYMMDD-HHMMSS-{git_short_sha}}/results.jsonl` (one `BenchmarkResult` per line) + `summary.json` per `contracts/benchmark-scenario.md` "Output schema". `total_cost_usd` is JSON-serialised as `str(Decimal)`.
+- [X] T061 [US5] [PR-5] Implement `tests/benchmark_smoke/test_smoke_benchmark.py`: hard-coded `SMOKE_SCENARIO_IDS = ["001_code_null_user_context", "002_infra_db_connection_refused", "003_config_jwt_secret_missing", "004_security_sql_injection_attempt", "005_code_weird_exception"]` (the 5 migrated scenarios, all categories covered after reclassification); uses `MockLLMClient` with deterministic per-scenario fixture responses; runs in CI; asserts `summary.json` schema compliance + budget never tripped at zero cost.
+- [X] T062 [P] [US5] [PR-5] Add scenario-authorship checkbox section to `.github/pull_request_template.md` per `contracts/benchmark-scenario.md` "Tier 1 — PR template". (Verify file exists in repo first; create if absent.)
+- [X] T063 [US5] [PR-5] Implement `scripts/check_scenario_authorship.py`: `git diff --name-only --diff-filter=A <merge_base>...HEAD`; for each new `benchmarks/scenarios/*.yaml`, run `git log --diff-filter=A -- <path>` and grep the resulting commit message for `Scenario-Authored-By:`; non-zero exit + clear error message naming offending file/commit on miss.
+- [X] T064 [US5] [PR-5] Add `.github/workflows/scenario-authorship.yml` invoking `scripts/check_scenario_authorship.py` on PRs whose paths match `benchmarks/scenarios/**` (workflow `paths:` filter for fast no-op on unrelated PRs).
 
 **Checkpoint**: US5 functional. CI smoke runs on every PR for free; full benchmark runnable manually under budget.
 
@@ -188,9 +189,9 @@ Single Python project. Source under `autosentinel/`, tests under `tests/`, infra
 
 ## Phase 8: Polish & Cross-Cutting Concerns (PR-5 tail — merged into the same PR per plan.md)
 
-- [ ] T065 [P] [PR-5] Run full test suite + verify 100 % branch coverage on `autosentinel/llm/`: `pytest tests/ --cov=autosentinel.llm --cov-fail-under=100`. Constitution III gate.
+- [X] T065 [P] [PR-5] Run full test suite + verify 100 % branch coverage on `autosentinel/llm/`: `pytest tests/ --cov=autosentinel.llm --cov-fail-under=100`. Constitution III gate.
 - [ ] T066 [PR-5] Run full 50-scenario benchmark **manually** (real LLM cost ~$4-7): `python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 20.6`. Open `benchmarks/results/{run_id}/summary.json`; assert `v2.latency_ms.p95 ≤ 90000` (SC-008), `v2.resolution_rate ≥ 0.70` (SC-009), `security_subset.v2_false_negative_count == 0` (SC-013, non-negotiable). Attach full summary.json to PR-5 description.
-- [ ] T067 [P] [PR-5] Re-run Sprint 4 acceptance scenarios SC-001..SC-005 for non-regression (SC-015): `pytest tests/integration/test_multi_agent_graph.py tests/test_benchmark.py` with `MockLLMClient` injected so no real cost incurred. All Sprint 4 SCs MUST still pass.
+- [X] T067 [P] [PR-5] Re-run Sprint 4 acceptance scenarios SC-001..SC-005 for non-regression (SC-015): `pytest tests/integration/test_multi_agent_graph.py tests/test_benchmark.py` with `MockLLMClient` injected so no real cost incurred. All Sprint 4 SCs MUST still pass.
 - [ ] T068 [PR-5] Run `quickstart.md` end-to-end against a clean checkout: `docker compose up`, `uvicorn autosentinel.api.main:app`, `curl /alerts`, verify `trace_id` lands in Langfuse UI as one parent trace with child spans per LLM-call agent.
 
 ---

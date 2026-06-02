@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "auth-service",
+  "error_type": "SuspiciousLoginAlert",
+  "message": "multiple failed login attempts for user account from a new, distant geolocation within a short window; no breach confirmed, alert raised for review",
+  "stack_trace": null
+}

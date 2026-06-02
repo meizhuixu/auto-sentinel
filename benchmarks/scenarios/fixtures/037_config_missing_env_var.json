@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "scheduler-service",
+  "error_type": "ConfigurationError",
+  "message": "required environment variable FEATURE_TIMEOUT_MS is not set (non-secret tuning value)",
+  "stack_trace": null
+}

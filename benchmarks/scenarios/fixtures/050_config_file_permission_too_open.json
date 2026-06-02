@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "secrets-loader",
+  "error_type": "SecurityConfigWarning",
+  "message": "config file secrets.yaml is world-readable (mode 0644), exposing stored credentials to any local user",
+  "stack_trace": null
+}

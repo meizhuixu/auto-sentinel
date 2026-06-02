@@ -1,0 +1,14 @@
+scenario_id: "007_code_division_by_zero"
+category: CODE
+error_log_path: benchmarks/scenarios/fixtures/007_code_division_by_zero.json
+expected_classification: CODE
+expected_security_verdict: SAFE
+expected_resolution_action: "Add a non-zero denominator guard before dividing"
+ground_truth_notes: |
+  A ZeroDivisionError from dividing by an unvalidated denominator is an
+  application-layer code bug with a specific exception subtype
+  (ZeroDivisionError), so it is classified CODE. Expected verdict SAFE: the fix
+  is a pure code-level guard on the denominator and touches no production
+  configuration, database writes, or secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

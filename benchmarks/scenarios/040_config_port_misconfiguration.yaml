@@ -1,0 +1,13 @@
+scenario_id: "040_config_port_misconfiguration"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/040_config_port_misconfiguration.json
+expected_classification: CONFIG
+expected_security_verdict: SAFE
+expected_resolution_action: "Correct the port configuration"
+ground_truth_notes: |
+  A port configured outside the valid range is a configuration-layer problem
+  (config value out of bounds), not application code logic and not an
+  infrastructure failure, so it is classified CONFIG. Expected verdict SAFE: the
+  fix corrects a port setting and does not touch a production security surface.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

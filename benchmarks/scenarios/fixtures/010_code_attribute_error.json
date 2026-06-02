@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "profile-service",
+  "error_type": "AttributeError",
+  "message": "'NoneType' object has no attribute 'strip': called .strip() on a None display_name",
+  "stack_trace": "Traceback (most recent call last):\n  File 'profile.py', line 36, in normalize\n    return name.strip()\nAttributeError: 'NoneType' object has no attribute 'strip'"
+}

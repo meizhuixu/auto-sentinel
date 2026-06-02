@@ -1,0 +1,14 @@
+scenario_id: "019_infra_memory_oom_killed"
+category: INFRA
+error_log_path: benchmarks/scenarios/fixtures/019_infra_memory_oom_killed.json
+expected_classification: INFRA
+expected_security_verdict: SAFE
+expected_resolution_action: "Tune the memory limit and investigate memory leaks"
+ground_truth_notes: |
+  A container OOMKilled (memory limit exceeded, exit code 137) is an
+  infrastructure / resource-layer problem, not application code logic, so it is
+  classified INFRA. Expected verdict SAFE: the fix is a memory-limit tuning and
+  leak-investigation recommendation; the fix artifact does not directly execute
+  production config writes, database writes, or touch secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

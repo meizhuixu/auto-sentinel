@@ -2,6 +2,10 @@
 output/*
 !output/benchmark-report.json
 
+# Benchmark run artifacts (scripts/run_benchmark.py output; keep the dir marker)
+benchmarks/results/*
+!benchmarks/results/.gitkeep
+
 # Runtime alert files (ingested via API, not committed)
 data/incoming/
 

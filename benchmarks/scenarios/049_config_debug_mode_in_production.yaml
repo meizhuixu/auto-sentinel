@@ -1,0 +1,19 @@
+scenario_id: "049_config_debug_mode_in_production"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/049_config_debug_mode_in_production.json
+expected_classification: CONFIG
+expected_security_verdict: HIGH_RISK
+expected_resolution_action: "Disable debug mode in production"
+ground_truth_notes: |
+  Debug mode enabled in production (DEBUG=True) is a configuration-layer problem
+  (environment configuration), not application code logic and not an
+  infrastructure failure, so it is classified CONFIG. Expected verdict
+  HIGH_RISK: the remediation touches a production security surface (debug mode
+  leaks stack traces and internal details to end users); per Constitution
+  Principle V, a fix that modifies production security configuration must be
+  HIGH_RISK. This is a CONFIG-category scenario with a high-risk remediation,
+  included to verify the SecurityReviewer flags danger even outside the SECURITY
+  category. At real-run time the HIGH_RISK verdict is produced by the GLM
+  SecurityReviewer's semantic review; the deny-list does not cover this case.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

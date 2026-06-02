@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "webhook-dispatcher",
+  "error_type": "ConfigError",
+  "message": "invalid URL in config 'webhook_url': 'htp:/bad url' is not a valid URL",
+  "stack_trace": null
+}

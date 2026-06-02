@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "worker-service",
+  "error_type": "RuntimeError",
+  "message": "unhandled exception crashed the worker thread (no surrounding try/except)",
+  "stack_trace": "Traceback (most recent call last):\n  File 'worker.py', line 120, in run\n    process(job)\n  File 'worker.py', line 145, in process\n    raise RuntimeError('downstream call failed')\nRuntimeError: downstream call failed"
+}

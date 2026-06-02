@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "socket-broker",
+  "error_type": "OSError",
+  "message": "[Errno 24] Too many open files (EMFILE): accept() failed, file descriptor limit reached",
+  "stack_trace": "Traceback (most recent call last):\n  File 'broker.py', line 73, in accept_loop\n    client, addr = server.accept()\nOSError: [Errno 24] Too many open files"
+}

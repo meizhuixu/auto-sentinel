@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "api-gateway",
+  "error_type": "ConfigError",
+  "message": "configured listen port 70000 is out of the valid range 1-65535",
+  "stack_trace": null
+}

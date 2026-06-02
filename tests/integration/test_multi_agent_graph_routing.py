@@ -2,24 +2,27 @@
 
 Tests 4-category routing, UNKNOWN fallback, routing_decision format,
 and agent_trace ordering (specialist before SecurityReviewerAgent).
+
+Hermetic: every graph is built through the D2 `agents=` injection seam
+(build_multi_agent_graph(agents=...)) with MockLLMClient fixtures, so no
+real provider is reached and no budget is spent. Scenario behaviour is
+driven declaratively via _pr4_helpers.build_fixture_clients knobs
+(diagnosis category, supervisor specialist/rationale, etc.).
 """
 
 import json
 import uuid
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
 from autosentinel.models import AgentState
 from autosentinel.multi_agent_graph import build_multi_agent_graph
 from tests.conftest import _setup_docker_success
-
-
-_PR3_XFAIL_REASON = (
-    "LLM-determined routing; placeholder always returns CODE. "
-    "Xpasses in PR-3 when ArkLLMClient/GlmLLMClient ship — at that time "
-    "remove this marker. Tracked in 项目1_AutoSentinel.md known tech debt."
+from tests.integration._pr4_helpers import (
+    build_fixture_clients,
+    build_injected_agents,
 )
 
 
@@ -49,9 +52,12 @@ def _initial_state(log_file: Path) -> AgentState:
     )
 
 
-@pytest.fixture
-def graph():
-    return build_multi_agent_graph()
+def _graph(**fixture_kwargs):
+    """Build a multi-agent graph with MockLLMClient agents injected via the
+    D2 seam. `fixture_kwargs` are forwarded to build_fixture_clients to drive
+    the scenario (diagnosis_category, supervisor_specialist, ...)."""
+    agents = build_injected_agents(build_fixture_clients(**fixture_kwargs))
+    return build_multi_agent_graph(agents=agents)
 
 
 @pytest.fixture
@@ -60,7 +66,8 @@ def cfg():
 
 
 class TestCategoryRouting:
-    def test_code_category_routes_to_code_fixer(self, graph, cfg, tmp_path):
+    def test_code_category_routes_to_code_fixer(self, cfg, tmp_path):
+        graph = _graph(diagnosis_category="CODE", supervisor_specialist="code_fixer")
         log = _write_log(tmp_path, "UnhandledError", "unexpected None in user context", "code.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -69,8 +76,8 @@ class TestCategoryRouting:
         assert "CodeFixerAgent" in result["agent_trace"]
         assert "InfraSREAgent" not in result["agent_trace"]
 
-    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
-    def test_infra_category_routes_to_infra_sre(self, graph, cfg, tmp_path):
+    def test_infra_category_routes_to_infra_sre(self, cfg, tmp_path):
+        graph = _graph(diagnosis_category="INFRA", supervisor_specialist="infra_sre")
         log = _write_log(tmp_path, "ConnectionTimeout", "connection refused to db", "infra.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -79,8 +86,12 @@ class TestCategoryRouting:
         assert "InfraSREAgent" in result["agent_trace"]
         assert "CodeFixerAgent" not in result["agent_trace"]
 
-    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
-    def test_config_category_routes_to_infra_sre(self, graph, cfg, tmp_path):
+    def test_config_category_routes_to_infra_sre(self, cfg, tmp_path):
+        graph = _graph(
+            diagnosis_category="CONFIG",
+            supervisor_specialist="infra_sre",
+            supervisor_rationale="CONFIG drift routed to InfraSRE",
+        )
         log = _write_log(tmp_path, "ConfigurationError", "environment variable JWT_SECRET not set", "config.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -90,8 +101,8 @@ class TestCategoryRouting:
         assert result["routing_decision"] is not None
         assert "InfraSRE" in result["routing_decision"]
 
-    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
-    def test_security_category_routes_to_code_fixer(self, graph, cfg, tmp_path):
+    def test_security_category_routes_to_code_fixer(self, cfg, tmp_path):
+        graph = _graph(diagnosis_category="SECURITY", supervisor_specialist="code_fixer")
         log = _write_log(tmp_path, "SecurityException", "sql injection attempt detected", "sec.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -101,7 +112,8 @@ class TestCategoryRouting:
 
 
 class TestRoutingDecisionRecorded:
-    def test_routing_decision_set(self, graph, cfg, tmp_path):
+    def test_routing_decision_set(self, cfg, tmp_path):
+        graph = _graph()
         log = _write_log(tmp_path, "UnhandledError", "unexpected error", "rd.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -109,8 +121,12 @@ class TestRoutingDecisionRecorded:
         assert result["routing_decision"] is not None
         assert len(result["routing_decision"]) > 0
 
-    @pytest.mark.xfail(reason=_PR3_XFAIL_REASON, strict=True)
-    def test_routing_decision_contains_category(self, graph, cfg, tmp_path):
+    def test_routing_decision_contains_category(self, cfg, tmp_path):
+        graph = _graph(
+            diagnosis_category="INFRA",
+            supervisor_specialist="infra_sre",
+            supervisor_rationale="INFRA incident routed to infra_sre",
+        )
         log = _write_log(tmp_path, "ConnectionTimeout", "timeout", "rd2.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -119,7 +135,8 @@ class TestRoutingDecisionRecorded:
 
 
 class TestAgentTraceOrdering:
-    def test_specialist_before_security_reviewer(self, graph, cfg, tmp_path):
+    def test_specialist_before_security_reviewer(self, cfg, tmp_path):
+        graph = _graph()
         log = _write_log(tmp_path, "UnhandledError", "app error", "order.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -133,7 +150,8 @@ class TestAgentTraceOrdering:
         )
         assert specialist_idx < security_idx
 
-    def test_diagnosis_before_specialist(self, graph, cfg, tmp_path):
+    def test_diagnosis_before_specialist(self, cfg, tmp_path):
+        graph = _graph()
         log = _write_log(tmp_path, "UnhandledError", "app error", "order2.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -146,7 +164,8 @@ class TestAgentTraceOrdering:
         )
         assert diag_idx < specialist_idx
 
-    def test_all_expected_agents_present(self, graph, cfg, tmp_path):
+    def test_all_expected_agents_present(self, cfg, tmp_path):
+        graph = _graph()
         log = _write_log(tmp_path, "UnhandledError", "app error", "all.json")
         with patch("autosentinel.agents.verifier.docker") as md:
             _setup_docker_success(md)
@@ -156,7 +175,8 @@ class TestAgentTraceOrdering:
 
 
 class TestParseErrorShortCircuit:
-    def test_invalid_json_skips_agents(self, graph, tmp_path):
+    def test_invalid_json_skips_agents(self, tmp_path):
+        graph = _graph()
         bad_log = tmp_path / "bad.json"
         bad_log.write_text("not valid json")
         cfg = {"configurable": {"thread_id": str(uuid.uuid4())}}

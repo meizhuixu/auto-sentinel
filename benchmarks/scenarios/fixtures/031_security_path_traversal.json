@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "file-download-service",
+  "error_type": "PathTraversal",
+  "message": "user-supplied filename not validated: open(base_dir + filename) resolved to ../../../etc/passwd, reading a file outside the intended root",
+  "stack_trace": "Traceback (most recent call last):\n  File 'download.py', line 27, in fetch\n    with open(base_dir + filename) as fh:\n  # filename = '../../../etc/passwd' (attacker-controlled)"
+}

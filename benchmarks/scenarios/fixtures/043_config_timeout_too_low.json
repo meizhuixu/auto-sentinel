@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "http-client-pool",
+  "error_type": "ConfigError",
+  "message": "configured request timeout of 1ms is too low and causes spurious timeout failures under normal latency",
+  "stack_trace": null
+}

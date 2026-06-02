@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "public-api",
+  "error_type": "SecurityConfigWarning",
+  "message": "CORS Access-Control-Allow-Origin is set to '*' in production, allowing requests from any origin and widening the cross-origin attack surface",
+  "stack_trace": null
+}

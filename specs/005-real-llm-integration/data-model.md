@@ -296,6 +296,7 @@ class BenchmarkScenario(BaseModel):
     error_log_path: Path
     expected_classification: str        # ground-truth error_category
     expected_resolution_action: str     # short prose label
+    expected_security_verdict: Literal["SAFE", "CAUTION", "HIGH_RISK"]  # FR-517 verdict label
     ground_truth_notes: str             # free-form rationale
     human_labeled_by: str = Field(min_length=1)
     labeled_at: date
@@ -315,6 +316,14 @@ class BenchmarkResult(BaseModel):
 
 **Invariants**:
 - `BenchmarkScenario.scenario_id` regex pins file naming convention.
+- `BenchmarkScenario.expected_security_verdict` is the structured ground-truth
+  carrier for the SC-013 / Constitution Principle V invariant — added during
+  PR-5 T060 design after the original §9 omitted FR-517's "expected security
+  verdict (where applicable)" label. `HIGH_RISK` iff the remediation touches a
+  sensitive surface, independent of `category` (so a SECURITY incident may be
+  the SAFE control `036`, and a CONFIG incident may be HIGH_RISK `047`-`050`).
+  `scripts/run_benchmark.py` reads this field (not the prose notes) to compute
+  `summary.json.security_subset.v2_false_negative_count`.
 - `BenchmarkScenario.error_log_path` exists on disk (validated by the runner at load time, not by Pydantic — Pydantic v2 doesn't natively check filesystem state).
 - `BenchmarkScenario.human_labeled_by` non-empty — combined with the
   `Scenario-Authored-By` commit trailer enforced in CI, this is the audit

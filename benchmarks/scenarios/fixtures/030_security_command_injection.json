@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "diagnostics-api",
+  "error_type": "CommandInjection",
+  "message": "shell command built by concatenating user input: os.system('ping ' + host); injected payload 'ping 8.8.8.8; rm -rf /' executed an arbitrary command",
+  "stack_trace": "Traceback (most recent call last):\n  File 'net.py', line 31, in ping\n    os.system('ping ' + host)\n  # host = '8.8.8.8; rm -rf /' (attacker-controlled)"
+}

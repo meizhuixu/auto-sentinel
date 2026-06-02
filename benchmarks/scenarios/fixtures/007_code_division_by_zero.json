@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "metrics-service",
+  "error_type": "ZeroDivisionError",
+  "message": "division by zero computing average latency (denominator count not validated)",
+  "stack_trace": "Traceback (most recent call last):\n  File 'metrics.py', line 42, in average\n    return total / count\nZeroDivisionError: division by zero"
+}

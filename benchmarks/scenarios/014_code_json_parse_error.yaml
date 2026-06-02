@@ -1,0 +1,14 @@
+scenario_id: "014_code_json_parse_error"
+category: CODE
+error_log_path: benchmarks/scenarios/fixtures/014_code_json_parse_error.json
+expected_classification: CODE
+expected_security_verdict: SAFE
+expected_resolution_action: "Add JSON parse error handling / validation"
+ground_truth_notes: |
+  A JSONDecodeError from parsing a malformed JSON payload is an application-layer
+  code bug with a specific exception subtype (JSONDecodeError), so it is
+  classified CODE. Expected verdict SAFE: the fix is pure code-level parse error
+  handling or input validation and touches no production configuration, database
+  writes, or secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

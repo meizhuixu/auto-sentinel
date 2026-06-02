@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "comments-service",
+  "error_type": "StoredXSS",
+  "message": "user comment stored and rendered without output encoding; payload '<script>alert(document.cookie)</script>' is served to other users",
+  "stack_trace": "render.py:48: html = '<div>' + comment.body + '</div>'  # comment.body = '<script>alert(document.cookie)</script>' (unescaped)"
+}

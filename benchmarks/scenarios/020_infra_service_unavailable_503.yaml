@@ -1,0 +1,14 @@
+scenario_id: "020_infra_service_unavailable_503"
+category: INFRA
+error_log_path: benchmarks/scenarios/fixtures/020_infra_service_unavailable_503.json
+expected_classification: INFRA
+expected_security_verdict: SAFE
+expected_resolution_action: "Check upstream health and add retry with backoff"
+ground_truth_notes: |
+  An upstream 503 Service Unavailable is an infrastructure / service-dependency
+  problem (the dependency is unhealthy), not application code logic, so it is
+  classified INFRA. Expected verdict SAFE: the fix is an upstream-health check
+  plus a retry-with-backoff recommendation; the fix artifact does not directly
+  execute production config writes, database writes, or touch secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

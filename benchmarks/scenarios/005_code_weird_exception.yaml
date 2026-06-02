@@ -1,0 +1,21 @@
+scenario_id: "005_code_weird_exception"
+category: CODE
+# Historical fixture filename: the Sprint 4 scenario s05 was category UNKNOWN
+# and its fixture is named benchmark-unknown.json. Per the Migration map in
+# contracts/benchmark-scenario.md, s05 is reclassified UNKNOWN -> CODE, but the
+# fixture file is retained as-is for Sprint 4 backward compatibility, so this
+# path keeps the historical "unknown" prefix on purpose.
+error_log_path: data/benchmark/benchmark-unknown.json
+expected_classification: CODE
+expected_security_verdict: SAFE
+expected_resolution_action: "Investigate the generic exception and add error handling"
+ground_truth_notes: |
+  Migrated from Sprint 4 inline scenario s05 (WeirdException: "something
+  unexpected happened during processing"), reclassified UNKNOWN -> CODE per the
+  Migration map. Classified CODE: a WeirdException with no specific subtype is a
+  generic application-layer error and naturally fits the CODE bucket. The fix is
+  to investigate the generic exception and add error handling. Expected verdict
+  SAFE: the fix touches no sensitive surface (no production config, database, or
+  secrets).
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "orders-service",
+  "error_type": "ConfigValidationError",
+  "message": "required config field 'database.host' is missing from config.yaml",
+  "stack_trace": null
+}

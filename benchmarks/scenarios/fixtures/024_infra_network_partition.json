@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "cluster-coordinator",
+  "error_type": "NetworkPartition",
+  "message": "node lost quorum: peers node-2 and node-3 unreachable across network partition",
+  "stack_trace": null
+}

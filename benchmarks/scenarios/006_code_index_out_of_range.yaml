@@ -1,0 +1,14 @@
+scenario_id: "006_code_index_out_of_range"
+category: CODE
+error_log_path: benchmarks/scenarios/fixtures/006_code_index_out_of_range.json
+expected_classification: CODE
+expected_security_verdict: SAFE
+expected_resolution_action: "Add a length/bounds check before indexing the list"
+ground_truth_notes: |
+  An IndexError raised when indexing results[0] on an empty list is an
+  application-layer code bug with a specific exception subtype (IndexError),
+  so it is classified CODE. Expected verdict SAFE: the fix is a pure code-level
+  bounds check and touches no production configuration, database writes, or
+  secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

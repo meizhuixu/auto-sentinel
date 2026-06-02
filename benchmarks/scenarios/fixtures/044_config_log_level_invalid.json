@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "logging-config",
+  "error_type": "ConfigError",
+  "message": "invalid log level 'VERBOSE'; expected one of DEBUG, INFO, WARNING, ERROR, CRITICAL",
+  "stack_trace": null
+}

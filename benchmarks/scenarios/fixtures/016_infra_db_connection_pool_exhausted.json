@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "checkout-service",
+  "error_type": "PoolTimeout",
+  "message": "QueuePool limit of size 20 overflow 10 reached; connection could not be acquired within 30s",
+  "stack_trace": "Traceback (most recent call last):\n  File 'db.py', line 88, in get_conn\n    conn = pool.acquire(timeout=30)\nPoolTimeout: connection pool exhausted"
+}

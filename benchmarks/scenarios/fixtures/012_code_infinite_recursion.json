@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "tree-service",
+  "error_type": "RecursionError",
+  "message": "maximum recursion depth exceeded: traverse() has no base case",
+  "stack_trace": "Traceback (most recent call last):\n  File 'tree.py', line 28, in traverse\n    return traverse(node.child)\n  File 'tree.py', line 28, in traverse\n    return traverse(node.child)\nRecursionError: maximum recursion depth exceeded"
+}

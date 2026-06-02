@@ -1,0 +1,13 @@
+scenario_id: "042_config_invalid_url_format"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/042_config_invalid_url_format.json
+expected_classification: CONFIG
+expected_security_verdict: SAFE
+expected_resolution_action: "Correct the malformed URL"
+ground_truth_notes: |
+  A malformed URL in configuration is a configuration-layer problem (config
+  value format), not application code logic and not an infrastructure failure,
+  so it is classified CONFIG. Expected verdict SAFE: the fix corrects a config
+  URL value and does not touch a production security surface.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

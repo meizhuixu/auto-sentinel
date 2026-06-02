@@ -9,6 +9,11 @@ import pytest
 
 from autosentinel import DiagnosticError, run_pipeline
 from autosentinel.__main__ import main
+from autosentinel.multi_agent_graph import build_multi_agent_graph
+from tests.integration._pr4_helpers import (
+    build_fixture_clients,
+    build_injected_agents,
+)
 
 
 # --- run_pipeline() ---
@@ -23,7 +28,18 @@ def test_run_pipeline_happy_path(connectivity_state, tmp_path, monkeypatch):
 def test_run_pipeline_multi_agent_flag(connectivity_state, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("AUTOSENTINEL_MULTI_AGENT", "1")
-    with patch("autosentinel.agents.verifier.docker") as md:
+    # run_pipeline() builds a bare build_multi_agent_graph() internally; the
+    # public API exposes no agents= seam, so the production path would
+    # instantiate the concrete provider clients. Patch that call to return a
+    # graph with MockLLMClient agents injected via the same D2 seam — hermetic,
+    # zero real-provider traffic, zero spend.
+    injected = build_multi_agent_graph(
+        agents=build_injected_agents(build_fixture_clients())
+    )
+    with patch(
+        "autosentinel.multi_agent_graph.build_multi_agent_graph",
+        return_value=injected,
+    ), patch("autosentinel.agents.verifier.docker") as md:
         mock_client = MagicMock()
         mock_container = MagicMock()
         md.from_env.return_value = mock_client

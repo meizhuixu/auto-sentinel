@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "order-service",
+  "error_type": "KeyError",
+  "message": "KeyError: 'user_id' missing from request payload dict",
+  "stack_trace": "Traceback (most recent call last):\n  File 'orders.py', line 73, in handle\n    uid = payload['user_id']\nKeyError: 'user_id'"
+}

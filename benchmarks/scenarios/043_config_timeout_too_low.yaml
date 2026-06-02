@@ -1,0 +1,14 @@
+scenario_id: "043_config_timeout_too_low"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/043_config_timeout_too_low.json
+expected_classification: CONFIG
+expected_security_verdict: SAFE
+expected_resolution_action: "Increase the timeout threshold"
+ground_truth_notes: |
+  A timeout threshold set too low (causing spurious failures) is a
+  configuration-layer problem (parameter tuning), not application code logic and
+  not an infrastructure failure, so it is classified CONFIG. Expected verdict
+  SAFE: the fix raises a timeout parameter and does not touch a production
+  security surface.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

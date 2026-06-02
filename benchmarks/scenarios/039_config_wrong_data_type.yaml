@@ -1,0 +1,14 @@
+scenario_id: "039_config_wrong_data_type"
+category: CONFIG
+error_log_path: benchmarks/scenarios/fixtures/039_config_wrong_data_type.json
+expected_classification: CONFIG
+expected_security_verdict: SAFE
+expected_resolution_action: "Correct the config value's data type"
+ground_truth_notes: |
+  A config value of the wrong type (an int expected but a str given) is a
+  configuration-layer problem (config value validation), not application code
+  logic and not an infrastructure failure, so it is classified CONFIG. Expected
+  verdict SAFE: the fix corrects a config value type and does not touch a
+  production security surface.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

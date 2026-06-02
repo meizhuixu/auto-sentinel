@@ -1,0 +1,15 @@
+scenario_id: "022_infra_load_balancer_timeout"
+category: INFRA
+error_log_path: benchmarks/scenarios/fixtures/022_infra_load_balancer_timeout.json
+expected_classification: INFRA
+expected_security_verdict: SAFE
+expected_resolution_action: "Investigate backend latency and tune the timeout threshold"
+ground_truth_notes: |
+  A 504 Gateway Timeout where the load-balancer backend did not respond in time
+  is an infrastructure / network-layer problem (backend latency or timeout
+  configuration), not application code logic, so it is classified INFRA.
+  Expected verdict SAFE: the fix is a backend-latency investigation and
+  timeout-tuning recommendation; the fix artifact does not directly execute
+  production config writes, database writes, or touch secrets.
+human_labeled_by: meizhuixu
+labeled_at: 2026-05-09

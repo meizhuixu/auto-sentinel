@@ -5,12 +5,19 @@ T010 test imports, AgentModelConfig / EndpointConfig / ModelRoutingConfig
 all live in this module alongside build_client_for_agent(). No separate
 config.py file.
 
-T019 status: PR-1 placeholder. Validates routing config + env vars at call
-time, then returns a MockLLMClient. Concrete-client dispatch (ArkLLMClient
-vs GlmLLMClient based on endpoint_alias) is wired in PR-2 once T021/T022
-land. The intermediate behaviour is sufficient for the foundational tests:
-T010's missing-env-var case raises ConfigurationError before reaching the
-late MockLLMClient import.
+build_client_for_agent() dispatches on each agent's resolved endpoint_alias
+to the concrete provider client that lives under autosentinel/llm/ — the
+single layer Constitution VII.1 permits to import a provider SDK:
+    "ark" → ArkLLMClient   (Volcano-Engine Ark, doubao series)
+    "glm" → GlmLLMClient   (Zhipu BigModel, glm-4.7)
+Selection stays fully declarative (Constitution VII.4): the alias, base_url,
+and api_key env-var name are all sourced from config/model_routing.yaml; no
+model string literal appears here. Agent modules never import openai — they
+consume only the returned LLMClient.
+
+The hermetic test / smoke-benchmark mock path does NOT go through this
+factory: it injects MockLLMClient instances via build_multi_agent_graph(
+agents=...) (the D2 seam), so pytest never reaches a real provider.
 """
 
 from __future__ import annotations
@@ -100,24 +107,50 @@ def _load_routing_config() -> ModelRoutingConfig:
         ) from e
 
 
+def _build_concrete_client(
+    endpoint_alias: str, *, api_key: str, base_url: str
+) -> "LLMClient":
+    """Dispatch endpoint_alias → concrete provider client.
+
+    The two concrete clients are imported lazily so that this module (and the
+    hermetic test suite that imports it) loads without the provider SDK side
+    effects, and so the VII.1 import boundary stays confined to those files.
+    """
+    if endpoint_alias == "ark":
+        from autosentinel.llm.ark_client import ArkLLMClient
+
+        return ArkLLMClient(api_key=api_key, base_url=base_url)
+    if endpoint_alias == "glm":
+        from autosentinel.llm.glm_client import GlmLLMClient
+
+        return GlmLLMClient(api_key=api_key, base_url=base_url)
+    raise ConfigurationError(
+        f"no concrete LLM client mapped for endpoint alias {endpoint_alias!r} "
+        f"(known: 'ark', 'glm')"
+    )
+
+
 def build_client_for_agent(
     agent_name: str,
 ) -> tuple["LLMClient", AgentModelConfig]:
-    """PR-1/PR-2 placeholder. Validates config + env vars; returns
-    (MockLLMClient, AgentModelConfig) tuple — the config is needed by
-    agents at complete()-call-time for model/max_tokens/temperature kwargs
-    per contracts/llm-client.md "Public surface". LLMClient Protocol signature
-    is unchanged; this is an implementation detail of the factory.
+    """Build the concrete LLMClient for a production agent + its model config.
 
-    Concrete dispatch (ArkLLMClient | GlmLLMClient based on endpoint_alias)
-    will be wired in PR-2 after T021/T022 land. Until then, callers get a
-    placeholder client that satisfies the LLMClient Protocol but has no
-    real provider behaviour.
+    Dispatches on the agent's resolved endpoint_alias (back-filled from
+    config/model_routing.yaml's endpoints block) to ArkLLMClient or
+    GlmLLMClient. The returned AgentModelConfig carries model / max_tokens /
+    temperature, which the agent passes into client.complete() at call time
+    per contracts/llm-client.md "Public surface". The (client, config) tuple
+    shape is the PR-2 contract and is unchanged here.
+
+    Constitution VII.1 / VII.4: the only inputs are the yaml-sourced alias,
+    base_url, and api_key env-var name — no provider SDK import and no model
+    literal lives in any agent module. Provider switching is a yaml edit.
 
     Raises ConfigurationError when:
     - the routing yaml is missing or malformed (via _load_routing_config)
     - agent_name is not declared under `agents:` in the yaml
     - the api_key_env name is not set in os.environ
+    - the resolved endpoint_alias has no concrete client mapping
     """
     cfg = _load_routing_config()
 
@@ -129,20 +162,16 @@ def build_client_for_agent(
 
     agent_cfg = cfg.agents[agent_name]
     endpoint_cfg = cfg.endpoints[agent_cfg.endpoint_alias]
-    if not os.environ.get(endpoint_cfg.api_key_env):
+    api_key = os.environ.get(endpoint_cfg.api_key_env)
+    if not api_key:
         raise ConfigurationError(
             f"API key env var {endpoint_cfg.api_key_env!r} is not set "
             f"(required for agent {agent_name!r} → endpoint {agent_cfg.endpoint_alias!r})"
         )
 
-    # PR-2 transitional: factory hands out MockLLMClient pre-loaded with a
-    # placeholder response so the production graph can drive 4 specialist
-    # agents end-to-end. PR-3 (T022) replaces this branch with concrete
-    # ArkLLMClient / GlmLLMClient dispatch on agent_cfg.endpoint_alias.
-    from autosentinel.llm._placeholder_responses import get_placeholder_response
-    from autosentinel.llm.mock_client import MockLLMClient
-
-    client = MockLLMClient().with_fixture_response(
-        get_placeholder_response(agent_name)
+    client = _build_concrete_client(
+        agent_cfg.endpoint_alias,
+        api_key=api_key,
+        base_url=str(endpoint_cfg.base_url),
     )
     return client, agent_cfg
