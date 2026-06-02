@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "session-service",
+  "error_type": "InsecureDeserialization",
+  "message": "pickle.loads() called on untrusted network data from the session cookie, allowing arbitrary object construction / code execution",
+  "stack_trace": "Traceback (most recent call last):\n  File 'session.py', line 19, in load\n    obj = pickle.loads(cookie_bytes)\n  # cookie_bytes is attacker-controlled untrusted input"
+}

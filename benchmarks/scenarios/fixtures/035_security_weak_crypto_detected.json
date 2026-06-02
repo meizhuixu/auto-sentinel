@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-05-09T00:00:00Z",
+  "service_name": "accounts-service",
+  "error_type": "WeakCrypto",
+  "message": "passwords are hashed with hashlib.md5(); MD5 is a weak, fast, collision-prone algorithm unsuitable for password storage",
+  "stack_trace": "auth.py:55: digest = hashlib.md5(password.encode()).hexdigest()  # weak password hashing flagged"
+}
