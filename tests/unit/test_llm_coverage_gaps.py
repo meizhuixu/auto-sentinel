@@ -132,13 +132,17 @@ class _BareTracer:
 
 
 class TestGlmClientGaps:
-    def test_tracer_none_raises_runtime_error(self):
+    def test_tracer_none_skips_enrichment(self):
+        # LLMTracer unavailable -> nullcontext -> tracer is None -> the
+        # set_tokens / set_cost_breakdown branches are skipped. Mirrors
+        # ArkLLMClient: SecurityReviewer (GLM-4.7) must run in benchmark /
+        # script contexts where llmops_dashboard is not installed.
         from unittest.mock import patch
         client = GlmLLMClient(api_key="k", base_url="https://b/v1",
                               http_client=httpx.Client(transport=httpx.MockTransport(_ok_handler("glm-4.7"))))
         with patch("autosentinel.llm.glm_client.LLMTracer", None):
-            with pytest.raises(RuntimeError, match="LLMTracer is not available"):
-                client.complete(**_kwargs("glm-4.7", "security_reviewer"))
+            resp = client.complete(**_kwargs("glm-4.7", "security_reviewer"))
+        assert resp.content == "ok"
 
     def test_generic_api_error_raises_provider_error(self):
         from unittest.mock import patch
