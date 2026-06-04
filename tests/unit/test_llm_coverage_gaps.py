@@ -173,7 +173,7 @@ def test_mock_client_complete_without_config_raises():
 def test_llm_response_rejects_malformed_trace_id():
     with pytest.raises(ValueError, match="trace_id"):
         LLMResponse(content="x", model="m", prompt_tokens=0, completion_tokens=0,
-                    cost_usd=Decimal("0"), latency_ms=0, trace_id="not-hex")
+                    cost=Decimal("0"), latency_ms=0, trace_id="not-hex")
 
 
 # --- cost_guard.py ---
@@ -182,7 +182,7 @@ def test_get_cost_guard_double_checked_locking_inner_recheck(monkeypatch):
     """Cover the double-checked-locking inner re-check: another caller wins the
     race and populates the singleton while we wait on the lock."""
     cost_guard_mod._singleton = None
-    winner = cost_guard_mod.CostGuard(budget_limit_usd=Decimal("1"))
+    winner = cost_guard_mod.CostGuard(budget_limit=Decimal("1"))
 
     class _RacingLock:
         def __enter__(self):

@@ -36,23 +36,29 @@ class ConfigurationError(Exception):
 class CostGuardError(Exception):
     """Raised by CostGuard.accumulate() when cumulative spend exceeds budget.
 
+    Amounts are in the CostGuard's native currency (no conversion). `currency`
+    is carried so the cost_exhausted_node report is unambiguous.
+
     Attributes:
-        current_spent_usd: post-accumulate cumulative total at the moment of trip.
-        attempted_amount_usd: the cost of THIS call (the delta that pushed us over).
-        budget_limit_usd: the configured ceiling.
+        current_spent: post-accumulate cumulative total at the moment of trip.
+        attempted_amount: the cost of THIS call (the delta that pushed us over).
+        budget_limit: the configured ceiling.
+        currency: the currency all three amounts are denominated in.
     """
 
     def __init__(
         self,
         *,
-        current_spent_usd: Decimal,
-        attempted_amount_usd: Decimal,
-        budget_limit_usd: Decimal,
+        current_spent: Decimal,
+        attempted_amount: Decimal,
+        budget_limit: Decimal,
+        currency: str = "CNY",
     ) -> None:
-        self.current_spent_usd = current_spent_usd
-        self.attempted_amount_usd = attempted_amount_usd
-        self.budget_limit_usd = budget_limit_usd
+        self.current_spent = current_spent
+        self.attempted_amount = attempted_amount
+        self.budget_limit = budget_limit
+        self.currency = currency
         super().__init__(
-            f"CostGuard tripped: spent={current_spent_usd}USD + "
-            f"attempted={attempted_amount_usd}USD > budget={budget_limit_usd}USD"
+            f"CostGuard tripped: spent={current_spent}{currency} + "
+            f"attempted={attempted_amount}{currency} > budget={budget_limit}{currency}"
         )

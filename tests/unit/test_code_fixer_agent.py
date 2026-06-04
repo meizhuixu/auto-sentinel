@@ -124,7 +124,7 @@ class TestCodeFixerAgentFenceHandling:
             model="mock-code-fixer",
             prompt_tokens=90,
             completion_tokens=25,
-            cost_usd=Decimal("0.0004"),
+            cost=Decimal("0.0004"),
             latency_ms=500,
             trace_id="0" * 32,
         )

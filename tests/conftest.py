@@ -36,7 +36,7 @@ def cost_guard_reset():
     outside the runtest phase).
 
     Sprint 1-4 tests that never touch CostGuard are unaffected: the singleton
-    starts at total_spent_usd=0, this fixture sets it back to 0 — no-op.
+    starts at total_spent=0, this fixture sets it back to 0 — no-op.
     Tests that DO accumulate (T012/T013 ark/glm client tests) get a clean
     slate per test instead of inheriting spend from prior tests.
     """
@@ -186,7 +186,7 @@ def build_initial_state(log_file: str, tmp_path: Path) -> AgentState:
         # hex string (passes LLMRequest trace_id regex); 0.0 is the natural
         # zero-spend starting point for CostGuard accumulation.
         trace_id="0" * 32,
-        cost_accumulated_usd=0.0,
+        cost_accumulated=0.0,
     )
 
 

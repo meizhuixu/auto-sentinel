@@ -1,12 +1,21 @@
-"""Concrete LLMClient pointed at Zhipu BigModel (glm-4.7).
+"""Concrete LLMClient for GLM-4.7, served through the Volcano Ark proxy.
 
 Constitution VII.1: this is one of TWO files allowed to `import openai`
 (the other is ark_client.py). The allowlist is hard-coded in
 tests/unit/test_llm_provider_isolation.py.
 
-Same shape as ArkLLMClient — only the base_url, model price table, and
-the module-level patch target for LLMTracer differ. SecurityReviewer
-(GLM-4.7) is the primary caller in PR-2.
+GLM-4.7 no longer routes through the first-party Zhipu gateway
+(open.bigmodel.cn). All three access points are provisioned under Volcano
+Ark, so this client points at the Ark gateway and authenticates with the
+same ARK_API_KEY as the Doubao endpoints. The base_url and api_key are still
+injected by factory.build_client_for_agent() from config/model_routing.yaml
+(Constitution VII.4) — this class hard-codes neither.
+
+Same shape as ArkLLMClient — only the model price table and the module-level
+patch target for LLMTracer differ. The `glm` endpoint alias is kept distinct
+from `ark` purely so the factory routes GLM-4.7 here (for its own pricing),
+not because the physical gateway differs. SecurityReviewer (GLM-4.7) is the
+primary caller.
 """
 
 from __future__ import annotations
@@ -29,21 +38,36 @@ except ImportError:
     LLMTracer = None  # type: ignore[assignment,misc]
 
 
-# GLM per-model pricing (USD per 1M tokens). Placeholder figures; exact
-# values not test-critical.
-_GLM_PRICING_USD_PER_M: dict[str, dict[str, float]] = {
-    "glm-4.7": {"input": 5.00, "output": 15.00},
+# GLM-4.7 pricing in **CNY per 1M tokens** — the native billing currency.
+# No exchange-rate conversion: cost is recorded in CNY. The factory passes the
+# Ark endpoint id as `model`, so the table is keyed by the endpoint id; the
+# friendly "glm-4.7" alias is retained for unit tests.
+#
+# Volcano Ark GLM-4.7 has three segments:
+#   input ≤ 32k, output ≤ 200   → ¥2 / ¥8
+#   input ≤ 32k, output > 200    → ¥3 / ¥14   ← WE USE THIS (main tier)
+#   32k < input ≤ 200K           → ¥4 / ¥16
+# We fix the main tier (¥3/¥14): the real scenario is a <32k log input plus a
+# security-analysis output that always exceeds 200 tokens — the smoke test
+# (scripts/check_endpoints.py) empirically confirmed the SecurityReviewer emits
+# >200 output tokens, so the ¥2/¥8 (output≤200) tier never genuinely applies.
+# Runtime segmentation is NOT implemented — the rate is fixed at the main tier.
+# The rare >32k-input case is slightly under-priced (¥3 vs ¥4 input), negligible
+# at the ¥150 budget scale.
+_GLM_PRICING_CNY_PER_M: dict[str, dict[str, float]] = {
+    "ep-20260508052924-6zchc": {"input": 3.00, "output": 14.00},  # GLM-4.7 (Ark)
+    "glm-4.7": {"input": 3.00, "output": 14.00},
 }
 
 
 class GlmLLMClient:
-    """OpenAI-SDK-backed client for the Zhipu BigModel endpoint."""
+    """OpenAI-SDK-backed client for GLM-4.7 on the Volcano Ark gateway."""
 
     def __init__(
         self,
         *,
         api_key: str,
-        base_url: str = "https://open.bigmodel.cn/api/paas/v4",
+        base_url: str = "https://ark.cn-beijing.volces.com/api/v3",
         http_client: Optional[httpx.Client] = None,
     ) -> None:
         self._sdk = openai.OpenAI(
@@ -104,27 +128,31 @@ class GlmLLMClient:
             prompt_tokens = sdk_response.usage.prompt_tokens
             completion_tokens = sdk_response.usage.completion_tokens
 
-            input_usd, output_usd = self._compute_cost(
+            input_cost, output_cost = self._compute_cost(
                 model, prompt_tokens, completion_tokens
             )
 
+            # Costs are CNY (Ark's billing currency); tracer call is currency-neutral.
             if hasattr(tracer, "set_tokens"):
                 tracer.set_tokens(prompt=prompt_tokens, completion=completion_tokens)
             if hasattr(tracer, "set_cost_breakdown"):
-                tracer.set_cost_breakdown(input_usd=input_usd, output_usd=output_usd)
+                tracer.set_cost_breakdown(
+                    input_cost=input_cost, output_cost=output_cost, currency="CNY"
+                )
 
-        cost_usd = Decimal(str(input_usd + output_usd))
+        cost = Decimal(str(input_cost + output_cost))
         response = LLMResponse(
             content=content,
             model=model,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
-            cost_usd=cost_usd,
+            cost=cost,
+            currency="CNY",
             latency_ms=latency_ms,
             trace_id=trace_id,
         )
 
-        get_cost_guard().accumulate(cost_usd)
+        get_cost_guard().accumulate(cost, "CNY")
 
         return response
 
@@ -148,7 +176,7 @@ class GlmLLMClient:
     def _compute_cost(
         model: str, prompt_tokens: int, completion_tokens: int
     ) -> tuple[float, float]:
-        prices = _GLM_PRICING_USD_PER_M.get(model, {"input": 0.0, "output": 0.0})
-        input_usd = (prompt_tokens / 1_000_000) * prices["input"]
-        output_usd = (completion_tokens / 1_000_000) * prices["output"]
-        return input_usd, output_usd
+        prices = _GLM_PRICING_CNY_PER_M.get(model, {"input": 0.0, "output": 0.0})
+        input_cost = (prompt_tokens / 1_000_000) * prices["input"]
+        output_cost = (completion_tokens / 1_000_000) * prices["output"]
+        return input_cost, output_cost

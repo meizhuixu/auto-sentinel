@@ -57,7 +57,7 @@ sequenceDiagram
 
     LG->>Sec: run(state)
     Sec->>Cli: complete(..., trace_id, agent_name="security_reviewer")
-    Cli->>T: __enter__(trace_id=..., component="security_reviewer", model="glm-4.7")
+    Cli->>T: __enter__(trace_id=..., component="security_reviewer", model="ep-20260508052924-6zchc")
     Cli->>T: __exit__ (ships span 3)
 
     LG->>Ver: run(state)
@@ -159,7 +159,7 @@ response = self._llm_client.complete(
 |---|---|---|
 | `LLMTracer(trace_id=...)` constructor param | `tracer.py:51` (signature) + `tracer.py:65-74` (validation) | Always passed; concrete LLM clients open the tracer with `trace_id=request.trace_id`. |
 | `trace_id` regex `^[0-9a-f]{32}$` | `tracer.py:16` | Mirror in `LLMRequest.trace_id` validator (data-model §2) so we fail at construction time, not at tracer-enter time. |
-| `set_cost_breakdown(input_usd, output_usd)` | `tracer.py:102-110` | Concrete clients compute per-token costs from a hard-coded price table and call this method. `set_cost(total_usd)` is **not** used (deprecated). |
+| `set_cost_breakdown(input_cost, output_cost, currency)` | `tracer.py:102-110` | Concrete clients compute per-token costs from a hard-coded price table (in the model's native currency — CNY for Ark, no conversion) and call this method with a `currency` tag. **Cross-project note**: the project-4 `LLMTracer.set_cost_breakdown` signature must accept the currency-neutral `input_cost`/`output_cost`/`currency` params (tracked in the dashboard repo); the old `input_usd`/`output_usd` form is retired. `set_cost(total_usd)` is **not** used (deprecated). |
 | Span shipped on `__exit__` | `tracer.py:131-166` | One `with LLMTracer(...) as t:` per `complete()` call; SDK call inside the block; tokens + cost set inside the block; tracer flushes the SpanRecord on exit. |
 
 This contract is compatible with the project-4 PR-0 already merged. Any

@@ -153,7 +153,7 @@ def test_state_serialization_preserves_trace_id(tmp_path):
         "agent_trace": [],
         "approval_required": False,
         "trace_id": _KNOWN_TRACE_ID,
-        "cost_accumulated_usd": 0.0,
+        "cost_accumulated": 0.0,
     }
 
     with PostgresSaver.from_conn_string(CHECKPOINTER_DSN) as checkpointer:

@@ -68,11 +68,12 @@ class AgentState(TypedDict):
     # NOT here — TypedDict cannot run validators. NotRequired so Sprint 1-4
     # AgentState literals (which omit it) keep type-checking.
     trace_id: NotRequired[str]
-    # cost_accumulated_usd: float (NOT Decimal) per data-model.md §8 — JSON
+    # cost_accumulated: float (NOT Decimal) per data-model.md §8 — JSON
     # round-trip through PostgresSaver requires native JSON types; Decimal
-    # needs a custom serialiser. CostGuardState.total_spent_usd remains
-    # Decimal as the source of truth; this is a mirror for in-state visibility.
-    cost_accumulated_usd: NotRequired[float]
+    # needs a custom serialiser. CostGuardState.total_spent remains Decimal as
+    # the source of truth; this is a mirror for in-state visibility. Amount is
+    # in the CostGuard's currency (CNY in Sprint 5).
+    cost_accumulated: NotRequired[float]
     security_classifier_model: NotRequired[str]
     # cost_exhausted: set True by the graph's _guarded wrapper when an LLM-call
     # agent raises CostGuardError; the post-node conditional edges route to

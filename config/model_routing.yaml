@@ -22,10 +22,15 @@ agents:
     temperature: 0.3
     max_tokens: 4096
   security_reviewer:
-    model: glm-4.7
+    model: ep-20260508052924-6zchc  # GLM-4.7 (via Volcano Ark proxy)
     temperature: 0.0
     max_tokens: 2048
 
+# All three access points are provisioned under Volcano Ark. GLM-4.7 no longer
+# uses the first-party Zhipu gateway (open.bigmodel.cn); it is proxied through
+# the same Ark gateway and authenticated with the same ARK_API_KEY. The `glm`
+# alias is retained (not folded into `ark`) so the factory still dispatches it
+# to GlmLLMClient, which carries GLM-4.7's own price table.
 endpoints:
   ark:
     base_url: https://ark.cn-beijing.volces.com/api/v3
@@ -34,7 +39,7 @@ endpoints:
       - ep-20260508052205-6x8hm  # doubao-1.5-lite-32k
       - ep-20260508052420-fwq5q  # doubao-seed-2.0-pro
   glm:
-    base_url: https://open.bigmodel.cn/api/paas/v4
-    api_key_env: GLM_API_KEY
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    api_key_env: ARK_API_KEY
     models:
-      - glm-4.7
+      - ep-20260508052924-6zchc  # GLM-4.7 (via Volcano Ark proxy)

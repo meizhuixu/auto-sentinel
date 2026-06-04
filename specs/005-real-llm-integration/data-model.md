@@ -101,7 +101,8 @@ class LLMResponse(BaseModel):
     model: str = Field(min_length=1)
     prompt_tokens: int = Field(ge=0)
     completion_tokens: int = Field(ge=0)
-    cost_usd: Decimal = Field(ge=Decimal("0"))
+    cost: Decimal = Field(ge=Decimal("0"))
+    currency: Currency = "CNY"   # Literal["CNY", "USD"] — native billing currency
     latency_ms: int = Field(ge=0)
     trace_id: str
 
@@ -117,13 +118,14 @@ class LLMResponse(BaseModel):
 **Fields**:
 - `content`: model-generated text (free-form; agent code parses with structured-output schemas downstream — Constitution V).
 - `prompt_tokens` / `completion_tokens`: from provider response; both `≥ 0`.
-- `cost_usd`: `Decimal` (financial precision; no `float`); computed by the client from `LLMTracer.set_cost_breakdown()` inputs or via the response's reported usage.
+- `cost`: `Decimal` (financial precision; no `float`); computed by the client from its per-model price table in the model's **native billing currency** — there is no exchange-rate conversion anywhere in the stack.
+- `currency`: `Literal["CNY", "USD"]`, defaults to `"CNY"`. All three Sprint 5 Volcano Ark models bill in CNY; the tag travels with the amount so cost is never an ambiguous bare number.
 - `latency_ms`: client-side wall-clock, recorded inside the `LLMTracer` context.
 - `trace_id`: copied from the corresponding `LLMRequest` unchanged.
 
 **Invariants**:
 - All numeric fields `≥ 0`.
-- `cost_usd` is `Decimal`, not `float` — propagated to `CostGuardState.total_spent_usd` for accurate summation.
+- `cost` is `Decimal`, not `float` — propagated to `CostGuardState.total_spent` for accurate summation. `CostGuard.accumulate()` is same-currency only.
 
 ---
 
@@ -200,15 +202,17 @@ class ModelRoutingConfig(BaseModel):
 from datetime import datetime
 
 class CostGuardState(BaseModel):
-    total_spent_usd: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
-    budget_limit_usd: Decimal = Field(ge=Decimal("0"))
+    total_spent: Decimal = Field(default=Decimal("0"), ge=Decimal("0"))
+    budget_limit: Decimal = Field(ge=Decimal("0"))
+    currency: Currency = "CNY"   # Literal["CNY", "USD"]; the budget's denomination
     call_count: int = Field(default=0, ge=0)
     last_updated: datetime | None = None
 ```
 
 **Fields**:
-- `total_spent_usd`: cumulative sum of `LLMResponse.cost_usd` since process start (or last `reset_for_test()`).
-- `budget_limit_usd`: from `AUTOSENTINEL_BUDGET_LIMIT_USD` env var, default `20.6`.
+- `total_spent`: cumulative sum of `LLMResponse.cost` since process start (or last `reset_for_test()`), in `currency`.
+- `budget_limit`: from `AUTOSENTINEL_BUDGET_LIMIT_CNY` env var, default `150`.
+- `currency`: the denomination of `total_spent` and `budget_limit`. Sprint 5 runs a single CNY budget; `accumulate()` rejects a mismatched-currency cost with a `ValueError` (no cross-currency add, no silent skip — Constitution VII.2). A per-currency budget is future headroom, not implemented this sprint.
 - `call_count`: integer counter for telemetry.
 - `last_updated`: `datetime` of the most recent successful accumulation.
 
@@ -252,7 +256,7 @@ class AgentState(TypedDict):
     approval_required: bool
     # ── Sprint 5 (new) ──────────────────────────────────────────────────
     trace_id: NotRequired[str]                  # 32-char lowercase hex; set at FastAPI ingest
-    cost_accumulated_usd: NotRequired[float]    # mirror of CostGuardState for in-state visibility
+    cost_accumulated: NotRequired[float]    # mirror of CostGuardState for in-state visibility
     security_classifier_model: NotRequired[str] # GLM model identity used by SecurityReviewer; NotRequired for backward compat with Sprint 4 state literals
 ```
 
@@ -265,18 +269,19 @@ LangGraph reads `state.get("trace_id", "")` defensively in the dispatch path.
   message off the asyncio.Queue. Agents read this and pass to
   `LLMClient.complete(trace_id=...)`. Mutating it mid-pipeline is a
   Constitution VII.3 violation (covered by the trace-propagation contract test).
-- `cost_accumulated_usd`: snapshot of `CostGuard.total_spent_usd` after each
+- `cost_accumulated`: snapshot of `CostGuard.total_spent` after each
   agent's run; used by the eventual `cost_exhausted_node` to write the abort
   reason into `state` for the user-facing report.
-- `security_classifier_model`: model name (e.g. `'glm-4.7'`) of the LLM that
-  produced the security verdict; recorded for trace correlation and benchmark
-  eval. Mirrors the `model_routing.yaml` value at the time of the run.
+- `security_classifier_model`: model identifier (e.g. the Volcano Ark endpoint
+  id `'ep-20260508052924-6zchc'` for GLM-4.7) of the LLM that produced the
+  security verdict; recorded for trace correlation and benchmark eval. Mirrors
+  the `model_routing.yaml` value at the time of the run.
   Written by `SecurityReviewerAgent.run()` after a successful `complete()` call.
 
 **Why `float`, not `Decimal`**: LangGraph's TypedDict serialisation through
 PostgresSaver round-trips JSON; `Decimal` requires a custom serialiser.
-Precision loss across one or two pipeline runs is < $0.000001 — irrelevant
-versus the $20.6 budget. `CostGuardState.total_spent_usd` (the source of
+Precision loss across one or two pipeline runs is < ¥0.000001 — irrelevant
+versus the ¥150 budget. `CostGuardState.total_spent` (the source of
 truth) remains `Decimal`.
 
 ---
@@ -309,7 +314,7 @@ class BenchmarkResult(BaseModel):
     actual_resolution: str
     passed: bool
     latency_ms: int = Field(ge=0)
-    cost_usd: Decimal = Field(ge=Decimal("0"))
+    cost: Decimal = Field(ge=Decimal("0"))
     trace_id: str
     error: Optional[str] = None         # populated if pipeline raised before Verifier
 ```
@@ -343,28 +348,31 @@ class CostGuardError(Exception):
     def __init__(
         self,
         *,
-        current_spent_usd: Decimal,
-        attempted_amount_usd: Decimal,
-        budget_limit_usd: Decimal,
+        current_spent: Decimal,
+        attempted_amount: Decimal,
+        budget_limit: Decimal,
+        currency: str = "CNY",
     ) -> None:
-        self.current_spent_usd = current_spent_usd
-        self.attempted_amount_usd = attempted_amount_usd
-        self.budget_limit_usd = budget_limit_usd
+        self.current_spent = current_spent
+        self.attempted_amount = attempted_amount
+        self.budget_limit = budget_limit
+        self.currency = currency
         super().__init__(
-            f"CostGuard tripped: spent={current_spent_usd}USD + "
-            f"attempted={attempted_amount_usd}USD > budget={budget_limit_usd}USD"
+            f"CostGuard tripped: spent={current_spent}{currency} + "
+            f"attempted={attempted_amount}{currency} > budget={budget_limit}{currency}"
         )
 ```
 
 **Attributes**:
-- `current_spent_usd`: cumulative spend at the moment the guard tripped.
-- `attempted_amount_usd`: the cost of the call that *would have* pushed us over.
-- `budget_limit_usd`: the configured ceiling.
+- `current_spent`: cumulative spend at the moment the guard tripped.
+- `attempted_amount`: the cost of the call that *would have* pushed us over.
+- `budget_limit`: the configured ceiling.
+- `currency`: the denomination of all three amounts (CNY in Sprint 5).
 
 **Propagation**: raised inside `LLMClient.complete()` post-accumulation. The
 LangGraph node executing the agent re-raises; the graph routes to
 `cost_exhausted_node` which sets `state["agent_trace"] += ["cost_guard_triggered"]`,
-sets `state["cost_accumulated_usd"] = float(current_spent_usd)`, and ends.
+sets `state["cost_accumulated"] = float(current_spent)`, and ends.
 **`unittest.TestCase.assertRaises` is NOT how this is tested** — `pytest.raises`
 + DI'd `MockLLMClient` are.
 

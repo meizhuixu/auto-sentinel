@@ -7,8 +7,10 @@ does not exist yet. T014 implements the schemas and turns this file GREEN.
 4 cases per contracts/llm-client.md "Coverage & test surface":
   1. LLMRequest accepts a valid 32-char hex trace_id
   2. LLMRequest rejects empty / malformed trace_id with ValueError
-  3. LLMResponse rejects negative prompt_tokens / completion_tokens / cost_usd
+  3. LLMResponse rejects negative prompt_tokens / completion_tokens / cost
   4. Message is frozen (mutation raises ValidationError)
+  5. LLMResponse carries a currency tag (defaults to CNY) and rejects an
+     unknown currency
 """
 
 from decimal import Decimal
@@ -41,7 +43,7 @@ def _valid_response_kwargs(**overrides) -> dict:
         "model": "doubao-seed-2.0-pro",
         "prompt_tokens": 12,
         "completion_tokens": 34,
-        "cost_usd": Decimal("0.001"),
+        "cost": Decimal("0.001"),
         "latency_ms": 250,
         "trace_id": VALID_TRACE_ID,
     }
@@ -77,12 +79,20 @@ def test_llm_request_rejects_invalid_trace_id(bad_trace_id):
     [
         ("prompt_tokens", -1),
         ("completion_tokens", -1),
-        ("cost_usd", Decimal("-0.0001")),
+        ("cost", Decimal("-0.0001")),
     ],
 )
 def test_llm_response_rejects_negative_fields(field, bad_value):
     with pytest.raises(ValidationError):
         LLMResponse(**_valid_response_kwargs(**{field: bad_value}))
+
+
+def test_llm_response_currency_defaults_to_cny_and_validates():
+    resp = LLMResponse(**_valid_response_kwargs())
+    assert resp.currency == "CNY"
+    assert LLMResponse(**_valid_response_kwargs(currency="USD")).currency == "USD"
+    with pytest.raises(ValidationError):
+        LLMResponse(**_valid_response_kwargs(currency="EUR"))
 
 
 def test_message_is_frozen():

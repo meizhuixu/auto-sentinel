@@ -70,7 +70,8 @@ class BenchmarkResult(BaseModel):
     actual_resolution: str
     passed: bool
     latency_ms: int = Field(ge=0)
-    cost_usd: Decimal = Field(ge=Decimal("0"))
+    cost: Decimal = Field(ge=Decimal("0"))
+    currency: str = "CNY"               # native billing currency of the run
     trace_id: str
     error: Optional[str] = None         # populated if pipeline raised before Verifier
 

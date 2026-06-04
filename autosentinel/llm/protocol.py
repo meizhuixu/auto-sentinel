@@ -19,6 +19,11 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 _TRACE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
+# Billing currency of an LLM call. Volcano Ark bills in CNY; a future
+# USD-billed provider would tag USD. Cost is always recorded in the model's
+# native currency — there is no exchange-rate conversion anywhere in the stack.
+Currency = Literal["CNY", "USD"]
+
 
 class Message(BaseModel):
     """One chat-completion turn. Frozen so agents can't mutate after handoff."""
@@ -56,8 +61,9 @@ class LLMRequest(BaseModel):
 
 
 class LLMResponse(BaseModel):
-    """Provider-agnostic response. cost_usd is Decimal — never float — so it
-    feeds CostGuard.accumulate() with exact arithmetic."""
+    """Provider-agnostic response. `cost` is a Decimal — never float — so it
+    feeds CostGuard.accumulate() with exact arithmetic, and it travels with the
+    `currency` it was billed in (no conversion: a CNY model reports CNY)."""
 
     model_config = {"frozen": True}
 
@@ -65,7 +71,8 @@ class LLMResponse(BaseModel):
     model: str = Field(min_length=1)
     prompt_tokens: int = Field(ge=0)
     completion_tokens: int = Field(ge=0)
-    cost_usd: Decimal = Field(ge=Decimal("0"))
+    cost: Decimal = Field(ge=Decimal("0"))
+    currency: Currency = "CNY"
     latency_ms: int = Field(ge=0)
     trace_id: str
 

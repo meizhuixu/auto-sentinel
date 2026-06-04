@@ -177,12 +177,14 @@ matching `BenchmarkResult` (data-model §9).
   "category_distribution": {"CODE": 12, "INFRA": 15, "SECURITY": 8, "CONFIG": 15},
   "v1": {
     "latency_ms": {"p50": 1234, "p95": 5678},
-    "total_cost_usd": "0.0000",
+    "total_cost": "0.0000",
+    "cost_currency": "CNY",
     "resolution_rate": 0.42
   },
   "v2": {
     "latency_ms": {"p50": 23456, "p95": 67890},
-    "total_cost_usd": "4.21",
+    "total_cost": "31.50",
+    "cost_currency": "CNY",
     "resolution_rate": 0.78
   },
   "security_subset": {
@@ -195,9 +197,11 @@ matching `BenchmarkResult` (data-model §9).
 
 Schema is a **strict superset** of Sprint 4's schema (FR-518), so existing
 consumers reading `v1.latency_ms.p95` etc. continue to work. The new fields
-are `category_distribution`, `total_cost_usd`, and `security_subset.*`.
+are `category_distribution`, `total_cost`, `cost_currency`, and
+`security_subset.*`. `total_cost` is in `cost_currency` (CNY — Volcano Ark's
+native billing currency; no exchange-rate conversion).
 
-`v2.total_cost_usd` is a string-formatted `Decimal` to avoid JSON-float
+`v2.total_cost` is a string-formatted `Decimal` to avoid JSON-float
 precision loss; readers parse with `Decimal(str)`. Sum-equality with
 `results.jsonl` is asserted in `tests/integration/test_cost_guard_pipeline.py`
 (see `cost-guard.md` test 4).

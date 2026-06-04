@@ -12,7 +12,7 @@ Two test-local client doubles live here:
   ``complete()`` call. Returns per-agent canned content so each agent's parser
   is satisfied. Used by T044 trace-propagation.
 * ``CostAccumulatingMock`` — mirrors the real ``ArkLLMClient`` Step-6 contract
-  (``get_cost_guard().accumulate(cost_usd)`` on every call). The shared
+  (``get_cost_guard().accumulate(cost)`` on every call). The shared
   ``MockLLMClient`` deliberately does NOT accumulate, so T041 needs this double
   to drive the global CostGuard to its ceiling through the graph.
 """
@@ -58,7 +58,7 @@ def _mk_response(content: str, trace_id: str, cost: Decimal) -> LLMResponse:
         model="test-model",
         prompt_tokens=1,
         completion_tokens=1,
-        cost_usd=cost,
+        cost=cost,
         latency_ms=0,
         trace_id=trace_id,
     )
@@ -162,13 +162,13 @@ class RecordingMock:
 
 
 class CostAccumulatingMock:
-    """LLMClient double mirroring ArkLLMClient Step-6: accumulate cost_usd
+    """LLMClient double mirroring ArkLLMClient Step-6: accumulate cost
     through the global CostGuard on every complete() call (may raise
     CostGuardError)."""
 
-    def __init__(self, *, content: str, cost_usd: Decimal) -> None:
+    def __init__(self, *, content: str, cost: Decimal) -> None:
         self._content = content
-        self._cost = cost_usd
+        self._cost = cost
         self.call_count = 0
 
     def complete(
@@ -203,7 +203,7 @@ def force_budget(monkeypatch, limit_usd: str) -> None:
     var alone is insufficient — we null the cached singleton and let the next
     get_cost_guard() rebuild it from the env value.
     """
-    monkeypatch.setenv("AUTOSENTINEL_BUDGET_LIMIT_USD", limit_usd)
+    monkeypatch.setenv("AUTOSENTINEL_BUDGET_LIMIT_CNY", limit_usd)
     monkeypatch.setattr("autosentinel.llm.cost_guard._singleton", None)
 
 

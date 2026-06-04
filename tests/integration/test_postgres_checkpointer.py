@@ -72,7 +72,7 @@ def _initial_state(log_file: Path) -> dict:
         "agent_trace": [],
         "approval_required": False,
         "trace_id": ZERO_TRACE_ID,
-        "cost_accumulated_usd": 0.0,
+        "cost_accumulated": 0.0,
     }
 
 

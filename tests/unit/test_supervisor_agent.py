@@ -230,7 +230,7 @@ class TestHeldOutRouting:
                 model="mock-supervisor",
                 prompt_tokens=70,
                 completion_tokens=15,
-                cost_usd=Decimal("0.0002"),
+                cost=Decimal("0.0002"),
                 latency_ms=300,
                 trace_id=_TEST_TRACE_ID,
             )
