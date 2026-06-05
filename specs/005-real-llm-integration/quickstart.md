@@ -6,11 +6,25 @@
 docker compose -f infra/docker-compose.checkpointer.yml up -d
 export ARK_API_KEY=...                      # Volcano-Engine Ark — all 3 endpoints (Doubao + GLM-4.7)
 export AUTOSENTINEL_BUDGET_LIMIT_CNY=150    # CNY budget; default; override per-run if desired
-uv sync
+uv sync --extra tracing                     # `tracing` extra installs llmops-dashboard (LLMTracer → Langfuse)
 ```
 
 > GLM-4.7 is proxied through the Volcano Ark gateway and uses the same
 > `ARK_API_KEY` — there is no separate `GLM_API_KEY`.
+
+For Langfuse trace correlation (US4), also export the Langfuse keys and run
+the v2 multi-agent graph (the per-agent spans only fire on the v2 path):
+
+```bash
+export LANGFUSE_HOST=http://localhost:3000
+export LANGFUSE_PUBLIC_KEY=pk-...
+export LANGFUSE_SECRET_KEY=sk-...
+export AUTOSENTINEL_MULTI_AGENT=1
+```
+
+> Tracing is optional: without the `tracing` extra (or with Langfuse
+> unconfigured) the clients fall back to a no-op tracer and the pipeline runs
+> unchanged — only the Langfuse spans are skipped.
 
 Before any real benchmark run, smoke-test all three Ark access points
 (spends a few cents):
@@ -25,12 +39,21 @@ uv run python scripts/check_endpoints.py
 # Terminal 1
 uvicorn autosentinel.api.main:app --reload
 # Terminal 2
-curl -X POST localhost:8000/alerts \
-  -d @examples/code_error.json \
-  -H "Content-Type: application/json"
-# Find trace_id in the 202 response. Inspect that trace_id at:
-#   http://localhost:3000        ← Langfuse UI (project-4)
+curl -X POST localhost:8000/api/v1/alerts \
+  -H "Content-Type: application/json" \
+  -d '{"service_name":"orders-api","error_type":"KeyError","message":"KeyError: user_id in process_order","timestamp":"2026-06-05T06:00:00Z","stack_trace":"Traceback: KeyError: user_id at orders/handler.py:88"}'
+# The 202 response carries `trace_id` (== incident id, 32-char hex). After the
+# pipeline finishes (~1-2 min, real LLM), inspect that trace_id at:
+#   http://localhost:3000        ← Langfuse UI
+# Expect ONE parent trace (name auto-sentinel/pipeline, tags project:auto-sentinel)
+# with a child generation span per LLM-call agent: diagnosis, supervisor,
+# code_fixer (or infra_sre), security_reviewer. Verifier has no span by design
+# (deterministic, no LLM).
 ```
+
+> **Verified (T068)**: a real run produced exactly this structure — parent trace
+> `auto-sentinel/pipeline` tagged `project:auto-sentinel` + 4 child spans, one
+> per LLM agent, each recording its routed model id.
 
 ## 3. Run smoke benchmark (no real LLM cost; CI runs this too)
 
