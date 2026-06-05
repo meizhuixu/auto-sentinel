@@ -155,6 +155,28 @@ class TestSecurityReviewerAgentTrace:
         assert result["security_verdict"] == "HIGH_RISK"
 
 
+class TestSecurityReviewerPromptAlignsPrincipleV:
+    """Constitution Principle V: HIGH_RISK is defined as any fix that modifies
+    production configuration, issues database write operations, or touches
+    secrets/credentials. Prompt templates that encode remediation logic MUST be
+    versioned and tested like source code (Principle V). This pins SYSTEM_PROMPT
+    to the Principle-V definition rather than a generic 'destructiveness' framing
+    — the original prompt judged only destructive ops (data drop / rm -rf /
+    chmod), which let secret/config-touching fixes slip through as SAFE.
+    """
+
+    def test_system_prompt_encodes_principle_v_high_risk_categories(self):
+        from autosentinel.agents.prompts.security_reviewer import SYSTEM_PROMPT
+
+        prompt = SYSTEM_PROMPT.lower()
+        assert "configuration" in prompt, \
+            "HIGH_RISK must cover production-configuration changes (Principle V)"
+        assert "database" in prompt, \
+            "HIGH_RISK must cover database write operations (Principle V)"
+        assert ("secret" in prompt) or ("credential" in prompt), \
+            "HIGH_RISK must cover secrets/credentials (Principle V)"
+
+
 class TestSecurityReviewerLLMWiring:
     """T028: assert SecurityReviewerAgent invokes LLMClient.complete()
     with GLM-bound model_config and correct trace_id."""
