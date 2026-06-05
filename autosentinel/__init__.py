@@ -50,6 +50,12 @@ def run_pipeline(log_path: str | Path, *, trace_id: str | None = None) -> Path:
         )
         if trace_id:
             initial_state["trace_id"] = trace_id
+            # US4/T068: open the parent Langfuse trace once so the per-agent
+            # generation spans (all attached via owns_trace=False) nest under a
+            # real trace object tagged project/component. Best-effort no-op when
+            # the `tracing` extra is absent or Langfuse is unconfigured.
+            from autosentinel.tracing import open_parent_trace
+            open_parent_trace(trace_id)
         graph = build_multi_agent_graph()
         # thread_id ties the LangGraph checkpoint to this incident; reuse the
         # trace_id (== incident id) when present so a later /resume can target it.
