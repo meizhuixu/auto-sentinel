@@ -126,8 +126,13 @@ def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
 
 
 @patch("autosentinel.llm.ark_client.LLMTracer")
-def test_timeout_triggers_three_retries_then_llm_timeout_error(mock_tracer_cls):
-    """All three SDK attempts time out → tenacity gives up → LLMTimeoutError."""
+def test_timeout_triggers_two_attempts_then_llm_timeout_error(mock_tracer_cls):
+    """Both SDK attempts time out → tenacity gives up → LLMTimeoutError.
+
+    Retries are capped at 2 (down from 3): reasoning models legitimately run
+    longer than the old 30s timeout, so the 3x30s policy both killed valid
+    calls and amplified worst-case latency past the SC-008 p95 ceiling.
+    """
     attempt_count = MagicMock(value=0)
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -139,8 +144,8 @@ def test_timeout_triggers_three_retries_then_llm_timeout_error(mock_tracer_cls):
     with pytest.raises(LLMTimeoutError):
         client.complete(**_complete_kwargs())
 
-    # tenacity: stop_after_attempt(3) ⇒ exactly 3 attempts before giving up
-    assert attempt_count.value == 3
+    # tenacity: stop_after_attempt(2) ⇒ exactly 2 attempts before giving up
+    assert attempt_count.value == 2
 
 
 @patch("autosentinel.llm.ark_client.LLMTracer")
