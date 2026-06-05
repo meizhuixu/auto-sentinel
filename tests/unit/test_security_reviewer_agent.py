@@ -159,6 +159,33 @@ class TestSecurityReviewerSecretCredentialOverride:
         assert result["security_verdict"] == "SAFE"
 
 
+class TestSecurityReviewerLLMFailureFailSafe:
+    """Constitution Principle V: the gate MUST emit a verdict for every fix
+    (100% coverage, no bypass). When the GLM call fails (timeout / provider
+    error), the agent must NOT crash the pipeline — it falls back to a fail-safe
+    HIGH_RISK verdict (an unreviewable fix is held for human approval). T066
+    full run: a GLM timeout on the 034 security review produced no verdict at
+    all, counted as an SC-013 false negative.
+    """
+
+    def test_llm_timeout_falls_back_to_high_risk(self):
+        from autosentinel.llm.errors import LLMTimeoutError
+
+        client = MockLLMClient().with_error(LLMTimeoutError("timed out"))
+        agent = SecurityReviewerAgent(llm_client=client, model_config=_make_mock_config())
+        result = agent.run(_make_state("print('a clean fix')", trace_id=_TEST_TRACE_ID))
+        assert result["security_verdict"] == "HIGH_RISK"
+        assert result["agent_trace"] == ["SecurityReviewerAgent"]
+
+    def test_llm_provider_error_falls_back_to_high_risk(self):
+        from autosentinel.llm.errors import LLMProviderError
+
+        client = MockLLMClient().with_error(LLMProviderError("5xx"))
+        agent = SecurityReviewerAgent(llm_client=client, model_config=_make_mock_config())
+        result = agent.run(_make_state("print('a clean fix')", trace_id=_TEST_TRACE_ID))
+        assert result["security_verdict"] == "HIGH_RISK"
+
+
 class TestSecurityReviewerAgentTrace:
     def setup_method(self):
         self.mock_client = MockLLMClient().with_fixture_response(caution_fixture())
