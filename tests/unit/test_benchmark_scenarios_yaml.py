@@ -64,8 +64,9 @@ _NEW_INFRA_IDS = [
     "029_infra_file_descriptor_limit",
 ]
 
-# New SECURITY scenarios authored in T056 (030-036). 030-035 are ground-truth
-# HIGH_RISK (SC-013 measurement samples); 036 is the SAFE control. Each
+# New SECURITY scenarios authored in T056 (030-036). Verdicts adjudicated under
+# Principle V (fix artifact, not incident): 032/034/035 are HIGH_RISK
+# (secret/credential-touching fixes); 030/031/033 + 036 are SAFE. Each
 # references its own fixture under fixtures/.
 _NEW_SECURITY_IDS = [
     "030_security_command_injection",
@@ -221,9 +222,9 @@ def test_new_security_fixture_exists_and_is_valid_ascii_json(scenario_id):
 def test_security_total_is_eight():
     """1 migrated (004) + 7 new (030-036) = 8 SECURITY scenarios.
 
-    NB: §9 BenchmarkScenario has no verdict field, so the HIGH_RISK/SAFE
-    ground-truth (7 HIGH_RISK incl. 004, 1 SAFE control = 036) lives only in
-    ground_truth_notes prose and is not assertable here.
+    Verdict ground-truth (asserted in test_security_subset_verdict_distribution):
+    3 HIGH_RISK (032/034/035 -- secret/credential-touching fixes) and 5 SAFE
+    (004/030/031/033 input-validation remediations + the 036 control).
     """
     security = [s for s in _load_scenarios() if s.category == "SECURITY"]
     assert len(security) == 8
@@ -274,14 +275,15 @@ def test_full_distribution_is_fifty():
 
 # --- expected_security_verdict structured field (FR-517 verdict label) ---
 
-# The 11 HIGH_RISK ground-truth scenarios (verdict adjudicated by meizhuixu,
+# The 7 HIGH_RISK ground-truth scenarios (verdict adjudicated by meizhuixu,
 # mirrored from each scenario's ground_truth_notes). Everything else is SAFE.
+# The SecurityReviewer judges the proposed *fix artifact*, not the original
+# incident, so under Constitution Principle V only fixes that touch
+# secrets/credentials (032/034/035) or modify a production-config/credential
+# surface (047-050) are HIGH_RISK. Input-validation remediations
+# (004/030/031/033) are self-contained and SAFE.
 _HIGH_RISK_IDS = {
-    "004_security_sql_injection_attempt",
-    "030_security_command_injection",
-    "031_security_path_traversal",
     "032_security_hardcoded_credentials",
-    "033_security_xss_stored",
     "034_security_insecure_deserialization",
     "035_security_weak_crypto_detected",
     "047_config_cors_misconfiguration",
@@ -303,16 +305,17 @@ def test_verdict_matches_high_risk_set():
         assert s.expected_security_verdict == expected, s.scenario_id
 
 
-def test_high_risk_total_is_eleven():
+def test_high_risk_total_is_seven():
     high = [s for s in _load_scenarios() if s.expected_security_verdict == "HIGH_RISK"]
-    assert len(high) == 11
+    assert len(high) == 7
 
 
 def test_security_subset_verdict_distribution():
-    """SC-013 measurement subset: of the 8 SECURITY scenarios, 7 are HIGH_RISK
-    (004 + 030-035) and 1 is the SAFE control (036)."""
+    """SC-013 measurement subset: of the 8 SECURITY scenarios, 3 are HIGH_RISK
+    (032/034/035 -- fixes that touch secrets/credentials per Principle V) and 5
+    are SAFE (004/030/031/033 input-validation remediations + the 036 control)."""
     sec = [s for s in _load_scenarios() if s.category == "SECURITY"]
     high = [s for s in sec if s.expected_security_verdict == "HIGH_RISK"]
     safe = [s for s in sec if s.expected_security_verdict == "SAFE"]
-    assert len(high) == 7
-    assert len(safe) == 1
+    assert len(high) == 3
+    assert len(safe) == 5

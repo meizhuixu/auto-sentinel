@@ -15,6 +15,7 @@ from autosentinel.agents.prompts.security_reviewer import (
     SYSTEM_PROMPT,
     USER_TEMPLATE,
 )
+from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.protocol import LLMClient, Message
 from autosentinel.models import AgentState
@@ -23,6 +24,18 @@ from autosentinel.models import AgentState
 _HIGH_RISK_KEYWORDS = [
     "DROP TABLE", "DROP DATABASE", "TRUNCATE TABLE",
     "rm -rf /", "rm -rf ~", "chmod 777", "mkfs", "dd if=",
+]
+
+# Constitution Principle V: a fix that touches secrets/credentials MUST be
+# HIGH_RISK ("hold for human approval"). LLM semantic review proved unreliable
+# for this class (GLM-4.7 SAFEs hardening changes like moving a secret to env or
+# upgrading password hashing), so these patterns deterministically force
+# HIGH_RISK regardless of the LLM verdict. Matched case-insensitively because
+# credential handling appears in mixed case (AWS_SECRET_KEY, bcrypt, hashpw).
+_SECRET_CREDENTIAL_KEYWORDS = [
+    "secret_key", "secret key", "aws_secret", "api_key", "apikey",
+    "private_key", "credential", "password", "passwd",
+    "bcrypt", "scrypt", "argon2", "hashpw", "gensalt", "pbkdf2",
 ]
 
 _VALID_VERDICTS = {"SAFE", "HIGH_RISK", "CAUTION"}
@@ -53,29 +66,43 @@ class SecurityReviewerAgent(BaseAgent):
     def run(self, state: AgentState) -> AgentState:
         artifact = state.get("fix_artifact") or ""
 
-        # LLM call
+        # LLM call. Fail-safe (Constitution Principle V: the gate MUST emit a
+        # verdict for 100% of fixes with no bypass): if the GLM call times out
+        # or the provider errors, do NOT crash the pipeline — default to
+        # HIGH_RISK (an unreviewable fix is held for human approval) and still
+        # run the deterministic overrides below on the artifact.
         messages = [
             Message(role="system", content=SYSTEM_PROMPT),
             Message(role="user", content=USER_TEMPLATE.format(fix_artifact=artifact)),
         ]
-        response = self._llm_client.complete(
-            messages=messages,
-            model=self._model_config.model,
-            trace_id=state.get("trace_id", ""),
-            agent_name="security_reviewer",
-            max_tokens=self._model_config.max_tokens,
-            temperature=self._model_config.temperature,
-        )
-        llm_verdict = self._parse_verdict(response.content)
+        classifier_model = self._model_config.model
+        try:
+            response = self._llm_client.complete(
+                messages=messages,
+                model=self._model_config.model,
+                trace_id=state.get("trace_id", ""),
+                agent_name="security_reviewer",
+                max_tokens=self._model_config.max_tokens,
+                temperature=self._model_config.temperature,
+            )
+            llm_verdict = self._parse_verdict(response.content)
+            classifier_model = response.model
+        except (LLMTimeoutError, LLMProviderError):
+            llm_verdict = "HIGH_RISK"
 
-        # Deny-list override: HIGH_RISK keywords trump LLM verdict
-        if any(kw in artifact for kw in _HIGH_RISK_KEYWORDS):
+        # Deterministic overrides trump the LLM verdict (defense-in-depth):
+        #  - destructive ops (case-sensitive, prompt-injection-resistant);
+        #  - secret/credential handling (case-insensitive, Constitution V).
+        artifact_lower = artifact.lower()
+        if any(kw in artifact for kw in _HIGH_RISK_KEYWORDS) or any(
+            kw in artifact_lower for kw in _SECRET_CREDENTIAL_KEYWORDS
+        ):
             final_verdict = "HIGH_RISK"
         else:
             final_verdict = llm_verdict
 
         return {
             "security_verdict": final_verdict,
-            "security_classifier_model": response.model,
+            "security_classifier_model": classifier_model,
             "agent_trace": ["SecurityReviewerAgent"],
         }

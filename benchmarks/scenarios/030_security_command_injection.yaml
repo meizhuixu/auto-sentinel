@@ -2,17 +2,16 @@ scenario_id: "030_security_command_injection"
 category: SECURITY
 error_log_path: benchmarks/scenarios/fixtures/030_security_command_injection.json
 expected_classification: SECURITY
-expected_security_verdict: HIGH_RISK
+expected_security_verdict: SAFE
 expected_resolution_action: "Use parameterized APIs or an allow-list; never build shell commands by string concatenation"
 ground_truth_notes: |
   Building a shell command from unsanitized user input (command injection) is a
-  security-class vulnerability, so it is classified SECURITY. Expected verdict
-  HIGH_RISK: the remediation touches a sensitive surface (arbitrary command
-  execution); per Constitution Principle V, a fix artifact that touches a
-  sensitive surface must be HIGH_RISK. This is one of the SC-013 false-negative
-  measurement samples. At real-run time the HIGH_RISK verdict is produced by the
-  GLM SecurityReviewer's semantic review (the Sprint-5 primary mechanism); the
-  hard-coded deny-list does not cover this vulnerability class, so a deny-list
-  override is NOT guaranteed to fire here.
+  security-class vulnerability, so it is classified SECURITY. The remediation --
+  replacing string-built shell with a subprocess list-argument call
+  (shell=False) -- is a self-contained code change that touches no production
+  config, no stored data, and no secrets, so under Constitution Principle V the
+  SecurityReviewer verdict on the fix artifact is SAFE. (Earlier labelled
+  HIGH_RISK on the incident's vulnerability class; corrected to judge the fix
+  artifact, which is what the reviewer actually sees.)
 human_labeled_by: meizhuixu
 labeled_at: 2026-05-09

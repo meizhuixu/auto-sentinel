@@ -120,6 +120,72 @@ class TestSecurityReviewerDenyListOverride:
         assert result["security_verdict"] == "SAFE"
 
 
+class TestSecurityReviewerSecretCredentialOverride:
+    """Constitution Principle V: a fix that touches secrets/credentials MUST be
+    HIGH_RISK. LLM semantic review proved unreliable for this class — GLM-4.7
+    returned non-HIGH_RISK for the hardcoded-credential (032), insecure-deser
+    session-secret (034), and weak-crypto password-hashing (035) remediations in
+    the T066 security subset. A deterministic keyword override forces HIGH_RISK,
+    mirroring the destructive-ops deny-list (defense-in-depth).
+    """
+
+    def setup_method(self):
+        # LLM says SAFE; the secret/credential override must still force HIGH_RISK.
+        self.mock_client = MockLLMClient().with_fixture_response(safe_fixture())
+        self.agent = SecurityReviewerAgent(
+            llm_client=self.mock_client,
+            model_config=_make_mock_config(),
+        )
+
+    @pytest.mark.parametrize("artifact", [
+        'AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")',           # 032 shape
+        'SESSION_SECRET = os.environ.get("SESSION_SECRET_KEY")',  # 034 shape
+        'import bcrypt\nreturn bcrypt.hashpw(pw, bcrypt.gensalt())',  # 035 shape
+        'API_KEY = config["api_key"]',
+        'h = hashlib.pbkdf2_hmac("sha256", password, salt, 100000)',
+    ])
+    def test_secret_credential_artifact_forces_high_risk(self, artifact):
+        result = self.agent.run(_make_state(artifact, trace_id=_TEST_TRACE_ID))
+        assert result["security_verdict"] == "HIGH_RISK", (
+            f"Principle V: secret/credential-touching fix must be HIGH_RISK: {artifact!r}"
+        )
+
+    def test_clean_fix_without_secrets_stays_safe(self):
+        # Regression guard: the override must not over-fire on side-effect-free
+        # code with no secret/credential surface.
+        result = self.agent.run(
+            _make_state("import html\nreturn html.escape(user_input)", trace_id=_TEST_TRACE_ID)
+        )
+        assert result["security_verdict"] == "SAFE"
+
+
+class TestSecurityReviewerLLMFailureFailSafe:
+    """Constitution Principle V: the gate MUST emit a verdict for every fix
+    (100% coverage, no bypass). When the GLM call fails (timeout / provider
+    error), the agent must NOT crash the pipeline — it falls back to a fail-safe
+    HIGH_RISK verdict (an unreviewable fix is held for human approval). T066
+    full run: a GLM timeout on the 034 security review produced no verdict at
+    all, counted as an SC-013 false negative.
+    """
+
+    def test_llm_timeout_falls_back_to_high_risk(self):
+        from autosentinel.llm.errors import LLMTimeoutError
+
+        client = MockLLMClient().with_error(LLMTimeoutError("timed out"))
+        agent = SecurityReviewerAgent(llm_client=client, model_config=_make_mock_config())
+        result = agent.run(_make_state("print('a clean fix')", trace_id=_TEST_TRACE_ID))
+        assert result["security_verdict"] == "HIGH_RISK"
+        assert result["agent_trace"] == ["SecurityReviewerAgent"]
+
+    def test_llm_provider_error_falls_back_to_high_risk(self):
+        from autosentinel.llm.errors import LLMProviderError
+
+        client = MockLLMClient().with_error(LLMProviderError("5xx"))
+        agent = SecurityReviewerAgent(llm_client=client, model_config=_make_mock_config())
+        result = agent.run(_make_state("print('a clean fix')", trace_id=_TEST_TRACE_ID))
+        assert result["security_verdict"] == "HIGH_RISK"
+
+
 class TestSecurityReviewerAgentTrace:
     def setup_method(self):
         self.mock_client = MockLLMClient().with_fixture_response(caution_fixture())
@@ -153,6 +219,28 @@ class TestSecurityReviewerAgentTrace:
         state["trace_id"] = _TEST_TRACE_ID
         result = self.agent.run(state)
         assert result["security_verdict"] == "HIGH_RISK"
+
+
+class TestSecurityReviewerPromptAlignsPrincipleV:
+    """Constitution Principle V: HIGH_RISK is defined as any fix that modifies
+    production configuration, issues database write operations, or touches
+    secrets/credentials. Prompt templates that encode remediation logic MUST be
+    versioned and tested like source code (Principle V). This pins SYSTEM_PROMPT
+    to the Principle-V definition rather than a generic 'destructiveness' framing
+    — the original prompt judged only destructive ops (data drop / rm -rf /
+    chmod), which let secret/config-touching fixes slip through as SAFE.
+    """
+
+    def test_system_prompt_encodes_principle_v_high_risk_categories(self):
+        from autosentinel.agents.prompts.security_reviewer import SYSTEM_PROMPT
+
+        prompt = SYSTEM_PROMPT.lower()
+        assert "configuration" in prompt, \
+            "HIGH_RISK must cover production-configuration changes (Principle V)"
+        assert "database" in prompt, \
+            "HIGH_RISK must cover database write operations (Principle V)"
+        assert ("secret" in prompt) or ("credential" in prompt), \
+            "HIGH_RISK must cover secrets/credentials (Principle V)"
 
 
 class TestSecurityReviewerLLMWiring:

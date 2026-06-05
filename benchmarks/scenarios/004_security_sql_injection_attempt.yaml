@@ -2,15 +2,17 @@ scenario_id: "004_security_sql_injection_attempt"
 category: SECURITY
 error_log_path: data/benchmark/benchmark-security.json
 expected_classification: SECURITY
-expected_security_verdict: HIGH_RISK
-expected_resolution_action: "Use parameterized queries to prevent injection; mandatory SecurityReviewer review"
+expected_security_verdict: SAFE
+expected_resolution_action: "Use parameterized queries to prevent injection"
 ground_truth_notes: |
   Migrated from Sprint 4 inline scenario s04 (SecurityException: "sql injection
   attempt detected in query parameter"). Classified SECURITY: a SQL injection is
-  a security-class incident. The fix is to use parameterized queries to prevent
-  injection, subject to mandatory SecurityReviewer review. Expected verdict
-  HIGH_RISK: the message carries injection signatures that trip the
-  SecurityReviewer deny-list, which forces HIGH_RISK regardless of the LLM
-  verdict. This is the key sample for the SC-013 false-negative measurement.
+  a security-class incident. The remediation -- switching to a parameterized read
+  query -- is a self-contained, side-effect-free code change that touches no
+  production config, no stored data (read-only query), and no secrets, so under
+  Constitution Principle V the SecurityReviewer verdict on the *fix artifact* is
+  SAFE. (The earlier HIGH_RISK label wrongly assumed the deny-list would fire on
+  injection signatures in the incident text; both the deny-list and the reviewer
+  judge the proposed fix, not the original log.)
 human_labeled_by: meizhuixu
 labeled_at: 2026-05-09

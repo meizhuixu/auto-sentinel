@@ -115,7 +115,9 @@ def test_happy_path_returns_llm_response_and_opens_tracer(mock_tracer_cls):
 
 
 @patch("autosentinel.llm.glm_client.LLMTracer")
-def test_timeout_triggers_three_retries_then_llm_timeout_error(mock_tracer_cls):
+def test_timeout_triggers_two_attempts_then_llm_timeout_error(mock_tracer_cls):
+    """Retries capped at 2 (down from 3) — GLM-4.7 reasoning runs longer than
+    the old 30s timeout, so 3x30s amplified worst-case latency past SC-008."""
     attempt_count = MagicMock(value=0)
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -127,7 +129,7 @@ def test_timeout_triggers_three_retries_then_llm_timeout_error(mock_tracer_cls):
     with pytest.raises(LLMTimeoutError):
         client.complete(**_complete_kwargs())
 
-    assert attempt_count.value == 3
+    assert attempt_count.value == 2
 
 
 @patch("autosentinel.llm.glm_client.LLMTracer")

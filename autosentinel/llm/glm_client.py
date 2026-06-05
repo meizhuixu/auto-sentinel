@@ -74,7 +74,7 @@ class GlmLLMClient:
             api_key=api_key,
             base_url=base_url,
             http_client=http_client,
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(45.0),  # reasoning models run >30s; give one attempt room
             max_retries=0,
         )
 
@@ -97,24 +97,31 @@ class GlmLLMClient:
             temperature=temperature,
         )
 
-        if LLMTracer is None:
-            raise RuntimeError(
-                "LLMTracer is not available (llmops_dashboard not installed). "
-                "Tests must patch autosentinel.llm.glm_client.LLMTracer."
-            )
+        # LLMTracer optional: when llmops_dashboard isn't installed (e.g. T066
+        # benchmark / script-side runs against the real endpoint without the
+        # dashboard service), skip the tracer span and run the bare SDK call.
+        # Unit tests patch this module's LLMTracer symbol to a MagicMock, so the
+        # patched path stays exercised. Mirrors ArkLLMClient exactly.
+        from contextlib import nullcontext
 
-        with LLMTracer(
-            trace_id=trace_id,
-            project="auto-sentinel",
-            component=agent_name,
-            model=model,
-        ) as tracer:
+        tracer_cm = (
+            LLMTracer(
+                trace_id=trace_id,
+                project="auto-sentinel",
+                component=agent_name,
+                model=model,
+            )
+            if LLMTracer is not None
+            else nullcontext()
+        )
+
+        with tracer_cm as tracer:
             start = time.monotonic()
             try:
                 sdk_response = self._invoke_with_retry(req)
             except (httpx.TimeoutException, openai.APITimeoutError) as e:
                 raise LLMTimeoutError(
-                    f"GLM request timed out after 3 attempts: {e}"
+                    f"GLM request timed out after 2 attempts: {e}"
                 ) from e
             except openai.APIStatusError as e:
                 raise LLMProviderError(
@@ -132,10 +139,12 @@ class GlmLLMClient:
                 model, prompt_tokens, completion_tokens
             )
 
-            # Costs are CNY (Ark's billing currency); tracer call is currency-neutral.
-            if hasattr(tracer, "set_tokens"):
+            # Tracer enrichment — absorbed by MagicMock in tests; no-op when
+            # the dashboard isn't installed (tracer is None). Costs are CNY
+            # (Ark's billing currency); the tracer call is currency-neutral.
+            if tracer is not None and hasattr(tracer, "set_tokens"):
                 tracer.set_tokens(prompt=prompt_tokens, completion=completion_tokens)
-            if hasattr(tracer, "set_cost_breakdown"):
+            if tracer is not None and hasattr(tracer, "set_cost_breakdown"):
                 tracer.set_cost_breakdown(
                     input_cost=input_cost, output_cost=output_cost, currency="CNY"
                 )
@@ -157,7 +166,7 @@ class GlmLLMClient:
         return response
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
+        stop=tenacity.stop_after_attempt(2),
         wait=tenacity.wait_exponential(multiplier=1, max=8),
         retry=tenacity.retry_if_exception_type(
             (httpx.TimeoutException, openai.APITimeoutError)
