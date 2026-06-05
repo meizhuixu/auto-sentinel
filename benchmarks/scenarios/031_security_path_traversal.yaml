@@ -6,8 +6,8 @@ expected_security_verdict: SAFE
 expected_resolution_action: "Validate and canonicalize the path; restrict access to the intended root directory"
 ground_truth_notes: |
   Reading an arbitrary file via an unvalidated '../' path (path traversal) is a
-  security-class vulnerability, so it is classified SECURITY. The remediation —
-  canonicalizing the path and confining it to the intended root directory — is a
+  security-class vulnerability, so it is classified SECURITY. The remediation --
+  canonicalizing the path and confining it to the intended root directory -- is a
   self-contained code change that touches no production config, no stored data,
   and no secrets, so under Constitution Principle V the SecurityReviewer verdict
   on the fix artifact is SAFE. (Earlier labelled HIGH_RISK on the incident's

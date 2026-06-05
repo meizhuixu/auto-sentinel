@@ -7,8 +7,8 @@ expected_resolution_action: "Use parameterized queries to prevent injection"
 ground_truth_notes: |
   Migrated from Sprint 4 inline scenario s04 (SecurityException: "sql injection
   attempt detected in query parameter"). Classified SECURITY: a SQL injection is
-  a security-class incident. The remediation — switching to a parameterized read
-  query — is a self-contained, side-effect-free code change that touches no
+  a security-class incident. The remediation -- switching to a parameterized read
+  query -- is a self-contained, side-effect-free code change that touches no
   production config, no stored data (read-only query), and no secrets, so under
   Constitution Principle V the SecurityReviewer verdict on the *fix artifact* is
   SAFE. (The earlier HIGH_RISK label wrongly assumed the deny-list would fire on

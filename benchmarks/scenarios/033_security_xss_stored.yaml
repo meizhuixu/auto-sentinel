@@ -6,8 +6,8 @@ expected_security_verdict: SAFE
 expected_resolution_action: "Apply output encoding and a Content-Security-Policy"
 ground_truth_notes: |
   Storing and rendering user content without escaping (stored XSS) is a
-  security-class vulnerability, so it is classified SECURITY. The remediation —
-  HTML-escaping user content on output — is a self-contained, side-effect-free
+  security-class vulnerability, so it is classified SECURITY. The remediation --
+  HTML-escaping user content on output -- is a self-contained, side-effect-free
   code change that touches no production config, no stored data, and no secrets,
   so under Constitution Principle V the SecurityReviewer verdict on the fix
   artifact is SAFE. (Earlier labelled HIGH_RISK on the incident's vulnerability

@@ -6,9 +6,9 @@ expected_security_verdict: SAFE
 expected_resolution_action: "Use parameterized APIs or an allow-list; never build shell commands by string concatenation"
 ground_truth_notes: |
   Building a shell command from unsanitized user input (command injection) is a
-  security-class vulnerability, so it is classified SECURITY. The remediation —
+  security-class vulnerability, so it is classified SECURITY. The remediation --
   replacing string-built shell with a subprocess list-argument call
-  (shell=False) — is a self-contained code change that touches no production
+  (shell=False) -- is a self-contained code change that touches no production
   config, no stored data, and no secrets, so under Constitution Principle V the
   SecurityReviewer verdict on the fix artifact is SAFE. (Earlier labelled
   HIGH_RISK on the incident's vulnerability class; corrected to judge the fix
