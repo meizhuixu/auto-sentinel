@@ -25,6 +25,18 @@ _HIGH_RISK_KEYWORDS = [
     "rm -rf /", "rm -rf ~", "chmod 777", "mkfs", "dd if=",
 ]
 
+# Constitution Principle V: a fix that touches secrets/credentials MUST be
+# HIGH_RISK ("hold for human approval"). LLM semantic review proved unreliable
+# for this class (GLM-4.7 SAFEs hardening changes like moving a secret to env or
+# upgrading password hashing), so these patterns deterministically force
+# HIGH_RISK regardless of the LLM verdict. Matched case-insensitively because
+# credential handling appears in mixed case (AWS_SECRET_KEY, bcrypt, hashpw).
+_SECRET_CREDENTIAL_KEYWORDS = [
+    "secret_key", "secret key", "aws_secret", "api_key", "apikey",
+    "private_key", "credential", "password", "passwd",
+    "bcrypt", "scrypt", "argon2", "hashpw", "gensalt", "pbkdf2",
+]
+
 _VALID_VERDICTS = {"SAFE", "HIGH_RISK", "CAUTION"}
 
 
@@ -68,8 +80,13 @@ class SecurityReviewerAgent(BaseAgent):
         )
         llm_verdict = self._parse_verdict(response.content)
 
-        # Deny-list override: HIGH_RISK keywords trump LLM verdict
-        if any(kw in artifact for kw in _HIGH_RISK_KEYWORDS):
+        # Deterministic overrides trump the LLM verdict (defense-in-depth):
+        #  - destructive ops (case-sensitive, prompt-injection-resistant);
+        #  - secret/credential handling (case-insensitive, Constitution V).
+        artifact_lower = artifact.lower()
+        if any(kw in artifact for kw in _HIGH_RISK_KEYWORDS) or any(
+            kw in artifact_lower for kw in _SECRET_CREDENTIAL_KEYWORDS
+        ):
             final_verdict = "HIGH_RISK"
         else:
             final_verdict = llm_verdict
