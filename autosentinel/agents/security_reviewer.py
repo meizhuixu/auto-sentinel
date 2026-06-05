@@ -15,6 +15,7 @@ from autosentinel.agents.prompts.security_reviewer import (
     SYSTEM_PROMPT,
     USER_TEMPLATE,
 )
+from autosentinel.llm.errors import LLMProviderError, LLMTimeoutError
 from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.protocol import LLMClient, Message
 from autosentinel.models import AgentState
@@ -65,20 +66,29 @@ class SecurityReviewerAgent(BaseAgent):
     def run(self, state: AgentState) -> AgentState:
         artifact = state.get("fix_artifact") or ""
 
-        # LLM call
+        # LLM call. Fail-safe (Constitution Principle V: the gate MUST emit a
+        # verdict for 100% of fixes with no bypass): if the GLM call times out
+        # or the provider errors, do NOT crash the pipeline — default to
+        # HIGH_RISK (an unreviewable fix is held for human approval) and still
+        # run the deterministic overrides below on the artifact.
         messages = [
             Message(role="system", content=SYSTEM_PROMPT),
             Message(role="user", content=USER_TEMPLATE.format(fix_artifact=artifact)),
         ]
-        response = self._llm_client.complete(
-            messages=messages,
-            model=self._model_config.model,
-            trace_id=state.get("trace_id", ""),
-            agent_name="security_reviewer",
-            max_tokens=self._model_config.max_tokens,
-            temperature=self._model_config.temperature,
-        )
-        llm_verdict = self._parse_verdict(response.content)
+        classifier_model = self._model_config.model
+        try:
+            response = self._llm_client.complete(
+                messages=messages,
+                model=self._model_config.model,
+                trace_id=state.get("trace_id", ""),
+                agent_name="security_reviewer",
+                max_tokens=self._model_config.max_tokens,
+                temperature=self._model_config.temperature,
+            )
+            llm_verdict = self._parse_verdict(response.content)
+            classifier_model = response.model
+        except (LLMTimeoutError, LLMProviderError):
+            llm_verdict = "HIGH_RISK"
 
         # Deterministic overrides trump the LLM verdict (defense-in-depth):
         #  - destructive ops (case-sensitive, prompt-injection-resistant);
@@ -93,6 +103,6 @@ class SecurityReviewerAgent(BaseAgent):
 
         return {
             "security_verdict": final_verdict,
-            "security_classifier_model": response.model,
+            "security_classifier_model": classifier_model,
             "agent_trace": ["SecurityReviewerAgent"],
         }
