@@ -13,7 +13,7 @@ Langfuse backend.
 Behavioural contract (contracts/llm-client.md §"Side-effects"):
   1. Validate trace_id via LLMRequest (frozen) — ValueError surfaces unwrapped.
   2. Open LLMTracer(trace_id, project='auto-sentinel', component=agent_name, model).
-  3. Call SDK inside the tracer span with tenacity retry (3 attempts).
+  3. Call SDK inside the tracer span with tenacity retry (2 attempts).
   4. set_tokens / set_cost_breakdown on the tracer.
   5. Build LLMResponse with Decimal cost.
   6. POST-response: cost_guard.accumulate(cost) — may raise CostGuardError.
@@ -76,7 +76,7 @@ class ArkLLMClient:
             api_key=api_key,
             base_url=base_url,
             http_client=http_client,
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(45.0),  # reasoning models run >30s; give one attempt room
             max_retries=0,  # tenacity owns the retry policy
         )
 
@@ -125,7 +125,7 @@ class ArkLLMClient:
                 sdk_response = self._invoke_with_retry(req)
             except (httpx.TimeoutException, openai.APITimeoutError) as e:
                 raise LLMTimeoutError(
-                    f"Ark request timed out after 3 attempts: {e}"
+                    f"Ark request timed out after 2 attempts: {e}"
                 ) from e
             except openai.APIStatusError as e:
                 raise LLMProviderError(
@@ -172,7 +172,7 @@ class ArkLLMClient:
         return response
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
+        stop=tenacity.stop_after_attempt(2),
         wait=tenacity.wait_exponential(multiplier=1, max=8),
         retry=tenacity.retry_if_exception_type(
             (httpx.TimeoutException, openai.APITimeoutError)

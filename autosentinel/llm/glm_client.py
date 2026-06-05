@@ -74,7 +74,7 @@ class GlmLLMClient:
             api_key=api_key,
             base_url=base_url,
             http_client=http_client,
-            timeout=httpx.Timeout(30.0),
+            timeout=httpx.Timeout(45.0),  # reasoning models run >30s; give one attempt room
             max_retries=0,
         )
 
@@ -121,7 +121,7 @@ class GlmLLMClient:
                 sdk_response = self._invoke_with_retry(req)
             except (httpx.TimeoutException, openai.APITimeoutError) as e:
                 raise LLMTimeoutError(
-                    f"GLM request timed out after 3 attempts: {e}"
+                    f"GLM request timed out after 2 attempts: {e}"
                 ) from e
             except openai.APIStatusError as e:
                 raise LLMProviderError(
@@ -166,7 +166,7 @@ class GlmLLMClient:
         return response
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
+        stop=tenacity.stop_after_attempt(2),
         wait=tenacity.wait_exponential(multiplier=1, max=8),
         retry=tenacity.retry_if_exception_type(
             (httpx.TimeoutException, openai.APITimeoutError)
