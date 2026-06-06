@@ -38,3 +38,8 @@ at `specs/005-real-llm-integration/plan.md`.
   confirmation (irreversible / owner action).
 - Test-First gate is non-negotiable: failing tests are committed first,
   implementation commits follow.
+
+## Shell Execution
+
+- Run shell commands one at a time, each as a separate invocation. Do not
+  chain multiple commands together with `&&` (or `;`, `||`).
