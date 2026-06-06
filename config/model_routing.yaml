@@ -8,7 +8,7 @@ agents:
   diagnosis:
     model: ep-20260508052420-fwq5q  # doubao-seed-2.0-pro
     temperature: 0.2
-    max_tokens: 2048
+    max_tokens: 1024  # latency: gen time ~linear in output tokens (was 2048)
   supervisor:
     model: ep-20260508052205-6x8hm  # doubao-1.5-lite-32k
     temperature: 0.0
@@ -16,11 +16,11 @@ agents:
   code_fixer:
     model: ep-20260508052420-fwq5q  # doubao-seed-2.0-pro
     temperature: 0.3
-    max_tokens: 4096
+    max_tokens: 1536  # latency: was 4096 (the v2 latency bottleneck, ~19-25s/call); 1024 gave no p50 gain over 1536
   infra_sre:
     model: ep-20260508052420-fwq5q  # doubao-seed-2.0-pro
     temperature: 0.3
-    max_tokens: 4096
+    max_tokens: 1536  # latency: was 4096
   security_reviewer:
     model: ep-20260508052924-6zchc  # GLM-4.7 (via Volcano Ark proxy)
     temperature: 0.0
