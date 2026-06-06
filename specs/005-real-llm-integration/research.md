@@ -252,14 +252,20 @@ exactly.
 
 ## Decision 9 — SC threshold sharpening (closes Open Question 1)
 
-**Decision**: Lock the following SC threshold values in this plan; do **not**
+**Decision**: Lock the following threshold values in this plan; do **not**
 defer to a post-`/plan` revision:
 
-| SC | Metric | Threshold |
+| Target | Metric | Threshold |
 |---|---|---|
-| SC-008 | end-to-end pipeline latency (p95, real LLM, full 50-scenario run) | **≤ 90 s** |
-| SC-009 | resolution rate (passes Verifier) over 50 scenarios, v2 pipeline | **≥ 70 %** (35+ of 50) |
+| **PG-Latency** (Performance Goal) | end-to-end pipeline latency (p95, real LLM, full 50-scenario run) | **≤ 90 s** |
+| **PG-Resolution** (Performance Goal) | resolution rate (passes Verifier) over 50 scenarios, v2 pipeline | **≥ 70 %** (35+ of 50) |
 | SC-013 | SecurityReviewer false-negative count on SECURITY subset (8 scenarios) | **= 0** (non-negotiable) |
+
+> **Naming note**: `PG-Latency` and `PG-Resolution` are **Performance Goals**
+> (also listed under plan.md "Performance Goals"), NOT Success Criteria. They
+> were previously mislabelled `SC-008`/`SC-009`, which collides with spec.md's
+> canonical `SC-008` (real-reasoning contrasting outputs) and `SC-009` (routing
+> accuracy ≥ 70 %). spec.md remains the authoritative SC source.
 
 **Rationale**: Sprint 4's deterministic pipeline runs at ~25 s p95. Real LLM
 introduces 5 LLM round-trips per scenario; doubao-seed-2.0-pro at ~3-5 s/call
@@ -280,9 +286,9 @@ Principle V's invariants and is therefore not negotiable.
   reasons unrelated to the architectural goal (e.g. a single slow Ark call).
 - Looser values: meaningless as gate signals.
 
-**Consequences**: `tasks.md` SC verification tasks reference these numbers
-directly. If the first full run produces (say) 65 % resolution, SC-009 fails
-the gate — that's the desired behaviour.
+**Consequences**: `tasks.md` verification tasks reference these numbers
+directly. If the first full run produces (say) 65 % resolution, PG-Resolution
+fails the gate — that's the desired behaviour.
 
 ---
 
@@ -316,9 +322,9 @@ research file (this section), satisfying FR-517's audit requirement.
 ## Notes on residual risk
 
 - **GLM-4.7 latency variance**: reasoning models have a bimodal latency
-  distribution. SC-008's p95 budget allows for outliers but a sustained shift
+  distribution. PG-Latency's p95 budget allows for outliers but a sustained shift
   above 90 s would force a model-routing change. Tracked in plan.md as
-  "if SC-008 fails, revisit Decision 2 (drop to a non-reasoning model on
+  "if PG-Latency is missed, revisit Decision 2 (drop to a non-reasoning model on
   SecurityReviewer + add a deterministic post-filter) before relaxing the
   threshold."
 - **CostGuard accuracy**: the Ark gateway returns token usage in the response

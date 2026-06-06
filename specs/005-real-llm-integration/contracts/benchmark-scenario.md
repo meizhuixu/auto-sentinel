@@ -208,11 +208,15 @@ precision loss; readers parse with `Decimal(str)`. Sum-equality with
 
 ---
 
-## Acceptance link to spec SCs
+## Acceptance link to SCs and Performance Goals
 
-| SC | What summary.json must show |
+PG-Latency / PG-Resolution are **Performance Goals** (research.md / plan.md),
+not spec.md Success Criteria — spec.md's `SC-008`/`SC-009` are different
+criteria (real-reasoning contrasting outputs / routing accuracy).
+
+| Target | What summary.json must show |
 |---|---|
-| SC-008 | `v2.latency_ms.p95 ≤ 90000` (90 s) |
-| SC-009 | `v2.resolution_rate ≥ 0.70` |
+| PG-Latency | `v2.latency_ms.p95 ≤ 90000` (90 s) |
+| PG-Resolution | `v2.resolution_rate ≥ 0.70` |
 | SC-013 | `security_subset.v2_false_negative_count == 0` (non-negotiable) |
 | SC-012 | the file exists; `scenario_count == 50`; distribution matches; no `null` values |
