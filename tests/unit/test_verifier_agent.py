@@ -179,3 +179,126 @@ class TestVerifierAgentReadsFixArtifact:
         agent = VerifierAgent()
         result = agent.run(AgentState(**state))
         assert result["execution_result"]["status"] == "success"
+
+
+# ── Sprint 6 (006-fix-verification-integrity, T003) ─────────────────────────
+# contracts/fix-artifact.md consumer obligations: deterministic normalization
+# before any container work + file-mount execution replacing `python -c`.
+
+
+def _capture_run_kwargs(mock_docker):
+    """Arm containers.run to record kwargs AND read the mounted fix.py at call
+    time (the temp dir is cleaned up after run(), so read during the call)."""
+    from pathlib import Path
+
+    captured: dict = {}
+
+    def _run(image, command, **kwargs):
+        captured["image"] = image
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        volumes = kwargs.get("volumes") or {}
+        for host_path, bind in volumes.items():
+            captured["bind"] = bind
+            fix_file = Path(host_path) / "fix.py"
+            if fix_file.exists():
+                captured["file_content"] = fix_file.read_text()
+        container = MagicMock()
+        container.wait.return_value = {"StatusCode": 0}
+        container.logs.side_effect = [b"ok\n", b""]
+        return container
+
+    mock_client = MagicMock()
+    mock_docker.from_env.return_value = mock_client
+    mock_client.containers.run.side_effect = _run
+    return captured
+
+
+class TestVerifierFileMountExecution:
+    def test_runs_fix_py_from_workspace_not_python_dash_c(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            captured = _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            result = agent.run(_make_state('print("fix")'))
+        assert captured["command"] == ["python", "/workspace/fix.py"]
+        assert result["execution_result"]["status"] == "success"
+
+    def test_mounts_artifact_read_only_at_workspace(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            captured = _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            agent.run(_make_state('print("fix")'))
+        assert captured["bind"] == {"bind": "/workspace", "mode": "ro"}
+
+    def test_file_content_is_the_verbatim_artifact(self):
+        artifact = 'import sys\nprint("fix")\nsys.exit(0)'
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            captured = _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            agent.run(_make_state(artifact))
+        assert captured["file_content"] == artifact
+
+    def test_sandbox_limits_preserved(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            captured = _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            agent.run(_make_state('print("fix")'))
+        assert captured["image"] == "python:3.10-alpine"
+        assert captured["kwargs"]["mem_limit"] == "64m"
+        assert captured["kwargs"]["network_mode"] == "none"
+
+
+class TestVerifierNormalizationWrapped:
+    def test_bare_return_fragment_executes_wrapped(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            captured = _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            result = agent.run(_make_state("value = {'a': 1}.get('a')\nreturn"))
+        assert "def __autosentinel_fix__" in captured["file_content"]
+        assert result["execution_result"]["status"] == "success"
+
+    def test_wrapped_outcome_recorded_in_state(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            result = agent.run(_make_state("return"))
+        assert result["fix_normalization"]["outcome"] == "wrapped"
+
+    def test_verbatim_outcome_recorded_in_state(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            _capture_run_kwargs(mock_docker)
+            agent = VerifierAgent()
+            result = agent.run(_make_state('print("fix")'))
+        assert result["fix_normalization"]["outcome"] == "verbatim"
+
+
+class TestVerifierNormalizationRejected:
+    def test_rejected_artifact_returns_honest_failure_without_container(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            agent = VerifierAgent()
+            result = agent.run(_make_state("def broken(:"))
+        mock_docker.from_env.assert_not_called()
+        assert result["execution_result"]["status"] == "failure"
+        assert result["execution_result"]["return_code"] is None
+        assert result["execution_error"] is None
+        assert result["fix_normalization"]["outcome"] == "rejected"
+
+    def test_rejected_reason_surfaces_in_stderr(self):
+        with patch("autosentinel.agents.verifier.docker"):
+            agent = VerifierAgent()
+            result = agent.run(_make_state("def broken(:"))
+        assert "SyntaxError" in result["execution_result"]["stderr"]
+
+    def test_empty_artifact_is_honest_failure_not_crash(self):
+        with patch("autosentinel.agents.verifier.docker") as mock_docker:
+            agent = VerifierAgent()
+            result = agent.run(_make_state(""))
+        mock_docker.from_env.assert_not_called()
+        assert result["execution_result"]["status"] == "failure"
+        assert "empty artifact" in result["execution_result"]["stderr"]
+
+    def test_rejected_still_appends_agent_trace(self):
+        with patch("autosentinel.agents.verifier.docker"):
+            agent = VerifierAgent()
+            result = agent.run(_make_state("def broken(:"))
+        assert "VerifierAgent" in result["agent_trace"]

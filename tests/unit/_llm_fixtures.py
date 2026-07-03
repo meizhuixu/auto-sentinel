@@ -103,3 +103,58 @@ def caution_fixture() -> LLMResponse:
         latency_ms=700,
         trace_id=_DEFAULT_TRACE_ID,
     )
+
+
+def script_fixture(content: str, model: str = "mock-code-fixer") -> LLMResponse:
+    """LLMResponse whose content is an arbitrary fix-artifact script/fragment.
+
+    Sprint 6 (006-fix-verification-integrity): producer compile()-validation
+    tests need to control the artifact text precisely.
+    """
+    return LLMResponse(
+        content=content,
+        model=model,
+        prompt_tokens=90,
+        completion_tokens=25,
+        cost=Decimal("0.0004"),
+        latency_ms=500,
+        trace_id=_DEFAULT_TRACE_ID,
+    )
+
+
+class SequenceLLMClient:
+    """LLMClient double returning a different response per complete() call.
+
+    Sprint 6: MockLLMClient's fixture is persistent, which cannot exercise the
+    producer-side "fragment first, valid script on retry" path. This double
+    pops responses in order (repeating the last one when exhausted) and keeps
+    every LLMRequest in `requests` for prompt-content assertions.
+    """
+
+    def __init__(self, responses: list[LLMResponse]) -> None:
+        if not responses:
+            raise ValueError("SequenceLLMClient needs at least one response")
+        self._responses = list(responses)
+        self.requests: list = []
+
+    @property
+    def call_count(self) -> int:
+        return len(self.requests)
+
+    @property
+    def last_request(self):
+        return self.requests[-1] if self.requests else None
+
+    def complete(self, *, messages, model, trace_id, agent_name, max_tokens, temperature) -> LLMResponse:
+        from autosentinel.llm.protocol import LLMRequest
+
+        self.requests.append(LLMRequest(
+            messages=messages,
+            model=model,
+            trace_id=trace_id,
+            agent_name=agent_name,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        ))
+        index = min(len(self.requests) - 1, len(self._responses) - 1)
+        return self._responses[index]
