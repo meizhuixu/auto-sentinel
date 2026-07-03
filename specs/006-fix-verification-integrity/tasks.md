@@ -70,12 +70,12 @@ fails sandbox execution → counted unresolved.
 
 ### Tests (write first, confirm RED, commit before implementation)
 
-- [ ] T013 [US2] Failing tests for the tightened scoring in tests/test_benchmark.py — per data-model.md §3: report present + `execution_result.status=="failure"` → unresolved; `"timeout"` → unresolved; `execution_result is None` → unresolved; `"success"` → resolved; summary carries `resolved_definition` string
+- [X] T013 [US2] Failing tests for the tightened scoring in tests/test_benchmark.py — per data-model.md §3: report present + `execution_result.status=="failure"` → unresolved; `"timeout"` → unresolved; `execution_result is None` → unresolved; `"success"` → resolved; summary carries `resolved_definition` string
 
 ### Implementation
 
-- [ ] T014 [US2] Tighten `passed` assignment and add `resolved_definition` to the summary in scripts/run_benchmark.py → T013 GREEN
-- [ ] T015 [US2] Zero-cost verification: `uv run python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 150 --use-mock` on a subset including a failing-fix scenario — confirm it scores unresolved; attach summary snippet to the PR description
+- [X] T014 [US2] Tighten `passed` assignment and add `resolved_definition` to the summary in scripts/run_benchmark.py → T013 GREEN
+- [X] T015 [US2] Zero-cost verification: `uv run python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 150 --use-mock` on a subset including a failing-fix scenario — confirm it scores unresolved; attach summary snippet to the PR description
 
 **Checkpoint**: scoring is honest; headline number production deferred to Phase 8.
 
