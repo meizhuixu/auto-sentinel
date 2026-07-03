@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from autosentinel.llm.cost_guard import get_cost_guard
-from autosentinel.models import AgentState, DiagnosticState
+from autosentinel.models import AgentState
 
 
 @pytest.fixture(autouse=True)
@@ -49,8 +49,8 @@ def cost_guard_reset():
 
 
 @pytest.fixture
-def connectivity_state(tmp_path) -> DiagnosticState:
-    """DiagnosticState with log_path pointing to a connectivity crash log."""
+def connectivity_state(tmp_path) -> AgentState:
+    """AgentState with log_path pointing to a connectivity crash log."""
     log = {
         "timestamp": "2026-04-24T10:15:00Z",
         "service_name": "payment-service",
@@ -60,7 +60,7 @@ def connectivity_state(tmp_path) -> DiagnosticState:
     }
     log_file = tmp_path / "crash-connectivity.json"
     log_file.write_text(json.dumps(log))
-    return DiagnosticState(
+    return AgentState(
         log_path=str(log_file),
         error_log=None,
         parse_error=None,
@@ -75,8 +75,8 @@ def connectivity_state(tmp_path) -> DiagnosticState:
 
 
 @pytest.fixture
-def resource_state(tmp_path) -> DiagnosticState:
-    """DiagnosticState with log_path pointing to a resource exhaustion log."""
+def resource_state(tmp_path) -> AgentState:
+    """AgentState with log_path pointing to a resource exhaustion log."""
     log = {
         "timestamp": "2026-04-24T11:00:00Z",
         "service_name": "order-processor",
@@ -86,7 +86,7 @@ def resource_state(tmp_path) -> DiagnosticState:
     }
     log_file = tmp_path / "crash-resource.json"
     log_file.write_text(json.dumps(log))
-    return DiagnosticState(
+    return AgentState(
         log_path=str(log_file),
         error_log=None,
         parse_error=None,
@@ -101,8 +101,8 @@ def resource_state(tmp_path) -> DiagnosticState:
 
 
 @pytest.fixture
-def config_state(tmp_path) -> DiagnosticState:
-    """DiagnosticState with log_path pointing to a configuration error log."""
+def config_state(tmp_path) -> AgentState:
+    """AgentState with log_path pointing to a configuration error log."""
     log = {
         "timestamp": "2026-04-24T09:30:00Z",
         "service_name": "auth-service",
@@ -112,7 +112,7 @@ def config_state(tmp_path) -> DiagnosticState:
     }
     log_file = tmp_path / "crash-config.json"
     log_file.write_text(json.dumps(log))
-    return DiagnosticState(
+    return AgentState(
         log_path=str(log_file),
         error_log=None,
         parse_error=None,
@@ -127,8 +127,8 @@ def config_state(tmp_path) -> DiagnosticState:
 
 
 @pytest.fixture
-def populated_connectivity_state(connectivity_state) -> DiagnosticState:
-    """DiagnosticState with error_log already populated (post-parse_log)."""
+def populated_connectivity_state(connectivity_state) -> AgentState:
+    """AgentState with error_log already populated (post-parse_log)."""
     state = dict(connectivity_state)
     state["error_log"] = {
         "timestamp": "2026-04-24T10:15:00Z",
@@ -137,7 +137,7 @@ def populated_connectivity_state(connectivity_state) -> DiagnosticState:
         "message": "Database connection timed out after 30s waiting for host db.internal:5432",
         "stack_trace": "Traceback (most recent call last):\n  File 'db.py', line 42, in connect\n    raise ConnectionTimeout('db.internal:5432 unreachable')",
     }
-    return DiagnosticState(**state)
+    return AgentState(**state)
 
 
 @pytest.fixture

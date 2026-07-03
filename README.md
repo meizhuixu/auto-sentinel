@@ -63,7 +63,6 @@ uv run pytest tests/ -q             # expect: 415 passed, 8 skipped
 
 # 3. Run one real incident end-to-end (needs ARK_API_KEY; real LLM, ~¥0.03)
 set -a; source .env; set +a         # ⚠ loads ARK_API_KEY etc. into this shell — uvicorn does NOT auto-read .env
-export AUTOSENTINEL_MULTI_AGENT=1
 export AUTOSENTINEL_CHECKPOINTER_DSN=postgresql://postgres:postgres@localhost:5434/postgres
 uv run uvicorn autosentinel.api.main:app --port 8000
 #   then, in another terminal (also at project root):

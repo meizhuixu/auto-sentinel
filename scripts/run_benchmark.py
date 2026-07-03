@@ -1,9 +1,8 @@
-"""Full v1/v2 benchmark runner (T060, plan §Block 6).
+"""Full benchmark runner (T060; single-pipeline since Sprint 6 v1 retirement).
 
-Reads every scenario yaml under --scenarios, runs each through the v1 (single-
-agent, mock-classify) and v2 (multi-agent) pipelines, and writes
-benchmarks/results/{run_id}/results.jsonl (one BenchmarkResult per v2 scenario)
-+ summary.json (contracts/benchmark-scenario.md "Output schema").
+Reads every scenario yaml under --scenarios, runs each through the multi-agent
+pipeline, and writes benchmarks/results/{run_id}/results.jsonl (one
+BenchmarkResult per scenario) + summary.json (006 data-model.md §4 schema).
 
   run_id = YYYYMMDD-HHMMSS-{git_short_sha}
 
@@ -124,26 +123,8 @@ def _build_mock_agents(scenario) -> dict:
     }
 
 
-def _run_v1(scenario) -> tuple[bool, int]:
-    """Run the v1 single-agent pipeline (mock-classify, $0 LLM). Returns
-    (resolved, latency_ms). Exceptions (e.g. Docker unavailable) -> unresolved."""
-    from autosentinel import run_pipeline
-
-    prev = os.environ.pop("AUTOSENTINEL_MULTI_AGENT", None)
-    start = time.monotonic()
-    resolved = True
-    try:
-        run_pipeline(scenario.error_log_path)
-    except Exception:
-        resolved = False
-    finally:
-        if prev is not None:
-            os.environ["AUTOSENTINEL_MULTI_AGENT"] = prev
-    return resolved, int((time.monotonic() - start) * 1000)
-
-
 def _run_v2(scenario, *, use_mock: bool):
-    """Run the v2 multi-agent pipeline. Returns (BenchmarkResult, verdict).
+    """Run the multi-agent pipeline. Returns (BenchmarkResult, verdict).
 
     Raises CostGuardError if the run trips the budget (FR-519)."""
     from langgraph.types import Command
@@ -247,16 +228,10 @@ def run(
     if only is not None:
         scenarios = [s for s in scenarios if s.scenario_id in only]
 
-    v1_latencies: list[int] = []
-    v1_resolved = 0
     v2_results = []
     v2_verdicts: dict[str, Optional[str]] = {}
 
     for scenario in scenarios:
-        resolved, v1_lat = _run_v1(scenario)
-        v1_latencies.append(v1_lat)
-        v1_resolved += 1 if resolved else 0
-
         result, verdict = _run_v2(scenario, use_mock=use_mock)
         v2_results.append(result)
         v2_verdicts[scenario.scenario_id] = verdict
@@ -286,14 +261,7 @@ def run(
         "run_id": run_id,
         "scenario_count": n,
         "category_distribution": category_distribution,
-        "v1": {
-            "latency_ms": {"p50": _percentile(v1_latencies, 50),
-                           "p95": _percentile(v1_latencies, 95)},
-            "total_cost": str(Decimal("0")),  # v1 is mock-classify, no LLM spend
-            "cost_currency": "CNY",
-            "resolution_rate": round(v1_resolved / n, 2) if n else 0.0,
-        },
-        "v2": {
+        "pipeline": {
             "latency_ms": {"p50": _percentile(v2_latencies, 50),
                            "p95": _percentile(v2_latencies, 95)},
             "total_cost": str(v2_cost_total),
@@ -308,8 +276,8 @@ def run(
         },
         "security_subset": {
             "count": len(security),
-            "v2_false_negative_count": len(false_neg_ids),
-            "v2_false_negative_scenario_ids": false_neg_ids,
+            "false_negative_count": len(false_neg_ids),
+            "false_negative_scenario_ids": false_neg_ids,
         },
     }
 
@@ -325,7 +293,7 @@ def run(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="AutoSentinel v1/v2 benchmark runner")
+    parser = argparse.ArgumentParser(description="AutoSentinel benchmark runner")
     parser.add_argument("--scenarios", type=Path, required=True,
                         help="directory of scenario yaml files")
     parser.add_argument("--budget", default="150",

@@ -1,9 +1,13 @@
 """Tests for the smoke benchmark — yaml-sourced after T050.
 
-The 5 scenarios are loaded from benchmarks/scenarios/*.yaml via the T048
+The scenarios are loaded from benchmarks/scenarios/*.yaml via the T048
 BenchmarkScenario schema (no inline SCENARIOS list); the runner internals
-(_run_v1 / _run_v2_detail / run_benchmark) are exercised with mocked
-pipelines so the suite stays hermetic and zero-cost.
+(_run_v2_detail / run_benchmark) are exercised with mocked pipelines so the
+suite stays hermetic and zero-cost.
+
+Sprint 6 (006-fix-verification-integrity): the v1 comparison arm is retired
+(single-pipeline report schema) and `resolved` requires sandbox execution
+success (data-model.md §3), not just report presence.
 """
 
 import json
@@ -11,15 +15,12 @@ import runpy
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from langgraph.types import Command
 
-from autosentinel.agents.state import AgentState  # exercises state.py re-export
+from autosentinel.agents.state import AgentState  # noqa: F401 — exercises state.py re-export
 from autosentinel.benchmark import (
     BenchmarkScenario,
     _load_scenarios,
-    _run_v1,
     _run_v2_detail,
     run_benchmark,
 )
@@ -32,11 +33,7 @@ _CODE_ID = "001_code_null_user_context"
 # Shared mock factories
 # ---------------------------------------------------------------------------
 
-def _v1_ok() -> dict:
-    return {"resolved": True, "duration_ms": 5}
-
-
-def _v2_ok(*, was_interrupted: bool = False, verdict: str = "SAFE") -> dict:
+def _detail_ok(*, was_interrupted: bool = False, verdict: str = "SAFE") -> dict:
     return {
         "resolved": True,
         "duration_ms": 5,
@@ -50,11 +47,11 @@ def _v2_ok(*, was_interrupted: bool = False, verdict: str = "SAFE") -> dict:
     }
 
 
-def _mock_v2_side_effect(interrupted_id: str | None = None):
+def _mock_detail_side_effect(interrupted_id: str | None = None):
     def side_effect(scenario: BenchmarkScenario, log_path: Path) -> dict:
         if scenario.scenario_id == interrupted_id:
-            return _v2_ok(was_interrupted=True, verdict="HIGH_RISK")
-        return _v2_ok()
+            return _detail_ok(was_interrupted=True, verdict="HIGH_RISK")
+        return _detail_ok()
     return side_effect
 
 
@@ -86,33 +83,22 @@ class TestLoadScenarios:
 
 
 # ---------------------------------------------------------------------------
-# _run_v1 unit
-# ---------------------------------------------------------------------------
-
-class TestRunV1:
-    def test_resolved_on_success(self, tmp_path):
-        report = tmp_path / "report.md"
-        report.write_text("# Report")
-        with patch("autosentinel.benchmark.run_pipeline", return_value=report):
-            result = _run_v1(tmp_path / "log.json")
-        assert result["resolved"] is True
-        assert isinstance(result["duration_ms"], int)
-
-    def test_unresolved_on_exception(self, tmp_path):
-        with patch("autosentinel.benchmark.run_pipeline",
-                   side_effect=RuntimeError("v1 pipeline down")):
-            result = _run_v1(tmp_path / "log.json")
-        assert result["resolved"] is False
-
-
-# ---------------------------------------------------------------------------
 # _run_v2_detail unit
 # ---------------------------------------------------------------------------
 
 class TestRunV2Detail:
-    def _make_graph(self, *, interrupt_on_first: bool = False, verdict: str = "SAFE"):
+    def _make_graph(
+        self,
+        *,
+        interrupt_on_first: bool = False,
+        verdict: str = "SAFE",
+        execution_status: str = "success",
+    ):
         mock_graph = MagicMock()
         call_count = {"n": 0}
+        execution_result = {"status": execution_status, "return_code": 0,
+                            "stdout": "", "stderr": "", "duration_ms": 1,
+                            "error": None}
 
         def fake_invoke(state_or_command, config=None):
             call_count["n"] += 1
@@ -122,6 +108,7 @@ class TestRunV2Detail:
                     "agent_trace": ["SecurityReviewerAgent", "VerifierAgent"],
                     "security_verdict": "HIGH_RISK",
                     "routing_decision": "SECURITY -> CodeFixerAgent",
+                    "execution_result": execution_result,
                 }
             if interrupt_on_first and call_count["n"] == 1:
                 return {"__interrupt__": [{"value": {"reason": "HIGH_RISK"}}]}
@@ -133,6 +120,7 @@ class TestRunV2Detail:
                 ],
                 "security_verdict": verdict,
                 "routing_decision": "CODE -> CodeFixerAgent",
+                "execution_result": execution_result,
             }
 
         mock_graph.invoke.side_effect = fake_invoke
@@ -171,6 +159,16 @@ class TestRunV2Detail:
         assert result["was_interrupted"] is False
         assert result["agent_trace"] == []
 
+    def test_sandbox_failure_counts_unresolved(self, tmp_path):
+        """Sprint 6 tightened definition: a report with a failed sandbox
+        execution is NOT resolved."""
+        log = tmp_path / "log.json"
+        log.write_text("{}")
+        with patch("autosentinel.benchmark.build_multi_agent_graph",
+                   return_value=self._make_graph(execution_status="failure")):
+            result = _run_v2_detail(self._s(_CODE_ID), log)
+        assert result["resolved"] is False
+
 
 # ---------------------------------------------------------------------------
 # run_benchmark() end-to-end (mocked internals)
@@ -180,9 +178,8 @@ class TestRunBenchmark:
     def _run(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         (tmp_path / "output").mkdir()
-        with patch("autosentinel.benchmark._run_v1", return_value=_v1_ok()), \
-             patch("autosentinel.benchmark._run_v2_detail",
-                   side_effect=_mock_v2_side_effect(_SECURITY_ID)):
+        with patch("autosentinel.benchmark._run_v2_detail",
+                   side_effect=_mock_detail_side_effect(_SECURITY_ID)):
             return run_benchmark()
 
     def test_returns_dict(self, tmp_path, monkeypatch):
@@ -191,17 +188,15 @@ class TestRunBenchmark:
     def test_scenario_count_in_result(self, tmp_path, monkeypatch):
         assert self._run(tmp_path, monkeypatch)["scenario_count"] == len(_load_scenarios())
 
-    def test_v1_resolution_rate_not_null(self, tmp_path, monkeypatch):
-        assert self._run(tmp_path, monkeypatch)["v1_resolution_rate"] is not None
+    def test_resolution_rate_not_null(self, tmp_path, monkeypatch):
+        assert self._run(tmp_path, monkeypatch)["resolution_rate"] is not None
 
-    def test_v2_resolution_rate_not_null(self, tmp_path, monkeypatch):
-        assert self._run(tmp_path, monkeypatch)["v2_resolution_rate"] is not None
+    def test_avg_ms_not_null(self, tmp_path, monkeypatch):
+        assert self._run(tmp_path, monkeypatch)["avg_ms"] is not None
 
-    def test_v1_avg_ms_not_null(self, tmp_path, monkeypatch):
-        assert self._run(tmp_path, monkeypatch)["v1_avg_ms"] is not None
-
-    def test_v2_avg_ms_not_null(self, tmp_path, monkeypatch):
-        assert self._run(tmp_path, monkeypatch)["v2_avg_ms"] is not None
+    def test_report_carries_resolved_definition(self, tmp_path, monkeypatch):
+        report = self._run(tmp_path, monkeypatch)
+        assert "success" in report["resolved_definition"]
 
     def test_writes_json_report(self, tmp_path, monkeypatch):
         self._run(tmp_path, monkeypatch)
@@ -218,39 +213,35 @@ class TestRunBenchmark:
     def test_security_was_interrupted_true(self, tmp_path, monkeypatch):
         result = self._run(tmp_path, monkeypatch)
         sec = next(s for s in result["scenarios"] if s["id"] == _SECURITY_ID)
-        assert sec["v2"]["was_interrupted"] is True
+        assert sec["was_interrupted"] is True
 
     def test_security_verdict_high_risk(self, tmp_path, monkeypatch):
         result = self._run(tmp_path, monkeypatch)
         sec = next(s for s in result["scenarios"] if s["id"] == _SECURITY_ID)
-        assert sec["v2"]["security_verdict"] == "HIGH_RISK"
+        assert sec["security_verdict"] == "HIGH_RISK"
 
-    def test_v2_detail_has_agent_trace(self, tmp_path, monkeypatch):
+    def test_scenario_detail_has_agent_trace(self, tmp_path, monkeypatch):
         result = self._run(tmp_path, monkeypatch)
         for s in result["scenarios"]:
-            assert "agent_trace" in s["v2"]
+            assert "agent_trace" in s
 
     def test_run_scenario_exception_counts_as_unresolved(self, tmp_path, monkeypatch):
-        """All scenarios unresolved when helpers return resolved=False."""
+        """All scenarios unresolved when the detail helper returns resolved=False."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "output").mkdir()
-        with patch("autosentinel.benchmark._run_v1",
-                   return_value={"resolved": False, "duration_ms": 0}), \
-             patch("autosentinel.benchmark._run_v2_detail",
+        with patch("autosentinel.benchmark._run_v2_detail",
                    return_value={"resolved": False, "duration_ms": 0,
                                  "agent_trace": [], "security_verdict": None,
                                  "routing_decision": None, "was_interrupted": False}):
             result = run_benchmark()
-        assert result["v1_resolution_rate"] == 0.0
-        assert result["v2_resolution_rate"] == 0.0
+        assert result["resolution_rate"] == 0.0
 
     def test_benchmark_cli_main(self, tmp_path, monkeypatch):
         """Exercise the __main__ block via runpy."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "output").mkdir()
-        with patch("autosentinel.benchmark._run_v1", return_value=_v1_ok()), \
-             patch("autosentinel.benchmark._run_v2_detail",
-                   side_effect=_mock_v2_side_effect(_SECURITY_ID)):
+        with patch("autosentinel.benchmark._run_v2_detail",
+                   side_effect=_mock_detail_side_effect(_SECURITY_ID)):
             runpy.run_module("autosentinel.benchmark", run_name="__main__",
                              alter_sys=True)
         assert (tmp_path / "output" / "benchmark-report.json").exists()

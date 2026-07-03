@@ -48,10 +48,8 @@ def _docker_success(mock_docker: MagicMock) -> None:
 @pytest.fixture
 def smoke_run(tmp_path):
     runner = _load_runner()
-    with patch("autosentinel.agents.verifier.docker") as v_md, \
-         patch("autosentinel.nodes.execute_fix.docker") as e_md:
+    with patch("autosentinel.agents.verifier.docker") as v_md:
         _docker_success(v_md)
-        _docker_success(e_md)
         summary = runner.run(
             scenarios_dir=Path("benchmarks/scenarios"),
             budget="150",
@@ -70,12 +68,12 @@ class TestSmokeBenchmark:
     def test_summary_top_level_schema(self, smoke_run):
         summary, _ = smoke_run
         for key in ("run_id", "scenario_count", "category_distribution",
-                    "v1", "v2", "security_subset"):
+                    "pipeline", "security_subset"):
             assert key in summary, f"missing summary key: {key}"
 
     def test_pipeline_sections_have_no_null_metrics(self, smoke_run):
         summary, _ = smoke_run
-        for side in ("v1", "v2"):
+        for side in ("pipeline",):
             sec = summary[side]
             assert sec["latency_ms"]["p50"] is not None
             assert sec["latency_ms"]["p95"] is not None
@@ -85,16 +83,15 @@ class TestSmokeBenchmark:
     def test_total_cost_is_zero_under_mock(self, smoke_run):
         summary, _ = smoke_run
         # MockLLMClient never accumulates -> zero spend, budget never tripped.
-        assert Decimal(summary["v2"]["total_cost"]) == Decimal("0")
-        assert Decimal(summary["v1"]["total_cost"]) == Decimal("0")
+        assert Decimal(summary["pipeline"]["total_cost"]) == Decimal("0")
 
     def test_security_subset_zero_false_negatives_under_mock(self, smoke_run):
         summary, _ = smoke_run
         sub = summary["security_subset"]
         # 1 SECURITY scenario (004) in the smoke set; mock returns ground-truth.
         assert sub["count"] == 1
-        assert sub["v2_false_negative_count"] == 0
-        assert sub["v2_false_negative_scenario_ids"] == []
+        assert sub["false_negative_count"] == 0
+        assert sub["false_negative_scenario_ids"] == []
 
     def test_results_jsonl_written_and_valid(self, smoke_run):
         summary, output_root = smoke_run
@@ -147,10 +144,8 @@ def _docker_timeout(mock_docker: MagicMock) -> None:
 class TestTightenedResolvedDefinition:
     def _run(self, tmp_path, verifier_docker_setup):
         runner = _load_runner()
-        with patch("autosentinel.agents.verifier.docker") as v_md, \
-             patch("autosentinel.nodes.execute_fix.docker") as e_md:
+        with patch("autosentinel.agents.verifier.docker") as v_md:
             verifier_docker_setup(v_md)
-            _docker_success(e_md)
             return runner.run(
                 scenarios_dir=Path("benchmarks/scenarios"),
                 budget="150",
@@ -164,19 +159,19 @@ class TestTightenedResolvedDefinition:
         sandbox. Old definition scored this 1.0 ("pipeline completion");
         the honest definition must score 0.0."""
         summary = self._run(tmp_path, lambda md: _docker_exit(md, 1))
-        assert summary["v2"]["resolution_rate"] == 0.0
+        assert summary["pipeline"]["resolution_rate"] == 0.0
 
     def test_sandbox_timeout_counts_unresolved(self, tmp_path):
         summary = self._run(tmp_path, _docker_timeout)
-        assert summary["v2"]["resolution_rate"] == 0.0
+        assert summary["pipeline"]["resolution_rate"] == 0.0
 
     def test_sandbox_exit_zero_counts_resolved(self, tmp_path):
         """Mock artifacts must be contract-compliant (compile-clean) so they
         actually reach the mocked sandbox and score by its exit code."""
         summary = self._run(tmp_path, lambda md: _docker_exit(md, 0))
-        assert summary["v2"]["resolution_rate"] == 1.0
+        assert summary["pipeline"]["resolution_rate"] == 1.0
 
     def test_summary_carries_resolved_definition(self, tmp_path):
         summary = self._run(tmp_path, lambda md: _docker_exit(md, 0))
-        assert "resolved_definition" in summary["v2"]
-        assert "success" in summary["v2"]["resolved_definition"]
+        assert "resolved_definition" in summary["pipeline"]
+        assert "success" in summary["pipeline"]["resolved_definition"]

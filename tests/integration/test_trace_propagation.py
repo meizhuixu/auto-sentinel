@@ -52,8 +52,6 @@ _VALID_PAYLOAD = {
 
 # ── (a) end-to-end consistency through the FastAPI endpoint ────────────────
 def test_trace_id_end_to_end_consistency(client, monkeypatch):
-    monkeypatch.setenv("AUTOSENTINEL_MULTI_AGENT", "1")
-
     recorder = RecordingMock()
     for agent in (
         mag._diagnosis_agent,

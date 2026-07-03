@@ -1,25 +1,25 @@
-"""Smoke benchmark — runs the migrated scenarios through v1 and v2 pipelines.
+"""Smoke benchmark — runs the migrated scenarios through the multi-agent pipeline.
 
 Scenarios are sourced from yaml files under `benchmarks/scenarios/` (loaded
 via the BenchmarkScenario schema below), NOT from an inline list — FR-516.
-T050 replaced the Sprint-4 inline `SCENARIOS: list[dict]` and the
-`SPRINT4_MOCK_APPROVAL` constant with this yaml-driven runner; the HIGH_RISK
-interrupt is now resumed with a plain approval token, since the real
-CostGuard path preserves partial state across the interrupt.
 
-SEMANTIC DECISION (carried over from Sprint 4): HIGH_RISK + approval +
-verifier success counts as "resolved". LangGraph interrupt() is a designed
+Sprint 6 (006-fix-verification-integrity US4): the v1 comparison arm is
+retired — this runner measures only the production multi-agent pipeline.
+
+SEMANTIC DECISION (carried over from Sprint 4, tightened in Sprint 6):
+"resolved" means HIGH_RISK + approval handled AND the fix VERIFIABLY SUCCEEDED
+in the sandbox (execution_result.status == 'success'); report presence alone
+no longer counts (006 data-model.md §3). LangGraph interrupt() is a designed
 control flow (SC-003), not a failure; the full agent_trace (including
 SecurityReviewerAgent and VerifierAgent post-approval) is recorded for audit.
 
-This module is the CI-runnable smoke runner (writes output/benchmark-report.json
-in the Sprint-4 schema). The full 50-scenario runner with results.jsonl +
-summary.json is scripts/run_benchmark.py (T060).
+This module is the CI-runnable smoke runner (writes output/benchmark-report.json).
+The full 50-scenario runner with results.jsonl + summary.json is
+scripts/run_benchmark.py (T060).
 """
 from __future__ import annotations
 
 import json
-import os
 import time
 import uuid
 from datetime import date
@@ -31,7 +31,6 @@ import yaml
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 
-from autosentinel import run_pipeline
 from autosentinel.models import AgentState
 from autosentinel.multi_agent_graph import build_multi_agent_graph
 
@@ -101,22 +100,6 @@ def _load_scenarios(scenarios_dir: Path | None = None) -> list[BenchmarkScenario
     return scenarios
 
 
-def _run_v1(log_path: Path) -> dict:
-    """Run through v1 pipeline (AUTOSENTINEL_MULTI_AGENT unset); return {resolved, duration_ms}."""
-    original = dict(os.environ)
-    os.environ.pop("AUTOSENTINEL_MULTI_AGENT", None)
-    resolved = True
-    start = time.monotonic()
-    try:
-        run_pipeline(log_path)
-    except Exception:
-        resolved = False
-    finally:
-        os.environ.clear()
-        os.environ.update(original)
-    return {"resolved": resolved, "duration_ms": int((time.monotonic() - start) * 1000)}
-
-
 def _run_v2_detail(scenario: BenchmarkScenario, log_path: Path) -> dict:
     """Run through v2 graph directly; detect interrupt; return full detail dict.
 
@@ -152,7 +135,17 @@ def _run_v2_detail(scenario: BenchmarkScenario, log_path: Path) -> dict:
             final_result = graph.invoke(Command(resume="approved"), config)
         else:
             final_result = first_result
-        resolved = final_result.get("report_text") is not None
+        # Sprint 6 tightened definition (006 data-model.md §3): the fix must
+        # have verifiably succeeded in the sandbox, not merely produced a report.
+        execution_result = final_result.get("execution_result")
+        execution_status = (
+            execution_result.get("status") if isinstance(execution_result, dict)
+            else getattr(execution_result, "status", None)
+        )
+        resolved = (
+            final_result.get("report_text") is not None
+            and execution_status == "success"
+        )
     except Exception:
         pass  # resolved=False, was_interrupted keeps value set before exception
     duration_ms = int((time.monotonic() - start) * 1000)
@@ -167,7 +160,7 @@ def _run_v2_detail(scenario: BenchmarkScenario, log_path: Path) -> dict:
 
 
 def run_benchmark(scenarios_dir: Path | None = None) -> dict:
-    """Run the migrated smoke scenarios through v1 and v2; write JSON report.
+    """Run the migrated smoke scenarios through the pipeline; write JSON report.
 
     Scenarios are globbed from yaml (benchmarks/scenarios/) and reference their
     own on-disk log fixtures via `error_log_path` — nothing is written here.
@@ -175,41 +168,34 @@ def run_benchmark(scenarios_dir: Path | None = None) -> dict:
     scenarios = _load_scenarios(scenarios_dir)
 
     scenario_details = []
-    v1_results: list[dict] = []
-    v2_results: list[dict] = []
+    results: list[dict] = []
 
     for scenario in scenarios:
         log_path = scenario.error_log_path
-        v1 = _run_v1(log_path)
-        v2 = _run_v2_detail(scenario, log_path)
-        v1_results.append(v1)
-        v2_results.append(v2)
+        detail = _run_v2_detail(scenario, log_path)
+        results.append(detail)
         scenario_details.append({
             "id": scenario.scenario_id,
             "category": scenario.category,
-            "v1": {"resolved": v1["resolved"], "duration_ms": v1["duration_ms"]},
-            "v2": {
-                "resolved": v2["resolved"],
-                "duration_ms": v2["duration_ms"],
-                "agent_trace": v2["agent_trace"],
-                "security_verdict": v2["security_verdict"],
-                "routing_decision": v2["routing_decision"],
-                "was_interrupted": v2["was_interrupted"],
-            },
+            "resolved": detail["resolved"],
+            "duration_ms": detail["duration_ms"],
+            "agent_trace": detail["agent_trace"],
+            "security_verdict": detail["security_verdict"],
+            "routing_decision": detail["routing_decision"],
+            "was_interrupted": detail["was_interrupted"],
         })
 
     count = len(scenarios)
-    v1_resolved = sum(1 for r in v1_results if r["resolved"])
-    v2_resolved = sum(1 for r in v2_results if r["resolved"])
-    v1_avg_ms = int(sum(r["duration_ms"] for r in v1_results) / count)
-    v2_avg_ms = int(sum(r["duration_ms"] for r in v2_results) / count)
+    resolved_count = sum(1 for r in results if r["resolved"])
+    avg_ms = int(sum(r["duration_ms"] for r in results) / count)
 
     report = {
         "scenario_count": count,
-        "v1_resolution_rate": round(v1_resolved / count, 2),
-        "v2_resolution_rate": round(v2_resolved / count, 2),
-        "v1_avg_ms": v1_avg_ms,
-        "v2_avg_ms": v2_avg_ms,
+        "resolution_rate": round(resolved_count / count, 2),
+        "avg_ms": avg_ms,
+        "resolved_definition": (
+            "report_text present AND execution_result.status == 'success'"
+        ),
         "scenarios": scenario_details,
     }
 
