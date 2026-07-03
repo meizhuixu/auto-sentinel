@@ -29,19 +29,6 @@ class ExecutionResult(TypedDict):
     error: Optional[str]
 
 
-class DiagnosticState(TypedDict):
-    log_path: str
-    error_log: Optional[ErrorLog]
-    parse_error: Optional[str]
-    analysis_result: Optional[AnalysisResult]
-    analysis_error: Optional[str]
-    fix_script: Optional[str]
-    execution_result: Optional[ExecutionResult]
-    execution_error: Optional[str]
-    report_text: Optional[str]
-    report_path: Optional[str]
-
-
 class AgentState(TypedDict):
     # ── Sprint 1–3 (unchanged) ──────────────────────────────────────────
     log_path: str
@@ -79,3 +66,8 @@ class AgentState(TypedDict):
     # agent raises CostGuardError; the post-node conditional edges route to
     # cost_exhausted_node (END) instead of the normal successor (T042/T043).
     cost_exhausted: NotRequired[bool]
+    # ── Sprint 6 (006-fix-verification-integrity) ───────────────────────
+    # fix_normalization: Verifier-side artifact normalization audit record
+    # ({"outcome": "verbatim"|"wrapped"|"rejected", "reason": str|None}).
+    # Plain dict (not a model) — must JSON-round-trip through PostgresSaver.
+    fix_normalization: NotRequired[dict]

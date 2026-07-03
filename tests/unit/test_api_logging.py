@@ -1,11 +1,8 @@
 """Unit tests for the JSONFormatter and get_logger utility."""
 
 import json
-import logging
-import sys
 from io import StringIO
 
-import pytest
 
 
 def test_json_formatter_output_is_valid_json():

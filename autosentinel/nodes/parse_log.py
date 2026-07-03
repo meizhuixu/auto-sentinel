@@ -3,12 +3,12 @@
 import json
 from pathlib import Path
 
-from autosentinel.models import DiagnosticState, ErrorLog
+from autosentinel.models import AgentState, ErrorLog
 
 _REQUIRED_FIELDS = ("timestamp", "service_name", "error_type", "message")
 
 
-def parse_log(state: DiagnosticState) -> dict:
+def parse_log(state: AgentState) -> dict:
     """Read and validate the JSON log file at state['log_path']."""
     log_path = Path(state["log_path"])
     try:

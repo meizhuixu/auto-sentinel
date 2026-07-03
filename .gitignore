@@ -1,6 +1,8 @@
-# Generated diagnostic reports (runtime files excluded, canonical benchmark kept)
+# Generated diagnostic reports (runtime files excluded).
+# The old canonical output/benchmark-report.json (Sprint-4 v1/v2 smoke) was
+# retired in Sprint 6; the published record is the re-baseline summary under
+# benchmarks/results/ (force-added) + the README table.
 output/*
-!output/benchmark-report.json
 
 # Benchmark run artifacts (scripts/run_benchmark.py output; keep the dir marker)
 benchmarks/results/*
@@ -214,6 +216,7 @@ cython_debug/
 
 # Claude Code
 .claude/settings.local.json
+.claude/worktrees/
 
 # Marimo
 marimo/_static/

@@ -1,6 +1,5 @@
 """Unit tests for run_pipeline() public API and CLI entry point."""
 
-import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -17,22 +16,13 @@ from tests.integration._pr4_helpers import (
 
 
 # --- run_pipeline() ---
-
-def test_run_pipeline_happy_path(connectivity_state, tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    result = run_pipeline(connectivity_state["log_path"])
-    assert isinstance(result, Path)
-    assert result.exists()
+# Sprint 6 (US4): the v1 pipeline + AUTOSENTINEL_MULTI_AGENT flag are retired;
+# run_pipeline() always builds the multi-agent graph. The happy path patches
+# build_multi_agent_graph to a D2-seam graph with MockLLMClient agents —
+# hermetic, zero real-provider traffic, zero spend.
 
 
-def test_run_pipeline_multi_agent_flag(connectivity_state, tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("AUTOSENTINEL_MULTI_AGENT", "1")
-    # run_pipeline() builds a bare build_multi_agent_graph() internally; the
-    # public API exposes no agents= seam, so the production path would
-    # instantiate the concrete provider clients. Patch that call to return a
-    # graph with MockLLMClient agents injected via the same D2 seam — hermetic,
-    # zero real-provider traffic, zero spend.
+def _hermetic_pipeline_run(log_path):
     injected = build_multi_agent_graph(
         agents=build_injected_agents(build_fixture_clients())
     )
@@ -46,7 +36,12 @@ def test_run_pipeline_multi_agent_flag(connectivity_state, tmp_path, monkeypatch
         mock_client.containers.run.return_value = mock_container
         mock_container.wait.return_value = {"StatusCode": 0}
         mock_container.logs.side_effect = [b"OK\n", b""]
-        result = run_pipeline(connectivity_state["log_path"])
+        return run_pipeline(log_path)
+
+
+def test_run_pipeline_happy_path(connectivity_state, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = _hermetic_pipeline_run(connectivity_state["log_path"])
     assert isinstance(result, Path)
     assert result.exists()
 
@@ -57,6 +52,7 @@ def test_run_pipeline_file_not_found(tmp_path):
 
 
 def test_run_pipeline_parse_error_raises_diagnostic_error(tmp_path):
+    # parse errors route to END before any agent node — no LLM patching needed
     bad_file = tmp_path / "bad.json"
     bad_file.write_text("not valid json {")
     with pytest.raises(DiagnosticError) as exc_info:
@@ -66,29 +62,9 @@ def test_run_pipeline_parse_error_raises_diagnostic_error(tmp_path):
 
 def test_run_pipeline_returns_existing_report(connectivity_state, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    result = run_pipeline(connectivity_state["log_path"])
+    result = _hermetic_pipeline_run(connectivity_state["log_path"])
     assert result.suffix == ".md"
     assert "report" in result.name
-
-
-def test_run_pipeline_analysis_error_raises_diagnostic_error(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    import json
-    log = {
-        "timestamp": "2026-04-25T10:00:00Z",
-        "service_name": "svc",
-        "error_type": "Error",
-        "message": "boom",
-    }
-    log_file = tmp_path / "test.json"
-    log_file.write_text(json.dumps(log))
-    # Patch the name in graph.py's namespace so build_graph() picks up the mock.
-    with patch(
-        "autosentinel.graph.analyze_error",
-        return_value={"analysis_result": None, "analysis_error": "mock analysis failure"},
-    ):
-        with pytest.raises(DiagnosticError, match="mock analysis failure"):
-            run_pipeline(log_file)
 
 
 # --- main() CLI entry point ---

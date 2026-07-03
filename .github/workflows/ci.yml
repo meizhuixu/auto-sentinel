@@ -1,0 +1,69 @@
+# Sprint 6 US3 (specs/006-fix-verification-integrity/contracts/ci-gate.md) —
+# the broad quality gate: style, types, full test suite. Closes the DEBT.md
+# "CI gap" entry (previously only scenario-authorship.yml ran on PRs).
+#
+# The AST boundary gates (Constitution I docker / VII.1 provider isolation)
+# are pytest tests (tests/unit/test_docker_import_boundary.py,
+# test_llm_provider_isolation.py), so the `test` job enforces them.
+#
+# Anti-silent-skip: AUTOSENTINEL_REQUIRE_CHECKPOINTER=1 makes the
+# requires_checkpointer tests RUN (and fail loudly if :5434 is unreachable)
+# instead of skipping — the cross-process PostgresSaver guarantee (T029/T036/
+# T044c lineage) is genuinely verified on every PR. The service container
+# below mirrors infra/docker-compose.checkpointer.yml (same port/credentials)
+# so local and CI DSNs are identical.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - run: uv sync --extra dev --frozen
+      # --no-sync: uv run re-syncs the project by default, which re-resolves
+      # the tracing extra's ../llmops-dashboard path source (absent on CI)
+      - run: uv run --no-sync ruff check .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - run: uv sync --extra dev --frozen
+      - run: uv run --no-sync mypy autosentinel
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      checkpointer:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - "5434:5432"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      AUTOSENTINEL_REQUIRE_CHECKPOINTER: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+      - run: uv sync --extra dev --frozen
+      - run: uv run --no-sync pytest -q -rs

@@ -104,7 +104,7 @@ def main() -> int:
         print(f"[{agent}]")
         try:
             priced, line = _probe(agent, trace_id)
-            print(f"  status=OK 200")
+            print("  status=OK 200")
             print(line)
             all_ok = all_ok and priced
         except Exception as e:  # noqa: BLE001 — surface any failure per-endpoint

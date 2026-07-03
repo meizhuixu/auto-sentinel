@@ -14,7 +14,11 @@ from autosentinel.llm.factory import AgentModelConfig
 from autosentinel.llm.mock_client import MockLLMClient
 from autosentinel.llm.protocol import LLMResponse
 
-from tests.unit._llm_fixtures import infra_sre_fixture
+from tests.unit._llm_fixtures import (
+    SequenceLLMClient,
+    infra_sre_fixture,
+    script_fixture,
+)
 
 
 _DEFAULT_TRACE_ID = "0" * 32
@@ -142,6 +146,64 @@ class TestInfraSREAgentFenceHandling:
         agent, _ = self._agent_with_content('systemctl restart redis')
         result = agent.run(_make_state("INFRA", trace_id="0" * 32))
         assert result["fix_artifact"] == "systemctl restart redis"
+
+
+# ── Sprint 6 (006-fix-verification-integrity, T005) ─────────────────────────
+# contracts/fix-artifact.md: InfraSRE follows the SAME producer contract as
+# CodeFixer — complete runnable Python script, compile()-validated, one retry.
+# (Raw shell like `systemctl restart redis` is not a valid artifact anymore:
+# it cannot execute in the Python sandbox, which was half of the overstated
+# resolution-rate problem.)
+
+
+class TestInfraSREArtifactValidation:
+    def _agent(self, contents: list[str]) -> tuple[InfraSREAgent, SequenceLLMClient]:
+        client = SequenceLLMClient(
+            [script_fixture(c, model="mock-infra-sre") for c in contents]
+        )
+        agent = InfraSREAgent(llm_client=client, model_config=_make_mock_config())
+        return agent, client
+
+    def test_compile_clean_response_makes_no_retry(self):
+        agent, client = self._agent(['import subprocess\nprint("restart issued")'])
+        result = agent.run(_make_state("INFRA"))
+        assert client.call_count == 1
+        assert result["fix_artifact"] == 'import subprocess\nprint("restart issued")'
+
+    def test_fragment_triggers_exactly_one_retry(self):
+        agent, client = self._agent(["return", 'print("valid on retry")'])
+        result = agent.run(_make_state("INFRA"))
+        assert client.call_count == 2
+        assert result["fix_artifact"] == 'print("valid on retry")'
+
+    def test_raw_shell_artifact_triggers_retry(self):
+        # `systemctl restart redis` is not Python — compile() fails, retry once
+        agent, client = self._agent(
+            ["systemctl restart redis", 'print("shell command wrapped properly")']
+        )
+        result = agent.run(_make_state("INFRA"))
+        assert client.call_count == 2
+        assert result["fix_artifact"] == 'print("shell command wrapped properly")'
+
+    def test_retry_still_broken_passes_artifact_through_without_raising(self):
+        agent, client = self._agent(["systemctl restart redis", "systemctl restart redis"])
+        result = agent.run(_make_state("INFRA"))
+        assert client.call_count == 2
+        assert result["fix_artifact"] == "systemctl restart redis"
+
+    def test_retry_prompt_carries_the_compile_error(self):
+        agent, client = self._agent(["return", 'print("ok")'])
+        agent.run(_make_state("INFRA"))
+        retry_user_content = " ".join(
+            m.content for m in client.requests[1].messages if m.role == "user"
+        )
+        assert "outside function" in retry_user_content
+
+    def test_retry_uses_same_trace_id_and_agent_name(self):
+        agent, client = self._agent(["return", 'print("ok")'])
+        agent.run(_make_state("INFRA", trace_id="f" * 32))
+        assert client.requests[1].trace_id == "f" * 32
+        assert client.requests[1].agent_name == "infra_sre"
 
 
 class TestInfraSREAgentRequestKwargs:

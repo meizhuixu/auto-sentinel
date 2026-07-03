@@ -90,7 +90,12 @@ class ModelRoutingConfig(BaseModel):
 # ──────────────────────────────────────────────────────────────────────────
 
 
-_DEFAULT_ROUTING_PATH = Path("config/model_routing.yaml")
+# Anchored to the repo root via this file's location (factory.py → llm →
+# autosentinel → repo root) so tests/tools work from any CWD (Sprint 6 FR-010).
+# AUTOSENTINEL_MODEL_ROUTING_PATH env var still takes precedence below.
+_DEFAULT_ROUTING_PATH = (
+    Path(__file__).resolve().parents[2] / "config" / "model_routing.yaml"
+)
 
 
 def _load_routing_config() -> ModelRoutingConfig:

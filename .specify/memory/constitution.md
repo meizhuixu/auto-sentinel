@@ -1,46 +1,30 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.1.1 → 2.2.0 (MINOR — new Principle VII added for LLM provider
-boundary and cost governance; Principle V refactored from keyword-list implementation
-detail to outcome-level invariants; Principle I clarified for Verifier LLM execution
-boundary. Driven by Sprint 5 real-LLM integration, see specs/005-real-llm-integration/.)
+Version change: 2.2.0 → 2.3.0 (MINOR — v1-pipeline grandfathering clauses removed
+from Principles I and VII.1 following the v1 single-agent pipeline retirement in
+Sprint 6, see specs/006-fix-verification-integrity/. Precedent for clause removal
+as MINOR: the Principle V keyword-list removal in 2.1.1 → 2.2.0.)
 
 Modified principles:
-  - I.   AI Agent Sandboxing          — v2.2.0 MINOR: clarification that LLM API
-                                        calls (e.g. from a Verifier that summarises
-                                        Docker output via LLM) MUST execute outside
-                                        the sandbox container. No change to the
-                                        Verifier-only Docker import boundary.
-  - V.   LLM Reasoning Reliability    — v2.2.0 MINOR: mock-phase keyword-list trigger
-                                        removed (TODO(SPRINT5_KEYWORD_REMOVAL) closed);
-                                        replaced with outcome-level invariants for
-                                        Security Reviewer (binary verdict, 100%
-                                        coverage, interrupt() on HIGH_RISK, audit
-                                        trail). Mechanism is now implementation-
-                                        agnostic (keyword scan, LLM semantic review,
-                                        rule engine, etc. all permitted).
-
-Added principles:
-  - VII. LLM Provider Boundary &      — Four sub-clauses:
-         Cost Governance                VII.1 LLM Provider Isolation (AST-enforced):
-                                              only src/auto_sentinel/llm/** may import
-                                              LLM SDKs; v1 pipeline grandfathered.
-                                        VII.2 Cost Guard Is Non-Negotiable: every
-                                              outbound LLM request passes CostGuard;
-                                              budget threshold from env, never
-                                              hard-coded.
-                                        VII.3 Trace Propagation Is Mandatory: every
-                                              LLM call accepts external trace_id and
-                                              forwards to LLMTracer.
-                                        VII.4 Model-Routing Configuration Is
-                                              Declarative: no in-agent hard-coding
-                                              of endpoint or model name.
+  - I.   AI Agent Sandboxing          — v2.3.0 MINOR: grandfathering clause (v2.1.1)
+                                        removed. The v1 pipeline is retired;
+                                        autosentinel/nodes/execute_fix.py is deleted
+                                        and the CI allowlist contains exactly the
+                                        Verifier agent module. No other change.
+  - VII. LLM Provider Boundary &      — v2.3.0 MINOR: VII.1 grandfathering clause
+         Cost Governance                (v2.2.0) removed. No v1 module ever imported
+                                        an LLM SDK in practice; the boundary test
+                                        allowlist was and remains
+                                        autosentinel/llm/{ark_client,glm_client}.py.
+                                        TODO(SPRINT6_V1_RETIREMENT) closed.
 
 Removed clauses:
-  - Principle V mock-phase HIGH_RISK keyword list (DROP TABLE / rm -rf / chmod 777
-    / etc.) — superseded by outcome-level invariants. Keyword scanning remains a
-    permissible mechanism but is no longer mandated by the constitution.
+  - Principle I "Grandfathering clause (v2.1.1)" — v1 LangGraph nodes' Docker
+    import exemption. The sole grandfathered module (autosentinel/nodes/
+    execute_fix.py) is deleted; the Verifier is the single Docker importer.
+  - Principle VII.1 "Grandfathering clause (v2.2.0)" — v1 nodes' provider-SDK
+    import exemption. Closed without ever being exercised.
 
 Templates requiring updates:
   - .specify/templates/plan-template.md  ✅ no structural changes required
@@ -56,9 +40,6 @@ Follow-up TODOs (carried forward):
     < 5 min, P2 < 15 min) once the service catalogue is established.
   - TODO(LLM_CONFIDENCE_THRESHOLD): Set the numeric confidence threshold below which
     an agent MUST escalate to human-in-the-loop rather than self-heal automatically.
-  - TODO(SPRINT6_V1_RETIREMENT): Remove the v1-pipeline grandfathering exemption from
-    Principle VII.1 (and the Principle I Docker grandfathering list) when the v1
-    LangGraph pipeline is retired.
 -->
 
 # AutoSentinel Constitution
@@ -85,14 +66,6 @@ Agent's implementation (canonical location: `src/autosentinel/agents/verifier/`)
 The exact import-path allowlist MUST be specified in the CI check configuration.
 The check MAY be implemented via `ruff` custom rule, `import-linter`, or an
 equivalent AST-level tool — `grep` is insufficient.
-
-**Grandfathering clause (v2.1.1)**: Existing v1 LangGraph nodes (Sprint 3 era) that
-pre-date this constraint MAY continue to import `docker` until the v1 pipeline is
-retired. The CI allowlist MUST list each grandfathered module by full path; new
-modules MUST NOT be added to this allowlist without a constitution amendment. The
-current grandfathered list is: `autosentinel/nodes/execute_fix.py` (v1 execute_fix
-node, retained for benchmark v1/v2 comparison; will be removed when v1 pipeline is
-retired in Sprint 6 or later).
 
 **LLM-execution boundary (v2.2.0)**: When an agent (e.g. the Verifier Agent
 summarising Docker output, or any agent that consumes container logs) issues an
@@ -236,12 +209,6 @@ MUST be implemented in `tests/unit/test_llm_sdk_import_boundary.py` using stdlib
 `ast.walk()`, in parallel with the existing `test_docker_import_boundary.py`. The
 allowlist MUST be specified in the test's configuration; `grep` is insufficient.
 
-**Grandfathering clause (v2.2.0)**: The v1 pipeline modules under
-`src/auto_sentinel/nodes/` (e.g. `analyze_error.py`) MAY continue to import
-`anthropic` until the v1 pipeline is retired. The grandfathered list MUST be
-explicit in the boundary test's allowlist; new modules MUST NOT be added without
-a constitution amendment. Removal is tracked as `TODO(SPRINT6_V1_RETIREMENT)`.
-
 **VII.2 — Cost Guard Is Non-Negotiable**
 
 Every outbound LLM request — without exception — MUST pass through `CostGuard.check()`
@@ -341,4 +308,4 @@ every PR review. A full constitution review MUST be conducted at least once per
 quarter to assess whether principles remain current with the project's agent
 capabilities and service scale.
 
-**Version**: 2.2.0 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-05-07
+**Version**: 2.3.0 | **Ratified**: 2026-04-24 | **Last Amended**: 2026-07-03

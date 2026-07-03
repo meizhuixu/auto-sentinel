@@ -3,8 +3,6 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from autosentinel.models import DiagnosticState
-
 
 def _sandbox_section(state) -> str:
     execution_error = state.get("execution_error")

@@ -118,3 +118,27 @@ endpoints:
 
     with pytest.raises(ConfigurationError):
         build_client_for_agent("diagnosis")
+
+
+# ── Sprint 6 (006-fix-verification-integrity, T030) ─────────────────────────
+# FR-010: the default routing-config path must resolve relative to the
+# package installation, not the process CWD — a single test file run from an
+# arbitrary directory used to raise ConfigurationError.
+
+
+def test_default_routing_path_resolves_from_any_cwd(monkeypatch, tmp_path):
+    from autosentinel.llm import factory
+
+    monkeypatch.delenv("AUTOSENTINEL_MODEL_ROUTING_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)  # CWD far away from the repo root
+    cfg = factory._load_routing_config()
+    assert "diagnosis" in cfg.agents  # real config loaded, not an error
+
+
+def test_env_var_override_still_takes_precedence(monkeypatch, tmp_path):
+    from autosentinel.llm import factory
+
+    bogus = tmp_path / "nope.yaml"
+    monkeypatch.setenv("AUTOSENTINEL_MODEL_ROUTING_PATH", str(bogus))
+    with pytest.raises(ConfigurationError, match="not found"):
+        factory._load_routing_config()

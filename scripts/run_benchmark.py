@@ -1,9 +1,8 @@
-"""Full v1/v2 benchmark runner (T060, plan §Block 6).
+"""Full benchmark runner (T060; single-pipeline since Sprint 6 v1 retirement).
 
-Reads every scenario yaml under --scenarios, runs each through the v1 (single-
-agent, mock-classify) and v2 (multi-agent) pipelines, and writes
-benchmarks/results/{run_id}/results.jsonl (one BenchmarkResult per v2 scenario)
-+ summary.json (contracts/benchmark-scenario.md "Output schema").
+Reads every scenario yaml under --scenarios, runs each through the multi-agent
+pipeline, and writes benchmarks/results/{run_id}/results.jsonl (one
+BenchmarkResult per scenario) + summary.json (006 data-model.md §4 schema).
 
   run_id = YYYYMMDD-HHMMSS-{git_short_sha}
 
@@ -95,6 +94,13 @@ def _build_mock_agents(scenario) -> dict:
     classification = scenario.expected_classification
     specialist = "infra_sre" if classification in ("INFRA", "CONFIG") else "code_fixer"
 
+    # Sprint 6 contracts/fix-artifact.md: the mock artifact must be a
+    # contract-compliant standalone script. The human-authored
+    # expected_resolution_action is prose (a ground-truth LABEL, untouched);
+    # the mock derives a compile-clean script from it so the sandbox verdict —
+    # not artifact shape — decides resolution.
+    mock_artifact = f"print({scenario.expected_resolution_action!r})"
+
     return {
         "diagnosis": DiagnosisAgent(
             llm_client=_client(json.dumps(
@@ -105,9 +111,9 @@ def _build_mock_agents(scenario) -> dict:
                 {"specialist": specialist, "rationale": "benchmark mock routing"})),
             model_config=cfg),
         "code_fixer": CodeFixerAgent(
-            llm_client=_client(scenario.expected_resolution_action), model_config=cfg),
+            llm_client=_client(mock_artifact), model_config=cfg),
         "infra_sre": InfraSREAgent(
-            llm_client=_client(scenario.expected_resolution_action), model_config=cfg),
+            llm_client=_client(mock_artifact), model_config=cfg),
         "security_reviewer": SecurityReviewerAgent(
             llm_client=_client(json.dumps(
                 {"verdict": scenario.expected_security_verdict,
@@ -117,26 +123,8 @@ def _build_mock_agents(scenario) -> dict:
     }
 
 
-def _run_v1(scenario) -> tuple[bool, int]:
-    """Run the v1 single-agent pipeline (mock-classify, $0 LLM). Returns
-    (resolved, latency_ms). Exceptions (e.g. Docker unavailable) -> unresolved."""
-    from autosentinel import run_pipeline
-
-    prev = os.environ.pop("AUTOSENTINEL_MULTI_AGENT", None)
-    start = time.monotonic()
-    resolved = True
-    try:
-        run_pipeline(scenario.error_log_path)
-    except Exception:
-        resolved = False
-    finally:
-        if prev is not None:
-            os.environ["AUTOSENTINEL_MULTI_AGENT"] = prev
-    return resolved, int((time.monotonic() - start) * 1000)
-
-
 def _run_v2(scenario, *, use_mock: bool):
-    """Run the v2 multi-agent pipeline. Returns (BenchmarkResult, verdict).
+    """Run the multi-agent pipeline. Returns (BenchmarkResult, verdict).
 
     Raises CostGuardError if the run trips the budget (FR-519)."""
     from langgraph.types import Command
@@ -187,7 +175,19 @@ def _run_v2(scenario, *, use_mock: bool):
         )
 
     verdict = result.get("security_verdict")
-    resolved = result.get("report_text") is not None and result.get("execution_error") is None
+    # Sprint 6 tightened definition (006 data-model.md §3): resolution means
+    # the fix VERIFIABLY SUCCEEDED in the sandbox — pipeline completion alone
+    # (report present, no docker-level error) is no longer enough.
+    execution_result = result.get("execution_result")
+    execution_status = (
+        execution_result.get("status") if isinstance(execution_result, dict)
+        else getattr(execution_result, "status", None)
+    )
+    resolved = (
+        result.get("report_text") is not None
+        and result.get("execution_error") is None
+        and execution_status == "success"
+    )
     benchmark_result = BenchmarkResult(
         scenario_id=scenario.scenario_id,
         actual_classification=result.get("error_category") or "UNKNOWN",
@@ -228,16 +228,10 @@ def run(
     if only is not None:
         scenarios = [s for s in scenarios if s.scenario_id in only]
 
-    v1_latencies: list[int] = []
-    v1_resolved = 0
     v2_results = []
     v2_verdicts: dict[str, Optional[str]] = {}
 
     for scenario in scenarios:
-        resolved, v1_lat = _run_v1(scenario)
-        v1_latencies.append(v1_lat)
-        v1_resolved += 1 if resolved else 0
-
         result, verdict = _run_v2(scenario, use_mock=use_mock)
         v2_results.append(result)
         v2_verdicts[scenario.scenario_id] = verdict
@@ -249,7 +243,6 @@ def run(
 
     # SC-013: false negative = SECURITY-category, HIGH_RISK ground truth, but the
     # pipeline returned a non-HIGH_RISK verdict.
-    by_id = {s.scenario_id: s for s in scenarios}
     security = [s for s in scenarios if s.category == "SECURITY"]
     false_neg_ids = [
         s.scenario_id for s in security
@@ -267,24 +260,23 @@ def run(
         "run_id": run_id,
         "scenario_count": n,
         "category_distribution": category_distribution,
-        "v1": {
-            "latency_ms": {"p50": _percentile(v1_latencies, 50),
-                           "p95": _percentile(v1_latencies, 95)},
-            "total_cost": str(Decimal("0")),  # v1 is mock-classify, no LLM spend
-            "cost_currency": "CNY",
-            "resolution_rate": round(v1_resolved / n, 2) if n else 0.0,
-        },
-        "v2": {
+        "pipeline": {
             "latency_ms": {"p50": _percentile(v2_latencies, 50),
                            "p95": _percentile(v2_latencies, 95)},
             "total_cost": str(v2_cost_total),
             "cost_currency": "CNY",
             "resolution_rate": round(v2_passed / n, 2) if n else 0.0,
+            # self-describing metric (FR-005): a summary file states the
+            # definition its resolution_rate was computed under
+            "resolved_definition": (
+                "report_text present AND no execution_error AND "
+                "execution_result.status == 'success'"
+            ),
         },
         "security_subset": {
             "count": len(security),
-            "v2_false_negative_count": len(false_neg_ids),
-            "v2_false_negative_scenario_ids": false_neg_ids,
+            "false_negative_count": len(false_neg_ids),
+            "false_negative_scenario_ids": false_neg_ids,
         },
     }
 
@@ -300,7 +292,7 @@ def run(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(description="AutoSentinel v1/v2 benchmark runner")
+    parser = argparse.ArgumentParser(description="AutoSentinel benchmark runner")
     parser.add_argument("--scenarios", type=Path, required=True,
                         help="directory of scenario yaml files")
     parser.add_argument("--budget", default="150",

@@ -4,21 +4,26 @@ set -e
 
 # Parse command line arguments
 JSON_MODE=false
+FORCE=false
 ARGS=()
 
 for arg in "$@"; do
     case "$arg" in
-        --json) 
-            JSON_MODE=true 
+        --json)
+            JSON_MODE=true
             ;;
-        --help|-h) 
-            echo "Usage: $0 [--json]"
+        --force)
+            FORCE=true
+            ;;
+        --help|-h)
+            echo "Usage: $0 [--json] [--force]"
             echo "  --json    Output results in JSON format"
+            echo "  --force   Overwrite an existing non-empty plan.md"
             echo "  --help    Show this help message"
-            exit 0 
+            exit 0
             ;;
-        *) 
-            ARGS+=("$arg") 
+        *)
+            ARGS+=("$arg")
             ;;
     esac
 done
@@ -37,6 +42,20 @@ check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 
 # Ensure the feature directory exists
 mkdir -p "$FEATURE_DIR"
+
+# Clobber guard (Sprint 6 FR-012): a stale .specify/feature.json once made a
+# new feature's first /plan overwrite the PREVIOUS feature's plan.md (lost
+# Sprint 4's plan in Sprint 5). Refuse to overwrite real content unless the
+# template was never filled in or --force is passed.
+if [[ -s "$IMPL_PLAN" ]] && ! $FORCE; then
+    if ! grep -q "\[FEATURE\]" "$IMPL_PLAN"; then
+        echo "ERROR: $IMPL_PLAN already exists and is not an unfilled template." >&2
+        echo "       If .specify/feature.json points at a stale feature directory," >&2
+        echo "       update it to the NEW feature before running /speckit.plan." >&2
+        echo "       To overwrite intentionally, re-run with --force." >&2
+        exit 1
+    fi
+fi
 
 # Copy plan template if it exists
 TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT") || true

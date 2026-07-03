@@ -1,8 +1,25 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/005-real-llm-integration/plan.md`.
+at `specs/006-fix-verification-integrity/plan.md`.
 <!-- SPECKIT END -->
+
+## Onboarding (fresh clone)
+
+- `uv sync --extra dev` is the mandatory first step — plain `uv sync` does NOT
+  install pytest/ruff/mypy (they live in the `dev` extra) and `uv run pytest`
+  silently falls back to system Python. Add `--extra tracing` for Langfuse
+  spans (needs the sibling `../llmops-dashboard` checkout).
+- `docker compose -f infra/docker-compose.checkpointer.yml up -d` for the
+  :5434 PostgresSaver; without it the checkpointer tests skip locally
+  (CI sets `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1`, where they must run).
+
+## Sprint Start (SDD)
+
+- After `/speckit.specify` creates the new `specs/<NNN>-*/` directory, confirm
+  `.specify/feature.json` points at it BEFORE `/speckit.plan`. The plan setup
+  script refuses to overwrite an existing filled plan.md (use `--force` only
+  when you really mean it).
 
 ## Collaboration Model
 

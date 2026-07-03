@@ -21,7 +21,6 @@ import sys
 import uuid
 from pathlib import Path
 
-import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from autosentinel.multi_agent_graph import build_multi_agent_graph
@@ -82,7 +81,7 @@ def test_cross_process_resume_does_not_rerun_specialists(tmp_path):
     log = _write_log(tmp_path)
 
     # ── Process A: run until the HIGH_RISK interrupt, then "exit" ──────────
-    clients_a = build_fixture_clients(code_fixer_artifact="DROP TABLE users")
+    clients_a = build_fixture_clients(code_fixer_artifact='print("DROP TABLE users")')
     agents_a = build_injected_agents(clients_a)
     cfg = {"configurable": {"thread_id": thread_id}}
 

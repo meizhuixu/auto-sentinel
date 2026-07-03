@@ -2,7 +2,6 @@
 
 import json
 
-import pytest
 
 from autosentinel.nodes.parse_log import parse_log
 

@@ -230,8 +230,26 @@ def checkpointer_available() -> bool:
         return False
 
 
+def checkpointer_required() -> bool:
+    """CI anti-silent-skip switch (Sprint 6 contracts/ci-gate.md): when
+    AUTOSENTINEL_REQUIRE_CHECKPOINTER=1 the checkpointer tests must never be
+    skipped — an unreachable DB has to surface as loud failures, not a green
+    run with silent skips."""
+    return os.environ.get("AUTOSENTINEL_REQUIRE_CHECKPOINTER") == "1"
+
+
+def should_skip_checkpointer_tests(*, available: bool, required: bool) -> bool:
+    """Pure skip decision: skip only when the DB is unreachable AND the run
+    does not require it. Required-but-unreachable returns False so the tests
+    RUN and fail on their connection errors."""
+    return not available and not required
+
+
 requires_checkpointer = pytest.mark.skipif(
-    not checkpointer_available(),
+    should_skip_checkpointer_tests(
+        available=checkpointer_available(),
+        required=checkpointer_required(),
+    ),
     reason="PostgresSaver container not reachable on localhost:5434 "
     "(start: docker compose -f infra/docker-compose.checkpointer.yml up -d)",
 )
