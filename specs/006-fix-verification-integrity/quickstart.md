@@ -33,8 +33,10 @@ uv run pytest tests/unit/test_artifact_normalizer.py -v
 uv run pytest tests/unit/test_verifier_agent.py -v
 # Producer compile()-validation + single retry (MockLLMClient, ¥0)
 uv run pytest tests/unit/test_code_fixer_agent.py tests/unit/test_infra_sre_agent.py -v
-# End-to-end on the fixture that reproduced the bug (requires ARK_API_KEY in .env)
-uv run python scripts/run_real_trace.py   # T068 smoke — fix should now execute, not SyntaxError
+# End-to-end on the fixture that reproduced the bug (requires ARK_API_KEY in .env):
+# invoke the multi-agent graph on benchmarks/scenarios/fixtures/008_code_key_error_dict.json
+# (e.g. via the README §Quickstart API flow) — the fix must execute in the
+# sandbox (fix_normalization outcome recorded), not die of a format SyntaxError
 ```
 
 ## Benchmark (US2)
@@ -54,8 +56,10 @@ publishes.
 ## v1 retirement sanity (US4)
 
 ```bash
-grep -rn "AUTOSENTINEL_MULTI_AGENT\|DiagnosticState\|_run_v1" autosentinel scripts tests  # → no hits
-grep -rn "SPRINT6_V1_RETIREMENT" .specify/memory/constitution.md                          # → no hits
+# no FUNCTIONAL references (comments documenting the retirement itself are fine)
+grep -rn "AUTOSENTINEL_MULTI_AGENT\|DiagnosticState\|_run_v1" autosentinel scripts tests
+# only the sync-impact "closed" note remains
+grep -rn "SPRINT6_V1_RETIREMENT" .specify/memory/constitution.md
 uv run pytest tests/unit/test_docker_import_boundary.py tests/unit/test_llm_provider_isolation.py -v
 ```
 
