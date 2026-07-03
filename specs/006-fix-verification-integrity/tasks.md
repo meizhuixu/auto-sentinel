@@ -119,16 +119,16 @@ hits; full suite green.
 
 ### Tests (write first, confirm RED, commit before implementation)
 
-- [ ] T023 [US4] Shrink boundary-test allowlists (RED until deletions land): remove `autosentinel/nodes/execute_fix.py` from tests/unit/test_docker_import_boundary.py and the v1 grandfathered entries from tests/unit/test_llm_provider_isolation.py (verify the actual allowlist contents first)
+- [X] T023 [US4] Shrink boundary-test allowlists (RED until deletions land): remove `autosentinel/nodes/execute_fix.py` from tests/unit/test_docker_import_boundary.py and the v1 grandfathered entries from tests/unit/test_llm_provider_isolation.py (verify the actual allowlist contents first)
 
 ### Implementation
 
-- [ ] T024 [US4] Delete autosentinel/graph.py, autosentinel/nodes/analyze_error.py, autosentinel/nodes/execute_fix.py; update autosentinel/nodes/__init__.py; KEEP parse_log.py and format_report.py
-- [ ] T025 [US4] Simplify `run_pipeline()` in autosentinel/__init__.py — drop the `AUTOSENTINEL_MULTI_AGENT` flag and the v1 else-branch; remove `DiagnosticState` from autosentinel/models.py if nothing references it after deletion
-- [ ] T026 [US4] Delete/migrate v1 tests: remove tests/unit/test_analyze_error.py and tests/unit/test_execute_fix.py; strip v1 arms from tests/integration/test_pipeline.py and tests/unit/test_run_pipeline.py (keep tests/unit/test_parse_log.py and test_format_report.py) → T023 GREEN
-- [ ] T027 [US4] Remove `_run_v1()` + the `v1` summary block from scripts/run_benchmark.py; adopt the single-pipeline summary schema of data-model.md §4 (extend T013's tests to cover the new schema in the same commit rhythm)
-- [ ] T028 [US4] Constitution amendment in .specify/memory/constitution.md — remove the Principle I grandfathering clause and the Principle VII.1 grandfathering clause, close `TODO(SPRINT6_V1_RETIREMENT)`, version 2.2.0 → 2.3.0 with sync-impact report, update `LAST_AMENDED_DATE`
-- [ ] T029 [US4] Retirement sanity: run quickstart.md §"v1 retirement sanity" greps (`AUTOSENTINEL_MULTI_AGENT`, `DiagnosticState`, `_run_v1`, `SPRINT6_V1_RETIREMENT` → zero hits) + full suite green → SC-004 evidence
+- [X] T024 [US4] Delete autosentinel/graph.py, autosentinel/nodes/analyze_error.py, autosentinel/nodes/execute_fix.py; update autosentinel/nodes/__init__.py; KEEP parse_log.py and format_report.py
+- [X] T025 [US4] Simplify `run_pipeline()` in autosentinel/__init__.py — drop the `AUTOSENTINEL_MULTI_AGENT` flag and the v1 else-branch; remove `DiagnosticState` from autosentinel/models.py if nothing references it after deletion
+- [X] T026 [US4] Delete/migrate v1 tests: remove tests/unit/test_analyze_error.py and tests/unit/test_execute_fix.py; strip v1 arms from tests/integration/test_pipeline.py and tests/unit/test_run_pipeline.py (keep tests/unit/test_parse_log.py and test_format_report.py) → T023 GREEN
+- [X] T027 [US4] Remove `_run_v1()` + the `v1` summary block from scripts/run_benchmark.py; adopt the single-pipeline summary schema of data-model.md §4 (extend T013's tests to cover the new schema in the same commit rhythm)
+- [X] T028 [US4] Constitution amendment in .specify/memory/constitution.md — remove the Principle I grandfathering clause and the Principle VII.1 grandfathering clause, close `TODO(SPRINT6_V1_RETIREMENT)`, version 2.2.0 → 2.3.0 with sync-impact report, update `LAST_AMENDED_DATE`
+- [X] T029 [US4] Retirement sanity: run quickstart.md §"v1 retirement sanity" greps (`AUTOSENTINEL_MULTI_AGENT`, `DiagnosticState`, `_run_v1`, `SPRINT6_V1_RETIREMENT` → zero hits) + full suite green → SC-004 evidence
 
 **Checkpoint**: one pipeline; US2+US4 together = PR-2 scope.
 
