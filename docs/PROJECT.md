@@ -8,15 +8,19 @@
 
 ## 当前状态（快照 2026-07-03）
 
-- ✅ **Sprint 5（Real LLM Integration）完成**：`specs/005-real-llm-integration/tasks.md` 68/68 全部 `[X]`，
-  main 停在 PR #16（Sprint 5 wrap-up docs）。README 已更新为 Sprint 5 real-run quickstart。
-- 🔄 进行中：`feat/langfuse-real-trace-script` 分支（T068 real-trace 冒烟脚本，已 push，待 PR/merge）——
-  这是与项目 4（LLMOps Dashboard）Phase 2 对接的第一步。
+- ✅ **Sprint 5（Real LLM Integration）完成**：`specs/005-real-llm-integration/tasks.md` 68/68 全部 `[X]`。
+  T068 冒烟脚本（PR #17）与 docs（PR #18）已合并，main 在 `7af8b97`。
+- ✅ **Langfuse 集成实测通过（2026-07-03，项目 4 Phase 2 对接）**：真实 incident（fixture 008
+  KeyError）穿过 6-agent 流水线——单父 trace 下 4 个 generation（diagnosis / supervisor /
+  code_fixer / security_reviewer），per-agent 端点路由正确，总成本 ¥0.0322 CNY（ModelUsage 计入
+  + cost_currency metadata），端到端 44.9s（高于 30s 的 P50 目标，Sprint 6 re-baseline 的数据点）。
+  本次沙盒验证 exit 0 成功——DEBT 里的 fix↔Verifier 契约问题非必现，待量化。
 - 🔑 `ARK_API_KEY` 已在本地 `.env` 配置（矩阵中唯一已配 key 的项目）。
-- ⚠️ 高优先级已知问题见 `DEBT.md`：**fix-artifact ↔ Verifier 执行格式不匹配**（code 类修复多以
+- ⚠️ 高优先级已知问题见 `DEBT.md`：**fix-artifact ↔ Verifier 执行格式不匹配**（code 类修复曾以
   SyntaxError 挂掉沙盒验证）+ **benchmark `resolved` 定义过宽**（0.98 的 resolution_rate 度量的是
   pipeline 完成率而非修复验证通过率，需 re-baseline）。
-- 下一步锚点：Sprint 6（v1 single-agent pipeline 退役、broad CI——目前只有 scenario-authorship gate 在跑）。
+- 下一步：**Sprint 6（SDD）**，范围见 `~/Repo/PORTFOLIO.md` M2——fix↔Verifier 契约修复、
+  `resolved` 定义收紧 + 50 场景 re-baseline、broad CI、v1 pipeline 退役。
 
 ---
 
