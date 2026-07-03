@@ -28,7 +28,9 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --extra dev --frozen
-      - run: uv run ruff check .
+      # --no-sync: uv run re-syncs the project by default, which re-resolves
+      # the tracing extra's ../llmops-dashboard path source (absent on CI)
+      - run: uv run --no-sync ruff check .
 
   typecheck:
     runs-on: ubuntu-latest
@@ -38,7 +40,7 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --extra dev --frozen
-      - run: uv run mypy autosentinel
+      - run: uv run --no-sync mypy autosentinel
 
   test:
     runs-on: ubuntu-latest
@@ -64,4 +66,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --extra dev --frozen
-      - run: uv run pytest -q -rs
+      - run: uv run --no-sync pytest -q -rs

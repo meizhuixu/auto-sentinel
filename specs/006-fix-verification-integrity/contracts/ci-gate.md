@@ -46,8 +46,9 @@ executed set, never in the skipped set.
 
 `ruff>=0.4.0` and `mypy>=1.10.0` live in the `dev` extra of `pyproject.toml`
 (re-synced with `uv.lock`, which already carries these pins). CI installs
-exclusively via `uv sync --extra dev --frozen` — no `pip install` drift, and
-`--frozen` skips re-resolution so the `tracing` extra's local-path source
-(`../llmops-dashboard`, absent on CI) is never touched (verified by local
-simulation: plain `uv sync --extra dev` fails without the sibling repo,
-`--frozen` succeeds).
+exclusively via `uv sync --extra dev --frozen` — no `pip install` drift —
+and every tool invocation uses `uv run --no-sync`. Both flags exist for the
+same reason: the `tracing` extra's local-path source (`../llmops-dashboard`)
+is absent on CI, and both `uv sync` (verified by local simulation) and the
+implicit re-sync inside `uv run` (verified live on PR #19's first red run)
+fail when they try to re-resolve it.
