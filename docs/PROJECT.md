@@ -21,6 +21,9 @@
   pipeline 完成率而非修复验证通过率，需 re-baseline）。
 - 下一步：**Sprint 6（SDD）**，范围见 `~/Repo/PORTFOLIO.md` M2——fix↔Verifier 契约修复、
   `resolved` 定义收紧 + 50 场景 re-baseline、broad CI、v1 pipeline 退役。
+- 🌿 分支 `feat/m4-mcp-enabler` 已存在（未合并）：MCP enabler 只读 API——result sidecar、
+  `GET /api/v1/alerts/{job_id}`、`GET /api/v1/incidents` 搜索、`X-Trace-Id` 透传（spec 见
+  `specs/m4-mcp-enabler/`），供项目 3 devcontext-mcp Phase 2 对接。
 
 ---
 

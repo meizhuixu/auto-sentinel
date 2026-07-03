@@ -6,7 +6,7 @@ confirmed failing before T003+.
 
 ## Phase 1: Tests (write first — confirm failing, commit RED)
 
-- [ ] T001 Unit tests `tests/unit/test_result_sidecar.py` — `format_report`
+- [X] T001 Unit tests `tests/unit/test_result_sidecar.py` — `format_report`
       writes `output/{stem}-result.json`; every documented mapping arm:
       category (error_category CODE/INFRA/CONFIG/SECURITY, specialist
       code_fixer/infra_sre, v1 analysis categories, unknown fallback),
@@ -14,7 +14,7 @@ confirmed failing before T003+.
       precedence, fix_plan precedence, risk_level (SAFE/CAUTION/HIGH_RISK/
       absent), `code_diff == ""`, trace_id stem fallback; plus
       `write_failed_result` happy path and OSError best-effort path.
-- [ ] T002 Integration tests `tests/integration/test_mcp_enabler_api.py`
+- [X] T002 Integration tests `tests/integration/test_mcp_enabler_api.py`
       (follow `test_api.py` patterns: `client` fixture, `_drain`) —
       X-Trace-Id valid/invalid/absent; GET `/api/v1/alerts/{id}` completed
       (fabricated sidecar) / processing / failed (worker-raising pipeline) /
@@ -24,17 +24,17 @@ confirmed failing before T003+.
 
 ## Phase 2: Implementation (after RED confirmed)
 
-- [ ] T003 Sidecar writer + mapping helpers in
+- [X] T003 Sidecar writer + mapping helpers in
       `autosentinel/nodes/format_report.py` (FR-001).
-- [ ] T004 `autosentinel/api/results.py`: `result_path` / `load_result` /
+- [X] T004 `autosentinel/api/results.py`: `result_path` / `load_result` /
       `write_failed_result` / `search_incidents` (FR-002 helper, FR-004).
-- [ ] T005 Response models in `autosentinel/api/models.py`.
-- [ ] T006 Routes + X-Trace-Id in `autosentinel/api/main.py`
+- [X] T005 Response models in `autosentinel/api/models.py`.
+- [X] T006 Routes + X-Trace-Id in `autosentinel/api/main.py`
       (FR-003/FR-004/FR-005); worker failed-sidecar hook in
       `autosentinel/api/queue.py` (FR-002).
-- [ ] T007 Full suite green; touched modules at 100% branch coverage.
+- [X] T007 Full suite green; touched modules at 100% branch coverage.
 
 ## Phase 3: Docs
 
-- [ ] T008 DEBT.md entry (code_diff gap); docs/PROJECT.md snapshot one-liner
+- [X] T008 DEBT.md entry (code_diff gap); docs/PROJECT.md snapshot one-liner
       noting the `feat/m4-mcp-enabler` branch exists (not merged).
