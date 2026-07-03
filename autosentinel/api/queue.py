@@ -7,6 +7,7 @@ from pathlib import Path
 
 from autosentinel import run_pipeline
 from autosentinel.api.logging import get_logger
+from autosentinel.api.results import write_failed_result
 
 _logger = get_logger("event_gateway")
 
@@ -75,6 +76,15 @@ async def worker(queue: asyncio.Queue) -> None:
                         "duration_ms": duration_ms,
                     },
                 },
+            )
+            # M4 (FR-002): surface the failure to GET /api/v1/alerts/{job_id}
+            # as status="failed" instead of an eternal "processing".
+            # Best-effort by contract — never raises.
+            write_failed_result(
+                job.job_id,
+                trace_id=job.trace_id,
+                service_name=job.service_name,
+                error=str(exc),
             )
         finally:
             queue.task_done()

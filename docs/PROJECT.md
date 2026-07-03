@@ -36,11 +36,11 @@
 - 🔑 `ARK_API_KEY` 已在本地 `.env` 配置（矩阵中唯一已配 key 的项目）。
 - ⚠️ 新记 DEBT：`AgentState.fix_script` 残留字段、mypy 基线偏松（typeddict-item 豁免）、
   `cost_accumulated` 镜像在成功 run 里恒 0（CostGuard 本体正常，benchmark 计费不受影响）。
-- 下一步：本项目暂告一段落（M2 完成，PORTFOLIO.md 的 M2 勾选由 owner 维护）；
-  矩阵下一站按 `~/Repo/PORTFOLIO.md` 进 **M3（DevDocs RAG Phase 6）**——不同仓库，
-  按红线「一个 chat 不同时推多个项目」应在该仓库新开会话。本仓库再动大概率是
-  M4（DevContext MCP Phase 2 经 HTTP 调 `analyze_error_log` 等 3 个 tool）或
-  M5 端到端 demo。
+- ✅ **M4 enabler API 已合入 main（2026-07-03）**：result sidecar、`GET /api/v1/alerts/{job_id}`、
+  `GET /api/v1/incidents` 搜索、`X-Trace-Id` 透传（spec 见 `specs/m4-mcp-enabler/`），
+  供项目 3 devcontext-mcp Phase 2 的 http 模式调用（已实地验收，481 tests 绿）。
+- 下一步：本项目暂告一段落（M2 + M4 enabler 均完成）；矩阵剩余工作见 `~/Repo/PORTFOLIO.md`
+  （M5 端到端 demo 会再用到本仓库）。
 
 ---
 

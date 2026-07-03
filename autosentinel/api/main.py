@@ -2,19 +2,35 @@
 
 import asyncio
 import json
+import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 
+from autosentinel.api import results as results_store
 from autosentinel.api.logging import get_logger
-from autosentinel.api.models import AlertJobResponse, AlertPayload, ResumeRequest
+from autosentinel.api.models import (
+    AlertJobResponse,
+    AlertPayload,
+    AlertStatusResponse,
+    DiagnosisResult,
+    FixResult,
+    IncidentSearchResponse,
+    IncidentSummary,
+    ResumeRequest,
+)
 from autosentinel.api.queue import AlertJob, worker
 
 _logger = get_logger("event_gateway")
 _INCOMING = Path("data/incoming")
+
+# M4 (FR-005): caller-supplied trace id must be the bare 32-hex OTel-compatible
+# form enforced by LLMRequest (autosentinel/llm/protocol.py).
+_TRACE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
 @asynccontextmanager
@@ -36,11 +52,33 @@ def create_app() -> FastAPI:
     app = FastAPI(title="AutoSentinel Event Gateway", lifespan=lifespan)
 
     @app.post("/api/v1/alerts", status_code=202, response_model=AlertJobResponse)
-    async def ingest_alert(payload: AlertPayload, request: Request) -> AlertJobResponse:
+    async def ingest_alert(
+        payload: AlertPayload,
+        request: Request,
+        x_trace_id: Optional[str] = Header(default=None, alias="X-Trace-Id"),
+    ) -> AlertJobResponse:
         # T045: one 32-char lowercase hex id serves as BOTH job_id and trace_id
         # (decision: trace_id == job_id). token_hex(16) satisfies LLMRequest's
         # ^[0-9a-f]{32}$ trace_id regex (uuid4's hyphenated 36-char form did not).
-        job_id = secrets.token_hex(16)
+        #
+        # M4 (FR-005): an optional X-Trace-Id header lets the upstream caller
+        # (devcontext-mcp) supply that id so one trace spans both services.
+        # Chosen over W3C traceparent: the contract is a bare 32-hex trace id
+        # with no span-context semantics. Collision behavior is documented:
+        # resubmitting the same id overwrites data/incoming/{id}.json —
+        # last write wins; callers own id uniqueness.
+        if x_trace_id is None:
+            job_id = secrets.token_hex(16)
+        elif _TRACE_ID_RE.fullmatch(x_trace_id):
+            job_id = x_trace_id
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "invalid X-Trace-Id: must be a 32-character lowercase hex "
+                    "string matching ^[0-9a-f]{32}$"
+                ),
+            )
         trace_id = job_id
         queue: asyncio.Queue = request.app.state.queue
 
@@ -87,6 +125,45 @@ def create_app() -> FastAPI:
             status="accepted",
             message="Alert accepted for processing",
             trace_id=trace_id,
+        )
+
+    @app.get("/api/v1/alerts/{job_id}", response_model=AlertStatusResponse)
+    async def get_alert_status(job_id: str) -> AlertStatusResponse:
+        """M4 (FR-003): poll a submitted alert for its structured result.
+
+        Resolution order: result sidecar (completed/failed) → incoming file
+        (processing) → 404.
+        """
+        data = results_store.load_result(job_id)
+        if data is not None:
+            diagnosis = data.get("diagnosis")
+            fix = data.get("fix")
+            return AlertStatusResponse(
+                job_id=job_id,
+                trace_id=str(data.get("trace_id") or job_id),
+                status=str(data.get("status") or "completed"),
+                diagnosis=DiagnosisResult(**diagnosis) if diagnosis else None,
+                fix=FixResult(**fix) if fix else None,
+                report_path=data.get("report_path"),
+            )
+        if results_store.incoming_path(job_id).exists():
+            # Accepted (202 semantics) but the worker has not finished; HTTP
+            # 200 with an explicit status field, per the MCP-facing contract.
+            return AlertStatusResponse(
+                job_id=job_id, trace_id=job_id, status="processing"
+            )
+        raise HTTPException(status_code=404, detail=f"job {job_id!r} not found")
+
+    @app.get("/api/v1/incidents", response_model=IncidentSearchResponse)
+    async def search_incidents(q: str, limit: int = 5) -> IncidentSearchResponse:
+        """M4 (FR-004): keyword search over stored incidents.
+
+        `limit` defaults to 5 and is clamped (not rejected) to 1..50 inside
+        results_store.search_incidents.
+        """
+        matches = results_store.search_incidents(q, limit)
+        return IncidentSearchResponse(
+            incidents=[IncidentSummary(**match) for match in matches]
         )
 
     @app.post("/incidents/{incident_id}/resume", status_code=200)
