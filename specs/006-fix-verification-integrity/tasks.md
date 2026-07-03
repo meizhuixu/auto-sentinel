@@ -101,7 +101,7 @@ green with checkpointer tests in the executed set.
 - [X] T019 [US3] Run `uv run ruff check .` and fix (or explicitly configure away) all violations across autosentinel/, scripts/, tests/
 - [X] T020 [US3] Run `uv run mypy autosentinel` and fix (or baseline-scope) all errors; record any deliberate exclusions in DEBT.md
 - [X] T021 [US3] Create .github/workflows/ci.yml per contracts/ci-gate.md — jobs lint/typecheck/test; postgres:16 service on 5434 with health check; `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1`; triggers `pull_request` + `push: main`; scenario-authorship.yml untouched
-- [ ] T022 [US3] CI-parity local run: `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1 uv run pytest` with the 5434 container up — full suite green; then verify on the PR that all three jobs pass and checkpointer tests appear in the executed (not skipped) set → SC-003 evidence
+- [X] T022 [US3] CI-parity local run: `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1 uv run pytest` with the 5434 container up — full suite green; then verify on the PR that all three jobs pass and checkpointer tests appear in the executed (not skipped) set → SC-003 evidence
 
 **Checkpoint**: US3 complete; every subsequent PR is gated.
 
