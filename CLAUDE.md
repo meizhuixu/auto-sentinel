@@ -39,6 +39,17 @@ at `specs/005-real-llm-integration/plan.md`.
 - Test-First gate is non-negotiable: failing tests are committed first,
   implementation commits follow.
 
+## Docs Maintenance (PROJECT.md / DEBT.md)
+
+- `docs/PROJECT.md` is the project-context doc + status snapshot. Whenever a
+  code change lands as a PR, update its "当前状态（快照）" section in the same
+  PR (current sprint/phase, active branch, key outcomes).
+- `DEBT.md` is the technical debt register: add an entry inline when new debt
+  surfaces while coding; flip `[ ]` → `[X]` in the same commit that lands the
+  fix (keep the entry, do not delete it).
+- Authoritative progress stays in `git log` + `specs/<sprint>/tasks.md` —
+  PROJECT.md is a snapshot / entry point, not the source of truth.
+
 ## Shell Execution
 
 - Run shell commands one at a time, each as a separate invocation. Do not
