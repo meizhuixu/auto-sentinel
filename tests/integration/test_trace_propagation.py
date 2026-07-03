@@ -130,7 +130,7 @@ def test_state_serialization_preserves_trace_id(tmp_path):
         )
     )
 
-    clients = build_fixture_clients(code_fixer_artifact="DROP TABLE users")
+    clients = build_fixture_clients(code_fixer_artifact='print("DROP TABLE users")')
     agents = build_injected_agents(clients)
     cfg = {"configurable": {"thread_id": "t044c-" + uuid.uuid4().hex}}
 

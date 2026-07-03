@@ -34,7 +34,7 @@ def main() -> int:
     dsn = os.environ["AUTOSENTINEL_CHECKPOINTER_DSN"]
     thread_id = sys.argv[1]
 
-    clients = build_fixture_clients(code_fixer_artifact="DROP TABLE users")
+    clients = build_fixture_clients(code_fixer_artifact='print("DROP TABLE users")')
     agents = build_injected_agents(clients)
 
     with PostgresSaver.from_conn_string(dsn) as checkpointer:

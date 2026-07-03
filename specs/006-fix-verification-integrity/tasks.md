@@ -19,7 +19,7 @@ research.md Decision 8): PR-1=US1, PR-2=US2+US4, PR-3=US3+US5, PR-4=re-baseline.
 
 ## Phase 1: Setup (no commits — environment sanity)
 
-- [ ] T001 Verify dev environment: `uv sync --extra dev`; start checkpointer via `infra/docker-compose.checkpointer.yml`; confirm `uv run pytest` collects and the suite is green on branch `006-fix-verification-integrity`
+- [X] T001 Verify dev environment: `uv sync --extra dev`; start checkpointer via `infra/docker-compose.checkpointer.yml`; confirm `uv run pytest` collects and the suite is green on branch `006-fix-verification-integrity`
 
 ## Phase 2: Foundational
 

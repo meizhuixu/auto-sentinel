@@ -33,7 +33,7 @@ from tests.integration._pr4_helpers import (
 def _seed_high_risk_checkpoint(incident_id: str, log: Path) -> None:
     """Run process-A up to the HIGH_RISK interrupt, persisting a checkpoint at
     thread_id == incident_id in the shared PostgresSaver."""
-    clients = build_fixture_clients(code_fixer_artifact="DROP TABLE users")
+    clients = build_fixture_clients(code_fixer_artifact='print("DROP TABLE users")')
     agents = build_injected_agents(clients)
     initial_state = {
         "log_path": str(log),
