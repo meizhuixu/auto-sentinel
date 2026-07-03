@@ -11,7 +11,7 @@ import atexit
 import logging
 import os
 import secrets
-from typing import Optional
+from typing import Any, Optional
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
@@ -195,7 +195,8 @@ def build_multi_agent_graph(
     *,
     checkpointer=None,
     agents: Optional[dict] = None,
-) -> StateGraph:
+) -> Any:  # CompiledStateGraph; typed Any because langgraph's invoke()
+    # overloads reject plain-dict configs under mypy (baseline, see DEBT.md)
     """Compile the v2 multi-agent pipeline.
 
     Keyword-only params (Sprint 5 PR-4):

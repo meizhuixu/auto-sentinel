@@ -97,7 +97,7 @@ class TestSmokeBenchmark:
         summary, output_root = smoke_run
         results_path = output_root / summary["run_id"] / "results.jsonl"
         assert results_path.exists()
-        lines = [l for l in results_path.read_text().splitlines() if l.strip()]
+        lines = [ln for ln in results_path.read_text().splitlines() if ln.strip()]
         assert len(lines) == 5
         from autosentinel.benchmark import BenchmarkResult
         for line in lines:

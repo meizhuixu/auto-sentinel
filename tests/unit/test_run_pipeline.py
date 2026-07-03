@@ -1,6 +1,5 @@
 """Unit tests for run_pipeline() public API and CLI entry point."""
 
-import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch

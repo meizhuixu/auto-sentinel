@@ -21,7 +21,6 @@ import sys
 import uuid
 from pathlib import Path
 
-import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from autosentinel.multi_agent_graph import build_multi_agent_graph

@@ -17,7 +17,6 @@ import secrets
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from autosentinel.multi_agent_graph import build_multi_agent_graph

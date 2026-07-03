@@ -13,7 +13,7 @@ separate, untouched workflow).
 
 | Job | Steps | Failure blocks merge |
 |-----|-------|----------------------|
-| `lint` | checkout → setup-uv (Python 3.11) → `uv sync --extra dev` → `uv run ruff check .` | yes |
+| `lint` | checkout → setup-uv (Python 3.11) → `uv sync --extra dev --frozen` → `uv run ruff check .` | yes |
 | `typecheck` | same setup → `uv run mypy autosentinel` | yes |
 | `test` | same setup → `uv run pytest` | yes |
 
@@ -46,4 +46,8 @@ executed set, never in the skipped set.
 
 `ruff>=0.4.0` and `mypy>=1.10.0` live in the `dev` extra of `pyproject.toml`
 (re-synced with `uv.lock`, which already carries these pins). CI installs
-exclusively via `uv sync --extra dev` — no `pip install` drift.
+exclusively via `uv sync --extra dev --frozen` — no `pip install` drift, and
+`--frozen` skips re-resolution so the `tracing` extra's local-path source
+(`../llmops-dashboard`, absent on CI) is never touched (verified by local
+simulation: plain `uv sync --extra dev` fails without the sibling repo,
+`--frozen` succeeds).

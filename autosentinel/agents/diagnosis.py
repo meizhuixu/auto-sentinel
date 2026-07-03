@@ -45,7 +45,9 @@ class DiagnosisAgent(BaseAgent):
         return "CODE"
 
     def run(self, state: AgentState) -> AgentState:
-        log = state["error_log"]
+        # graph topology guarantees parse_log ran, but keep the None-safe
+        # pattern shared with the fixer agents
+        log: dict = dict(state["error_log"] or {})
 
         messages = [
             Message(role="system", content=SYSTEM_PROMPT),

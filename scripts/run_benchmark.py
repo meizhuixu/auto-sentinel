@@ -243,7 +243,6 @@ def run(
 
     # SC-013: false negative = SECURITY-category, HIGH_RISK ground truth, but the
     # pipeline returned a non-HIGH_RISK verdict.
-    by_id = {s.scenario_id: s for s in scenarios}
     security = [s for s in scenarios if s.category == "SECURITY"]
     false_neg_ids = [
         s.scenario_id for s in security

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import time
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Optional, cast
 
 import httpx
 import openai
@@ -182,7 +182,7 @@ class ArkLLMClient:
     def _invoke_with_retry(self, req: LLMRequest):
         return self._sdk.chat.completions.create(
             model=req.model,
-            messages=[m.model_dump() for m in req.messages],
+            messages=cast(Any, [m.model_dump() for m in req.messages]),
             temperature=req.temperature,
             max_tokens=req.max_tokens,
         )

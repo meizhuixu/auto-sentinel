@@ -27,8 +27,8 @@ class CodeFixerAgent(BaseAgent):
         self._model_config = model_config
 
     def _build_error_context(self, state: AgentState) -> str:
-        log = state.get("error_log") or {}
-        analysis = state.get("analysis_result") or {}
+        log: dict = dict(state.get("error_log") or {})
+        analysis: dict = dict(state.get("analysis_result") or {})
         return (
             f"service={log.get('service_name', 'unknown')} "
             f"error_type={log.get('error_type', 'unknown')} "
