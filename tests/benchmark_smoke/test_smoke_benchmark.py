@@ -127,7 +127,11 @@ def _docker_exit(mock_docker: MagicMock, status_code: int) -> None:
     mock_docker.from_env.return_value = client
     client.containers.run.return_value = container
     container.wait.return_value = {"StatusCode": status_code}
-    container.logs.side_effect = [b"", b"fix crashed\n"] if status_code else [b"ok\n", b""]
+    # callable side_effect: a list would exhaust after one scenario (5 run here)
+    container.logs.side_effect = lambda stdout=True, stderr=False: (
+        (b"" if status_code else b"ok\n") if stdout else
+        (b"fix crashed\n" if status_code else b"")
+    )
 
 
 def _docker_timeout(mock_docker: MagicMock) -> None:

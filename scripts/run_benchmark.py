@@ -95,6 +95,13 @@ def _build_mock_agents(scenario) -> dict:
     classification = scenario.expected_classification
     specialist = "infra_sre" if classification in ("INFRA", "CONFIG") else "code_fixer"
 
+    # Sprint 6 contracts/fix-artifact.md: the mock artifact must be a
+    # contract-compliant standalone script. The human-authored
+    # expected_resolution_action is prose (a ground-truth LABEL, untouched);
+    # the mock derives a compile-clean script from it so the sandbox verdict —
+    # not artifact shape — decides resolution.
+    mock_artifact = f"print({scenario.expected_resolution_action!r})"
+
     return {
         "diagnosis": DiagnosisAgent(
             llm_client=_client(json.dumps(
@@ -105,9 +112,9 @@ def _build_mock_agents(scenario) -> dict:
                 {"specialist": specialist, "rationale": "benchmark mock routing"})),
             model_config=cfg),
         "code_fixer": CodeFixerAgent(
-            llm_client=_client(scenario.expected_resolution_action), model_config=cfg),
+            llm_client=_client(mock_artifact), model_config=cfg),
         "infra_sre": InfraSREAgent(
-            llm_client=_client(scenario.expected_resolution_action), model_config=cfg),
+            llm_client=_client(mock_artifact), model_config=cfg),
         "security_reviewer": SecurityReviewerAgent(
             llm_client=_client(json.dumps(
                 {"verdict": scenario.expected_security_verdict,
@@ -187,7 +194,19 @@ def _run_v2(scenario, *, use_mock: bool):
         )
 
     verdict = result.get("security_verdict")
-    resolved = result.get("report_text") is not None and result.get("execution_error") is None
+    # Sprint 6 tightened definition (006 data-model.md §3): resolution means
+    # the fix VERIFIABLY SUCCEEDED in the sandbox — pipeline completion alone
+    # (report present, no docker-level error) is no longer enough.
+    execution_result = result.get("execution_result")
+    execution_status = (
+        execution_result.get("status") if isinstance(execution_result, dict)
+        else getattr(execution_result, "status", None)
+    )
+    resolved = (
+        result.get("report_text") is not None
+        and result.get("execution_error") is None
+        and execution_status == "success"
+    )
     benchmark_result = BenchmarkResult(
         scenario_id=scenario.scenario_id,
         actual_classification=result.get("error_category") or "UNKNOWN",
@@ -280,6 +299,12 @@ def run(
             "total_cost": str(v2_cost_total),
             "cost_currency": "CNY",
             "resolution_rate": round(v2_passed / n, 2) if n else 0.0,
+            # self-describing metric (FR-005): a summary file states the
+            # definition its resolution_rate was computed under
+            "resolved_definition": (
+                "report_text present AND no execution_error AND "
+                "execution_result.status == 'success'"
+            ),
         },
         "security_subset": {
             "count": len(security),
