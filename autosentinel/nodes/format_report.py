@@ -1,5 +1,13 @@
-"""format_report node — renders markdown report and writes to output/."""
+"""format_report node — renders markdown report and writes to output/.
 
+M4 MCP enabler (specs/m4-mcp-enabler FR-001): alongside the markdown report,
+a machine-readable sidecar `output/{stem}-result.json` is written so the
+event gateway can serve GET /api/v1/alerts/{job_id} without parsing markdown.
+The AgentState → sidecar field mapping is deterministic and documented in
+specs/m4-mcp-enabler/spec.md — no LLM calls happen here.
+"""
+
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -90,6 +98,103 @@ def _analysis_section(state) -> str:
 """
 
 
+# ── M4 sidecar mapping (specs/m4-mcp-enabler/spec.md, "Honest field-mapping") ──
+
+# Multi-agent DiagnosisAgent categories. SECURITY has no slot in the MCP
+# category vocabulary (runtime|build|infra|config|unknown) — mapped to
+# "unknown" rather than disguised as runtime.
+_ERROR_CATEGORY_MAP = {
+    "CODE": "runtime",
+    "INFRA": "infra",
+    "CONFIG": "config",
+    "SECURITY": "unknown",
+}
+
+# Supervisor route fallback (used when DiagnosisAgent output is absent).
+_SPECIALIST_MAP = {"code_fixer": "runtime", "infra_sre": "infra"}
+
+# v1 single-agent analyze_error categories.
+_V1_CATEGORY_MAP = {
+    "connectivity": "infra",
+    "resource_exhaustion": "infra",
+    "configuration": "config",
+    "application_logic": "runtime",
+}
+
+_RISK_MAP = {"SAFE": "low", "CAUTION": "medium", "HIGH_RISK": "high"}
+
+
+def _derive_category(state) -> str:
+    category = state.get("error_category")
+    if category in _ERROR_CATEGORY_MAP:
+        return _ERROR_CATEGORY_MAP[category]
+    specialist = state.get("specialist")
+    if specialist in _SPECIALIST_MAP:
+        return _SPECIALIST_MAP[specialist]
+    analysis = state.get("analysis_result")
+    if analysis:
+        return _V1_CATEGORY_MAP.get(analysis.get("error_category"), "unknown")
+    return "unknown"
+
+
+def _derive_severity(state) -> str:
+    """No agent grades incident severity today; "medium" is the documented
+    deterministic fallback. The only graded signal in state is the security
+    gate — HIGH_RISK / approval_required upgrade to "high"."""
+    if state.get("security_verdict") == "HIGH_RISK" or state.get("approval_required"):
+        return "high"
+    return "medium"
+
+
+def _derive_summary(state) -> str:
+    analysis = state.get("analysis_result")
+    if analysis and analysis.get("root_cause_hypothesis"):
+        return analysis["root_cause_hypothesis"]
+    routing = state.get("routing_decision")
+    if routing:
+        return routing
+    log = state["error_log"]
+    return f"{log['error_type']} in {log['service_name']}: {log['message']}"
+
+
+def _derive_fix(state) -> dict:
+    analysis = state.get("analysis_result")
+    if analysis and analysis.get("remediation_steps"):
+        fix_plan = "\n".join(analysis["remediation_steps"])
+    else:
+        # Specialist agents emit an executable fix script, not a plan text —
+        # surfaced verbatim as the closest honest "plan".
+        fix_plan = state.get("fix_artifact") or state.get("fix_script") or ""
+    return {
+        "fix_plan": fix_plan,
+        "risk_level": _RISK_MAP.get(state.get("security_verdict"), "medium"),
+        # The pipeline never produces a unified diff (fix_artifact is an
+        # executable script); always empty rather than a fake diff. DEBT.md.
+        "code_diff": "",
+    }
+
+
+def _write_result_sidecar(state, source_stem: str, output_dir: Path, report_path: Path) -> None:
+    log = state["error_log"]
+    result = {
+        # API runs: state trace_id == job_id == incoming-file stem. CLI v1
+        # runs carry no trace_id — the log stem is the honest identifier.
+        "trace_id": state.get("trace_id") or source_stem,
+        "status": "completed",
+        "diagnosis": {
+            "category": _derive_category(state),
+            "severity": _derive_severity(state),
+            "summary": _derive_summary(state),
+        },
+        "fix": _derive_fix(state),
+        "service_name": log["service_name"],
+        "error_type": log["error_type"],
+        "report_path": str(report_path.resolve()),
+    }
+    sidecar_path = output_dir / f"{source_stem}-result.json"
+    sidecar_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+
 def format_report(state) -> dict:
     """Format analysis into a markdown report and write to output/."""
     log = state["error_log"]
@@ -120,5 +225,7 @@ def format_report(state) -> dict:
     output_dir.mkdir(parents=True, exist_ok=True)
     report_path = output_dir / f"{source_stem}-report.md"
     report_path.write_text(report, encoding="utf-8")
+
+    _write_result_sidecar(state, source_stem, output_dir, report_path)
 
     return {"report_text": report, "report_path": str(report_path.resolve())}
