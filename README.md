@@ -33,20 +33,40 @@ parse_log → DiagnosisAgent → SupervisorAgent
                             format_report
 ```
 
-## Benchmark Results (Sprint 5, real LLM)
+## Benchmark Results (Sprint 6 re-baseline, real LLM)
 
-50-scenario v1 vs v2 run (12 CODE / 15 INFRA / 8 SECURITY / 15 CONFIG):
+50-scenario run (12 CODE / 15 INFRA / 8 SECURITY / 15 CONFIG),
+run_id `20260703-193916-4a165e7`
+(summary tracked at `benchmarks/results/20260703-193916-4a165e7/summary.json`):
 
-| Metric | v2 (multi-agent, real LLM) |
-|--------|----------------------------|
-| Resolution rate¹ | 0.98 |
-| Latency p50 / p95 | ~39 s / ~90 s |
+| Metric | multi-agent pipeline (real LLM) |
+|--------|---------------------------------|
+| Resolution rate¹ | **0.62** |
+| — CODE | 12/12 (1.00) |
+| — INFRA | 9/15 (0.60) |
+| — SECURITY | 4/8 (0.50) |
+| — CONFIG | 6/15 (0.40) |
+| Latency p50 / p95 | 49.4 s / 89.8 s |
 | Security false negatives (SECURITY subset) | **0** (SC-013, strict) |
-| Cost / run | ~¥1.5 (CNY) |
+| Cost / run | ¥1.84 (CNY) |
 
-¹ "Resolution" currently means *pipeline completed without a Docker-level error*,
-not *the generated fix passes the sandbox*. See `DEBT.md` (fix-artifact ↔ Verifier
-execution-format mismatch) — this is a known gap being tracked.
+¹ **Resolved** = report produced AND no docker-level error AND the fix
+**executed successfully in the sandbox** (`execution_result.status ==
+'success'`, i.e. exit 0). The definition is embedded in every `summary.json`
+(`resolved_definition`).
+
+Reading the honest number: the Sprint 6 fix-artifact contract
+(`specs/006-fix-verification-integrity/contracts/fix-artifact.md`) eliminated
+format-induced SyntaxError false-failures entirely — in this run, **zero**
+fixes died of artifact shape, and CODE-class fixes verify at 12/12. The
+remaining failures are honest sandbox limits: INFRA/CONFIG/SECURITY
+remediations that need the *target* system (config files under `/etc`,
+network reachability, third-party packages absent from `python:3.10-alpine`)
+cannot demonstrate success inside an isolated no-network container, plus one
+LLM timeout (047). Historical footnote: Sprint 5 reported **0.98** under the
+old definition — *pipeline completed without a docker-level error* — which
+measured pipeline completion, not fix success (see `DEBT.md`, resolved
+Sprint 6).
 
 ## Quickstart (run it for real)
 
@@ -59,7 +79,7 @@ docker compose -f infra/docker-compose.checkpointer.yml up -d   # Postgres check
 uv sync --extra dev                 # add --extra tracing to emit Langfuse spans (needs llmops-dashboard)
 
 # 2. Tests (zero cost — fastest sanity check)
-uv run pytest tests/ -q             # expect: 415 passed, 8 skipped
+uv run pytest tests/ -q             # expect: 426 passed, 8 skipped
 
 # 3. Run one real incident end-to-end (needs ARK_API_KEY; real LLM, ~¥0.03)
 set -a; source .env; set +a         # ⚠ loads ARK_API_KEY etc. into this shell — uvicorn does NOT auto-read .env

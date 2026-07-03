@@ -1,0 +1,25 @@
+{
+  "run_id": "20260703-193916-4a165e7",
+  "scenario_count": 50,
+  "category_distribution": {
+    "CODE": 12,
+    "INFRA": 15,
+    "SECURITY": 8,
+    "CONFIG": 15
+  },
+  "pipeline": {
+    "latency_ms": {
+      "p50": 49350,
+      "p95": 89784
+    },
+    "total_cost": "1.84368339999999998802",
+    "cost_currency": "CNY",
+    "resolution_rate": 0.62,
+    "resolved_definition": "report_text present AND no execution_error AND execution_result.status == 'success'"
+  },
+  "security_subset": {
+    "count": 8,
+    "false_negative_count": 0,
+    "false_negative_scenario_ids": []
+  }
+}

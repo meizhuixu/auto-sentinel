@@ -159,10 +159,10 @@ from a non-root working directory.
 
 ## Phase 8: Re-baseline & Publication (completes US2's SC-002; depends on US1+US2+US4)
 
-- [ ] T035 THE re-baseline run (developer go-ahead for spend): `uv run python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 150` over all 50 scenarios; archive `benchmarks/results/<run_id>/` output; verify SC-001 in results.jsonl (zero format-induced SyntaxError failures)
-- [ ] T036 Publish in README.md — "Benchmark (Sprint 6 re-baseline)" section: resolution rate under the new definition, P50/P95 latency, total cost + CNY, run_id, `resolved_definition`; demote the 0.98 completion-rate figure to a historical footnote with its old definition
-- [ ] T037 Update docs/PROJECT.md 当前状态 snapshot (Sprint 6 outcomes, re-baseline numbers, constitution v2.3.0) and final DEBT.md consistency check
-- [ ] T038 Quickstart validation pass: execute every command block in specs/006-fix-verification-integrity/quickstart.md end-to-end; fix drift → SC-005 evidence
+- [X] T035 THE re-baseline run (developer go-ahead for spend): `uv run python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budget 150` over all 50 scenarios; archive `benchmarks/results/<run_id>/` output; verify SC-001 in results.jsonl (zero format-induced SyntaxError failures)
+- [X] T036 Publish in README.md — "Benchmark (Sprint 6 re-baseline)" section: resolution rate under the new definition, P50/P95 latency, total cost + CNY, run_id, `resolved_definition`; demote the 0.98 completion-rate figure to a historical footnote with its old definition
+- [X] T037 Update docs/PROJECT.md 当前状态 snapshot (Sprint 6 outcomes, re-baseline numbers, constitution v2.3.0) and final DEBT.md consistency check
+- [X] T038 Quickstart validation pass: execute every command block in specs/006-fix-verification-integrity/quickstart.md end-to-end; fix drift → SC-005 evidence
 
 **Checkpoint**: Phase 8 = PR-4 scope. Sprint 6 done: CI green + honest numbers in README.
 

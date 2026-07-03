@@ -6,21 +6,36 @@
 
 ---
 
-## 当前状态（快照 2026-07-03）
+## 当前状态（快照 2026-07-03，Sprint 6 收尾）
 
-- ✅ **Sprint 5（Real LLM Integration）完成**：`specs/005-real-llm-integration/tasks.md` 68/68 全部 `[X]`。
-  T068 冒烟脚本（PR #17）与 docs（PR #18）已合并，main 在 `7af8b97`。
-- ✅ **Langfuse 集成实测通过（2026-07-03，项目 4 Phase 2 对接）**：真实 incident（fixture 008
-  KeyError）穿过 6-agent 流水线——单父 trace 下 4 个 generation（diagnosis / supervisor /
-  code_fixer / security_reviewer），per-agent 端点路由正确，总成本 ¥0.0322 CNY（ModelUsage 计入
-  + cost_currency metadata），端到端 44.9s（高于 30s 的 P50 目标，Sprint 6 re-baseline 的数据点）。
-  本次沙盒验证 exit 0 成功——DEBT 里的 fix↔Verifier 契约问题非必现，待量化。
+- ✅ **Sprint 6（Fix Verification Integrity & Pipeline Consolidation）代码全部完成**：
+  `specs/006-fix-verification-integrity/`（spec/plan/tasks/contracts 齐全，SDD 全流程）。
+  分支 `006-fix-verification-integrity`，本地提交完毕，**等 owner 确认 push / 开 PR**
+  （交付形状：PR-1 契约修复 → PR-2 评分收紧+v1 退役 → PR-3 CI+DX → PR-4 re-baseline 发布）。
+- ✅ **fix-artifact ↔ Verifier 契约修复（US1，双保险）**：契约=完整可运行脚本
+  （`contracts/fix-artifact.md`）。生产侧 prompt + compile() 校验 + 单次重试
+  （`_producer_contract.py`）；Verifier 侧确定性规范化（`_artifact_normalizer.py`：
+  verbatim/wrapped/rejected）+ 落盘挂载执行（替掉 `python -c`）。真实 008 验证：exit 0、
+  outcome verbatim。
+- ✅ **诚实 re-baseline 完成（run_id `20260703-193916-4a165e7`，¥1.84）**：
+  `resolved` 收紧为要求沙盒 exit 0 → **resolution_rate 0.62**（CODE 12/12=1.00、INFRA 0.60、
+  SECURITY 0.50、CONFIG 0.40），P50 49.4s / P95 89.8s，SC-013 漏报=0，
+  **格式性 SyntaxError 失败=0（SC-001 达成）**。旧 0.98 是完成率口径，已降为 README 历史脚注。
+  未解决的 19 个全是诚实的沙盒边界（目标系统配置/网络/第三方包在 alpine 沙盒不存在）+1 个 LLM 超时。
+- ✅ **v1 单代理管线退役（US4）**：`graph.py`/`nodes/{analyze_error,execute_fix}.py`/
+  `DiagnosticState`/`AUTOSENTINEL_MULTI_AGENT` 全删；`nodes/{parse_log,format_report}.py`
+  保留（v2 共用）。**Constitution 2.2.0 → 2.3.0**（I 与 VII.1 的 grandfathering 条款移除）。
+- ✅ **broad CI 落地（US3）**：`.github/workflows/ci.yml` = ruff + mypy + 全量 pytest
+  （含两个 AST 边界 gate）+ :5434 Postgres service + `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1`
+  防静默 skip（要求时 DB 不可达 = 红，实测验证）。`uv sync --extra dev --frozen`
+  规避 CI 上 `../llmops-dashboard` 路径依赖（本地模拟验证）。**CI 三 job 在真实 PR 上转绿
+  是 T022 的最后验收，随 push 完成。**
+- ✅ DX 小项（US5）：factory 配置路径锚定包内、CLAUDE.md Onboarding/Sprint Start 文档、
+  `setup-plan.sh` 防覆盖闸（`--force` 才能覆写已填充 plan.md）。
 - 🔑 `ARK_API_KEY` 已在本地 `.env` 配置（矩阵中唯一已配 key 的项目）。
-- ⚠️ 高优先级已知问题见 `DEBT.md`：**fix-artifact ↔ Verifier 执行格式不匹配**（code 类修复曾以
-  SyntaxError 挂掉沙盒验证）+ **benchmark `resolved` 定义过宽**（0.98 的 resolution_rate 度量的是
-  pipeline 完成率而非修复验证通过率，需 re-baseline）。
-- 下一步：**Sprint 6（SDD）**，范围见 `~/Repo/PORTFOLIO.md` M2——fix↔Verifier 契约修复、
-  `resolved` 定义收紧 + 50 场景 re-baseline、broad CI、v1 pipeline 退役。
+- ⚠️ 新记 DEBT：`AgentState.fix_script` 残留字段、mypy 基线偏松（typeddict-item 豁免）、
+  `cost_accumulated` 镜像在成功 run 里恒 0（CostGuard 本体正常，benchmark 计费不受影响）。
+- 下一步：owner 确认后 push + 按 4-PR 形状开 PR/merge；然后按 `~/Repo/PORTFOLIO.md` 进 M3。
 
 ---
 
@@ -42,8 +57,9 @@ HIGH_RISK 触发 LangGraph `interrupt()`，PostgresSaver 支持跨进程 `Comman
 
 ## 方法论
 
-**SDD (Spec Kit)**：Constitution 项目级一次立项（现为 v2.2.0），每个 Sprint 必走
-/specify → /plan → /tasks → /implement，不可跳过。Constitution v2.2.0 的 Principle VII
+**SDD (Spec Kit)**：Constitution 项目级一次立项（现为 v2.3.0——Sprint 6 移除了 I/VII.1
+的 v1 grandfathering 条款），每个 Sprint 必走
+/specify → /plan → /tasks → /implement，不可跳过。Constitution v2.2.0 起的 Principle VII
 （LLM Provider Boundary & Cost Governance）：VII.1 Provider Isolation（AST 强制 SDK import
 仅限 `src/auto_sentinel/llm/`）/ VII.2 Cost Guard 不可绕过 / VII.3 Trace Propagation 强制 /
 VII.4 Model Routing 声明式。
