@@ -1,6 +1,9 @@
 """SC-004: Only autosentinel/agents/verifier.py may import the docker SDK.
 
-Allowlist below corresponds to Constitution v2.1.1 grandfathering clause.
+Sprint 6 (006-fix-verification-integrity US4): the v1 grandfathering entry
+(autosentinel/nodes/execute_fix.py, Constitution v2.1.1 clause) is removed —
+the v1 pipeline is retired and the Verifier is the single Docker importer.
+Expanding this allowlist requires a constitution amendment.
 """
 
 import ast
@@ -9,8 +12,6 @@ from pathlib import Path
 
 _ALLOWED = {
     "autosentinel/agents/verifier.py",
-    # v1 legacy node — kept for benchmark v1 pipeline; not an agent module
-    "autosentinel/nodes/execute_fix.py",
 }
 
 
