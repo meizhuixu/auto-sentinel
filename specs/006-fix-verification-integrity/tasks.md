@@ -92,15 +92,15 @@ green with checkpointer tests in the executed set.
 
 ### Tests (write first, confirm RED, commit before implementation)
 
-- [ ] T016 [US3] Failing unit test for the anti-silent-skip escalation in tests/unit/test_checkpointer_guard.py — with `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1` and an unreachable DB probe, the guard fails instead of skipping; without the env var, skip behavior unchanged
+- [X] T016 [US3] Failing unit test for the anti-silent-skip escalation in tests/unit/test_checkpointer_guard.py — with `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1` and an unreachable DB probe, the guard fails instead of skipping; without the env var, skip behavior unchanged
 
 ### Implementation
 
-- [ ] T017 [US3] Implement the escalation in tests/integration/_pr4_helpers.py (`requires_checkpointer` → fail when required-but-unavailable) → T016 GREEN
-- [ ] T018 [US3] Add `ruff>=0.4.0` + `mypy>=1.10.0` to the `dev` extra in pyproject.toml (re-sync with uv.lock's existing pins) plus minimal `[tool.ruff]` / `[tool.mypy]` baseline config (mypy pragmatic: `ignore_missing_imports`, no strict flags)
-- [ ] T019 [US3] Run `uv run ruff check .` and fix (or explicitly configure away) all violations across autosentinel/, scripts/, tests/
-- [ ] T020 [US3] Run `uv run mypy autosentinel` and fix (or baseline-scope) all errors; record any deliberate exclusions in DEBT.md
-- [ ] T021 [US3] Create .github/workflows/ci.yml per contracts/ci-gate.md — jobs lint/typecheck/test; postgres:16 service on 5434 with health check; `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1`; triggers `pull_request` + `push: main`; scenario-authorship.yml untouched
+- [X] T017 [US3] Implement the escalation in tests/integration/_pr4_helpers.py (`requires_checkpointer` → fail when required-but-unavailable) → T016 GREEN
+- [X] T018 [US3] Add `ruff>=0.4.0` + `mypy>=1.10.0` to the `dev` extra in pyproject.toml (re-sync with uv.lock's existing pins) plus minimal `[tool.ruff]` / `[tool.mypy]` baseline config (mypy pragmatic: `ignore_missing_imports`, no strict flags)
+- [X] T019 [US3] Run `uv run ruff check .` and fix (or explicitly configure away) all violations across autosentinel/, scripts/, tests/
+- [X] T020 [US3] Run `uv run mypy autosentinel` and fix (or baseline-scope) all errors; record any deliberate exclusions in DEBT.md
+- [X] T021 [US3] Create .github/workflows/ci.yml per contracts/ci-gate.md — jobs lint/typecheck/test; postgres:16 service on 5434 with health check; `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1`; triggers `pull_request` + `push: main`; scenario-authorship.yml untouched
 - [ ] T022 [US3] CI-parity local run: `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1 uv run pytest` with the 5434 container up — full suite green; then verify on the PR that all three jobs pass and checkpointer tests appear in the executed (not skipped) set → SC-003 evidence
 
 **Checkpoint**: US3 complete; every subsequent PR is gated.
@@ -144,14 +144,14 @@ from a non-root working directory.
 
 ### Tests (write first, confirm RED, commit before implementation)
 
-- [ ] T030 [P] [US5] Failing regression test in tests/unit/test_model_routing.py — routing config resolves when process CWD is not the repo root (monkeypatch CWD or subprocess from a temp dir); env-var override still takes precedence
+- [X] T030 [P] [US5] Failing regression test in tests/unit/test_model_routing.py — routing config resolves when process CWD is not the repo root (monkeypatch CWD or subprocess from a temp dir); env-var override still takes precedence
 
 ### Implementation
 
-- [ ] T031 [US5] Anchor `_DEFAULT_ROUTING_PATH` in autosentinel/llm/factory.py to `Path(__file__).resolve().parents[2] / "config" / "model_routing.yaml"` → T030 GREEN
-- [ ] T032 [P] [US5] Onboarding docs: add `uv sync --extra dev` as the mandatory setup step in README.md and CLAUDE.md (note the system-Python fallback pitfall)
-- [ ] T033 [P] [US5] Add clobber guard to .specify/scripts/bash/setup-plan.sh — refuse to overwrite an existing non-empty plan.md unless `--force`; document the sprint-start feature.json step alongside
-- [ ] T034 [US5] Flip the DEBT.md entries resolved by this sprint (`[ ]`→`[X]`, same-commit-as-fix policy): factory CWD path, uv sync onboarding, feature.json kickoff check, CI gap, fix↔Verifier contract + `resolved` definition (as their fixes land in PR-1/2/3 — this task is the final consistency sweep)
+- [X] T031 [US5] Anchor `_DEFAULT_ROUTING_PATH` in autosentinel/llm/factory.py to `Path(__file__).resolve().parents[2] / "config" / "model_routing.yaml"` → T030 GREEN
+- [X] T032 [P] [US5] Onboarding docs: add `uv sync --extra dev` as the mandatory setup step in README.md and CLAUDE.md (note the system-Python fallback pitfall)
+- [X] T033 [P] [US5] Add clobber guard to .specify/scripts/bash/setup-plan.sh — refuse to overwrite an existing non-empty plan.md unless `--force`; document the sprint-start feature.json step alongside
+- [X] T034 [US5] Flip the DEBT.md entries resolved by this sprint (`[ ]`→`[X]`, same-commit-as-fix policy): factory CWD path, uv sync onboarding, feature.json kickoff check, CI gap, fix↔Verifier contract + `resolved` definition (as their fixes land in PR-1/2/3 — this task is the final consistency sweep)
 
 **Checkpoint**: US3+US5 together = PR-3 scope.
 
