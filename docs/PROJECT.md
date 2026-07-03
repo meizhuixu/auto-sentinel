@@ -6,12 +6,12 @@
 
 ---
 
-## 当前状态（快照 2026-07-03，Sprint 6 收尾）
+## 当前状态（快照 2026-07-03，Sprint 6 完成）
 
-- ✅ **Sprint 6（Fix Verification Integrity & Pipeline Consolidation）代码全部完成**：
-  `specs/006-fix-verification-integrity/`（spec/plan/tasks/contracts 齐全，SDD 全流程）。
-  分支 `006-fix-verification-integrity`，本地提交完毕，**等 owner 确认 push / 开 PR**
-  （交付形状：PR-1 契约修复 → PR-2 评分收紧+v1 退役 → PR-3 CI+DX → PR-4 re-baseline 发布）。
+- ✅ **Sprint 6（Fix Verification Integrity & Pipeline Consolidation）完成并合并**：
+  **PR #19 已 merge，main 在 `481a08a`**，tasks.md 38/38 全部 `[X]`，feature 分支已删。
+  SDD 全流程（`specs/006-fix-verification-integrity/`：spec/plan/tasks/contracts 齐全）。
+  对应 `~/Repo/PORTFOLIO.md` M2 的完成标准均达成：CI 全绿 + re-baseline 诚实数字入 README。
 - ✅ **fix-artifact ↔ Verifier 契约修复（US1，双保险）**：契约=完整可运行脚本
   （`contracts/fix-artifact.md`）。生产侧 prompt + compile() 校验 + 单次重试
   （`_producer_contract.py`）；Verifier 侧确定性规范化（`_artifact_normalizer.py`：
@@ -27,15 +27,20 @@
   保留（v2 共用）。**Constitution 2.2.0 → 2.3.0**（I 与 VII.1 的 grandfathering 条款移除）。
 - ✅ **broad CI 落地（US3）**：`.github/workflows/ci.yml` = ruff + mypy + 全量 pytest
   （含两个 AST 边界 gate）+ :5434 Postgres service + `AUTOSENTINEL_REQUIRE_CHECKPOINTER=1`
-  防静默 skip（要求时 DB 不可达 = 红，实测验证）。`uv sync --extra dev --frozen`
-  规避 CI 上 `../llmops-dashboard` 路径依赖（本地模拟验证）。**CI 三 job 在真实 PR 上转绿
-  是 T022 的最后验收，随 push 完成。**
+  防静默 skip（要求时 DB 不可达 = 红，实测验证）。**已在 PR #19 上实测转绿**（首跑因
+  `uv run` 隐式 re-sync 撞 CI 上不存在的 `../llmops-dashboard` 路径依赖而红，
+  `uv sync --frozen` + `uv run --no-sync` 双闸修复；test job 日志确认 checkpointer
+  跨进程测试真实执行、无静默 skip）。
 - ✅ DX 小项（US5）：factory 配置路径锚定包内、CLAUDE.md Onboarding/Sprint Start 文档、
   `setup-plan.sh` 防覆盖闸（`--force` 才能覆写已填充 plan.md）。
 - 🔑 `ARK_API_KEY` 已在本地 `.env` 配置（矩阵中唯一已配 key 的项目）。
 - ⚠️ 新记 DEBT：`AgentState.fix_script` 残留字段、mypy 基线偏松（typeddict-item 豁免）、
   `cost_accumulated` 镜像在成功 run 里恒 0（CostGuard 本体正常，benchmark 计费不受影响）。
-- 下一步：owner 确认后 push + 按 4-PR 形状开 PR/merge；然后按 `~/Repo/PORTFOLIO.md` 进 M3。
+- 下一步：本项目暂告一段落（M2 完成，PORTFOLIO.md 的 M2 勾选由 owner 维护）；
+  矩阵下一站按 `~/Repo/PORTFOLIO.md` 进 **M3（DevDocs RAG Phase 6）**——不同仓库，
+  按红线「一个 chat 不同时推多个项目」应在该仓库新开会话。本仓库再动大概率是
+  M4（DevContext MCP Phase 2 经 HTTP 调 `analyze_error_log` 等 3 个 tool）或
+  M5 端到端 demo。
 
 ---
 
@@ -86,8 +91,9 @@ VII.4 Model Routing 声明式。
 ## 技术栈
 
 LangGraph / OpenAI SDK（base_url→火山方舟）/ Docker SDK / Pydantic v2 / PostgreSQL（checkpointer）/
-Langfuse（自托管，项目 4）/ pytest 100% branch coverage / GitHub Actions（目前仅 scenario-authorship
-gate，broad CI 见 DEBT.md）/ uv
+Langfuse（自托管，项目 4）/ pytest 100% branch coverage / GitHub Actions（Sprint 6 起 broad CI：
+ruff + mypy + 全量 pytest + AST 边界 gate + :5434 checkpointer service；另有 scenario-authorship
+gate）/ uv
 
 ## 跨项目依赖
 

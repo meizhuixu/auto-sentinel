@@ -1,10 +1,14 @@
 # AutoSentinel
 
-✅ **Sprint 5 (Real LLM Integration) complete.** The 6-agent LangGraph pipeline now
-reasons via **real LLMs** (Volcano Ark: doubao-seed-2.0-pro / doubao-1.5-lite-32k /
-GLM-4.7), with a CNY cost guard, deterministic + LLM security gating, cross-process
-HIGH_RISK resume (PostgresSaver), and Langfuse trace correlation. Validated on a
-human-labelled 50-scenario benchmark.
+✅ **Sprint 6 (Fix Verification Integrity) complete.** The 6-agent LangGraph
+pipeline reasons via **real LLMs** (Volcano Ark: doubao-seed-2.0-pro /
+doubao-1.5-lite-32k / GLM-4.7) with a CNY cost guard, deterministic + LLM
+security gating, cross-process HIGH_RISK resume (PostgresSaver), and Langfuse
+trace correlation. Fixes are exchanged under an enforced artifact contract and
+verified in an isolated sandbox; the published resolution rate (**0.62** on the
+human-labelled 50-scenario benchmark) requires the fix to *actually execute
+successfully* — not just the pipeline to complete. Every PR is gated by CI
+(ruff + mypy + full test suite + AST architecture boundaries).
 
 ## Architecture
 
@@ -97,7 +101,8 @@ uv run python scripts/run_benchmark.py --scenarios benchmarks/scenarios/ --budge
 
 `ARK_API_KEY` (Volcano Ark — covers all 3 endpoints) lives in `.env`. For Langfuse
 tracing also `uv sync --extra tracing` and export `LANGFUSE_HOST` / `LANGFUSE_PUBLIC_KEY`
-/ `LANGFUSE_SECRET_KEY`. Full notes: `specs/005-real-llm-integration/quickstart.md`.
+/ `LANGFUSE_SECRET_KEY`. Full notes: `specs/006-fix-verification-integrity/quickstart.md`
+(Sprint 5 LLM-integration notes: `specs/005-real-llm-integration/quickstart.md`).
 
 ## Development
 
@@ -118,3 +123,4 @@ uv run pytest tests/ --cov=autosentinel.llm --cov-fail-under=100 -q   # 100% llm
 | 3 | LangGraph v1 pipeline | ✅ Complete |
 | 4 | Multi-agent migration (6-agent architecture) | ✅ Complete |
 | 5 | Real LLM integration (Volcano Ark + Langfuse + 50-scenario benchmark) | ✅ Complete |
+| 6 | Fix verification integrity (artifact contract + honest re-baseline) + v1 retirement + broad CI | ✅ Complete |
